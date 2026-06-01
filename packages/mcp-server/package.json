@@ -1,0 +1,31 @@
+﻿{
+    "scripts":  {
+                    "build":  "tsc -b",
+                    "dev":  "tsc -b --watch",
+                    "test":  "vitest run"
+                },
+    "description":  "MCP tools for AI agents",
+    "type":  "module",
+    "types":  "./dist/index.d.ts",
+    "version":  "1.0.0",
+    "name":  "@aide/mcp-server",
+    "main":  "./dist/index.js",
+    "exports":  {
+                    ".":  {
+                              "types":  "./dist/index.d.ts",
+                              "import":  "./dist/index.js"
+                          }
+                },
+    "devDependencies":  {
+                            "vitest":  "^3.0.0",
+                            "typescript":  "^5.7.0"
+                        },
+    "dependencies":  {
+                         "@modelcontextprotocol/sdk":  "^1.12.1",
+                         "@aide/guard":  "*",
+                         "@aide/mind":  "*",
+                         "@aide/core":  "*",
+                         "@aide/graph":  "*"
+                     }
+}
+

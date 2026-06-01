@@ -1,0 +1,24 @@
+services:
+  aide:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile
+    ports:
+      - "9900:9900"
+    volumes:
+      - ./aide.config.yaml:/app/aide.config.yaml:ro
+      - aide-data:/app/data
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9900/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+volumes:
+  aide-data:
