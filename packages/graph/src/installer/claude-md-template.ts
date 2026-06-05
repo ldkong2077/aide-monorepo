@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Backwards-compat re-export shim.
  *
  * The instructions template moved to `instructions-template.ts` so it

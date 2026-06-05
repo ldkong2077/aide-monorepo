@@ -1,11 +1,11 @@
-﻿/**
+/**
  * C# Framework Resolver
  *
  * Handles ASP.NET Core, ASP.NET MVC, and common C# patterns.
  */
 
-import { Node } from '../../types.js';
-import { FrameworkResolver, UnresolvedRef, ResolvedRef, ResolutionContext } from '../types.js';
+import { type Node } from '../../types.js';
+import { type FrameworkResolver, type UnresolvedRef, type ResolvedRef, type ResolutionContext } from '../types.js';
 import { stripCommentsForRegex } from '../strip-comments.js';
 
 export const aspnetResolver: FrameworkResolver = {
@@ -18,11 +18,12 @@ export const aspnetResolver: FrameworkResolver = {
     for (const file of allFiles) {
       if (file.endsWith('.csproj')) {
         const content = context.readFile(file);
-        if (content && (
-          content.includes('Microsoft.AspNetCore') ||
-          content.includes('Microsoft.NET.Sdk.Web') ||
-          content.includes('System.Web.Mvc')
-        )) {
+        if (
+          content &&
+          (content.includes('Microsoft.AspNetCore') ||
+            content.includes('Microsoft.NET.Sdk.Web') ||
+            content.includes('System.Web.Mvc'))
+        ) {
           return true;
         }
       }
@@ -30,11 +31,12 @@ export const aspnetResolver: FrameworkResolver = {
 
     // Check for Program.cs with WebApplication
     const programCs = context.readFile('Program.cs');
-    if (programCs && (
-      programCs.includes('WebApplication') ||
-      programCs.includes('CreateHostBuilder') ||
-      programCs.includes('UseStartup')
-    )) {
+    if (
+      programCs &&
+      (programCs.includes('WebApplication') ||
+        programCs.includes('CreateHostBuilder') ||
+        programCs.includes('UseStartup'))
+    ) {
       return true;
     }
 
@@ -62,7 +64,10 @@ export const aspnetResolver: FrameworkResolver = {
     }
 
     // Pattern 2: Service references (dependency injection)
-    if (ref.referenceName.endsWith('Service') || ref.referenceName.startsWith('I') && ref.referenceName.length > 1) {
+    if (
+      ref.referenceName.endsWith('Service') ||
+      (ref.referenceName.startsWith('I') && ref.referenceName.length > 1)
+    ) {
       const result = resolveByNameAndKind(ref.referenceName, SERVICE_KINDS, SERVICE_DIRS, context);
       if (result) {
         return {
@@ -128,7 +133,7 @@ export const aspnetResolver: FrameworkResolver = {
     let match: RegExpExecArray | null;
     while ((match = attrRegex.exec(safe)) !== null) {
       const [, verb, routePath] = match;
-      const method = verb!.replace(/^Http/, '').toUpperCase();
+      const method = verb.replace(/^Http/, '').toUpperCase();
       const line = safe.slice(0, match.index).split('\n').length;
 
       const routeNode: Node = {
@@ -148,11 +153,12 @@ export const aspnetResolver: FrameworkResolver = {
 
       // Capture the next method declaration
       const tail = safe.slice(match.index + match[0].length);
-      const methodMatch = tail.match(/(?:public|private|protected|internal)\s+[\w<>,\s\[\]]+?\s+(\w+)\s*\(/);
+      const methodMatch =
+        /(?:public|private|protected|internal)\s+[\w<>,\s[\]]+?\s+(\w+)\s*\(/.exec(tail);
       if (methodMatch) {
         references.push({
           fromNodeId: routeNode.id,
-          referenceName: methodMatch[1]!,
+          referenceName: methodMatch[1],
           referenceKind: 'references',
           line,
           column: 0,
@@ -166,7 +172,7 @@ export const aspnetResolver: FrameworkResolver = {
     const minimalRegex = /\.Map(Get|Post|Put|Patch|Delete)\s*\(\s*"([^"]+)"\s*,\s*([^,)]+)/g;
     while ((match = minimalRegex.exec(safe)) !== null) {
       const [, verb, routePath, handlerExpr] = match;
-      const method = verb!.toUpperCase();
+      const method = verb.toUpperCase();
       const line = safe.slice(0, match.index).split('\n').length;
 
       const routeNode: Node = {
@@ -184,7 +190,7 @@ export const aspnetResolver: FrameworkResolver = {
       };
       nodes.push(routeNode);
 
-      const handlerName = extractCSharpTailIdent(handlerExpr!);
+      const handlerName = extractCSharpTailIdent(handlerExpr);
       if (handlerName) {
         references.push({
           fromNodeId: routeNode.id,
@@ -205,8 +211,8 @@ export const aspnetResolver: FrameworkResolver = {
 /** Extract last identifier from an expression like `MyService.Handler` or `Handler`. */
 function extractCSharpTailIdent(expr: string): string | null {
   const cleaned = expr.trim().replace(/\s+/g, '');
-  const m = cleaned.match(/(?:\.|^)([A-Za-z_][A-Za-z0-9_]*)$/);
-  return m ? m[1]! : null;
+  const m = /(?:\.|^)([A-Za-z_][A-Za-z0-9_]*)$/.exec(cleaned);
+  return m ? m[1] : null;
 }
 
 // Directory patterns
@@ -236,11 +242,11 @@ function resolveByNameAndKind(
 
   // Prefer candidates in framework-conventional directories
   const preferred = kindFiltered.filter((n) =>
-    preferredDirPatterns.some((d) => n.filePath.includes(d))
+    preferredDirPatterns.some((d) => n.filePath.includes(d)),
   );
 
-  if (preferred.length > 0) return preferred[0]!.id;
+  if (preferred.length > 0) return preferred[0].id;
 
   // Fall back to any match
-  return kindFiltered[0]!.id;
+  return kindFiltered[0].id;
 }

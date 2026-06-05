@@ -1,17 +1,17 @@
-﻿/**
+/**
  * Express/Node.js Framework Resolver
  *
  * Handles Express and general Node.js patterns.
  */
 
-import { Node } from '../../types.js';
-import { FrameworkResolver, UnresolvedRef, ResolvedRef, ResolutionContext } from '../types.js';
+import { type Node } from '../../types.js';
+import { type FrameworkResolver, type UnresolvedRef, type ResolvedRef, type ResolutionContext } from '../types.js';
 import { stripCommentsForRegex } from '../strip-comments.js';
 
 function extractTailIdent(expr: string): string | null {
   const cleaned = expr.replace(/\s+/g, '').replace(/\(\)$/, '');
-  const m = cleaned.match(/(?:\.|^)([A-Za-z_][A-Za-z0-9_]*)$/);
-  return m ? m[1]! : null;
+  const m = /(?:\.|^)([A-Za-z_][A-Za-z0-9_]*)$/.exec(cleaned);
+  return m ? m[1] : null;
 }
 
 export const expressResolver: FrameworkResolver = {
@@ -36,13 +36,14 @@ export const expressResolver: FrameworkResolver = {
     // Check for common Express patterns
     const allFiles = context.getAllFiles();
     for (const file of allFiles) {
-      if (
-        file.includes('routes') ||
-        file.includes('controllers') ||
-        file.includes('middleware')
-      ) {
+      if (file.includes('routes') || file.includes('controllers') || file.includes('middleware')) {
         const content = context.readFile(file);
-        if (content && (content.includes('express') || content.includes('app.get') || content.includes('router.get'))) {
+        if (
+          content &&
+          (content.includes('express') ||
+            content.includes('app.get') ||
+            content.includes('router.get'))
+        ) {
           return true;
         }
       }
@@ -66,10 +67,10 @@ export const expressResolver: FrameworkResolver = {
     }
 
     // Pattern 2: Controller method references
-    const controllerMatch = ref.referenceName.match(/^(\w+)Controller\.(\w+)$/);
+    const controllerMatch = /^(\w+)Controller\.(\w+)$/.exec(ref.referenceName);
     if (controllerMatch) {
       const [, controller, method] = controllerMatch;
-      const result = resolveControllerMethod(controller!, method!, context);
+      const result = resolveControllerMethod(controller, method, context);
       if (result) {
         return {
           original: ref,
@@ -81,10 +82,10 @@ export const expressResolver: FrameworkResolver = {
     }
 
     // Pattern 3: Service/helper references
-    const serviceMatch = ref.referenceName.match(/^(\w+)(Service|Helper|Utils?)\.(\w+)$/);
+    const serviceMatch = /^(\w+)(Service|Helper|Utils?)\.(\w+)$/.exec(ref.referenceName);
     if (serviceMatch) {
       const [, name, suffix, method] = serviceMatch;
-      const result = resolveServiceMethod(name! + suffix!, method!, context);
+      const result = resolveServiceMethod(name + suffix, method, context);
       if (result) {
         return {
           original: ref,
@@ -106,17 +107,18 @@ export const expressResolver: FrameworkResolver = {
     const lang = detectLanguage(filePath);
     const safe = stripCommentsForRegex(content, lang);
     // (app|router).METHOD('/path', handler-expr)
-    const regex = /\b(app|router)\.(get|post|put|patch|delete|all|use)\s*\(\s*['"]([^'"]+)['"]\s*,\s*([^)]+)\)/g;
+    const regex =
+      /\b(app|router)\.(get|post|put|patch|delete|all|use)\s*\(\s*['"]([^'"]+)['"]\s*,\s*([^)]+)\)/g;
     let match: RegExpExecArray | null;
     while ((match = regex.exec(safe)) !== null) {
       const [, _obj, method, routePath, handlers] = match;
-      if (method === 'use' && !routePath!.startsWith('/')) continue;
+      if (method === 'use' && !routePath.startsWith('/')) continue;
       const line = safe.slice(0, match.index).split('\n').length;
       const routeNode: Node = {
-        id: `route:${filePath}:${line}:${method!.toUpperCase()}:${routePath}`,
+        id: `route:${filePath}:${line}:${method.toUpperCase()}:${routePath}`,
         kind: 'route',
-        name: `${method!.toUpperCase()} ${routePath}`,
-        qualifiedName: `${filePath}::${method!.toUpperCase()}:${routePath}`,
+        name: `${method.toUpperCase()} ${routePath}`,
+        qualifiedName: `${filePath}::${method.toUpperCase()}:${routePath}`,
         filePath,
         startLine: line,
         endLine: line,
@@ -127,7 +129,10 @@ export const expressResolver: FrameworkResolver = {
       };
       nodes.push(routeNode);
       // Handler is the LAST comma-separated argument; earlier ones are middleware.
-      const parts = handlers!.split(',').map((s) => s.trim()).filter(Boolean);
+      const parts = handlers
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
       const last = parts[parts.length - 1];
       const handlerName = last ? extractTailIdent(last) : null;
       if (handlerName) {
@@ -171,15 +176,13 @@ function isMiddlewareName(name: string): boolean {
 /**
  * Resolve middleware reference using name-based lookup
  */
-function resolveMiddleware(
-  name: string,
-  context: ResolutionContext
-): string | null {
+function resolveMiddleware(name: string, context: ResolutionContext): string | null {
   // Try exact name first
   const candidates = context.getNodesByName(name);
-  const match = candidates.find((n) =>
-    n.name.toLowerCase() === name.toLowerCase() ||
-    n.name.toLowerCase() === name.replace(/Middleware$/i, '').toLowerCase()
+  const match = candidates.find(
+    (n) =>
+      n.name.toLowerCase() === name.toLowerCase() ||
+      n.name.toLowerCase() === name.replace(/Middleware$/i, '').toLowerCase(),
   );
   if (match) return match.id;
 
@@ -189,10 +192,10 @@ function resolveMiddleware(
     const baseCandidates = context.getNodesByName(baseName);
     const MIDDLEWARE_DIRS = ['/middleware/', '/middlewares/'];
     const preferred = baseCandidates.filter((n) =>
-      MIDDLEWARE_DIRS.some((d) => n.filePath.includes(d))
+      MIDDLEWARE_DIRS.some((d) => n.filePath.includes(d)),
     );
-    if (preferred.length > 0) return preferred[0]!.id;
-    if (baseCandidates.length > 0) return baseCandidates[0]!.id;
+    if (preferred.length > 0) return preferred[0].id;
+    if (baseCandidates.length > 0) return baseCandidates[0].id;
   }
 
   return null;
@@ -204,16 +207,17 @@ function resolveMiddleware(
 function resolveControllerMethod(
   controller: string,
   method: string,
-  context: ResolutionContext
+  context: ResolutionContext,
 ): string | null {
   // Look for the method name directly
   const methodCandidates = context.getNodesByName(method);
   const methodNodes = methodCandidates.filter(
-    (n) => (n.kind === 'method' || n.kind === 'function') &&
-      n.filePath.toLowerCase().includes(controller.toLowerCase())
+    (n) =>
+      (n.kind === 'method' || n.kind === 'function') &&
+      n.filePath.toLowerCase().includes(controller.toLowerCase()),
   );
 
-  if (methodNodes.length > 0) return methodNodes[0]!.id;
+  if (methodNodes.length > 0) return methodNodes[0].id;
 
   // Fall back: look for controller class, then find the method in its file
   const controllerName = controller + 'Controller';
@@ -221,7 +225,7 @@ function resolveControllerMethod(
   for (const ctrl of controllerCandidates) {
     const nodesInFile = context.getNodesInFile(ctrl.filePath);
     const methodNode = nodesInFile.find(
-      (n) => (n.kind === 'method' || n.kind === 'function') && n.name === method
+      (n) => (n.kind === 'method' || n.kind === 'function') && n.name === method,
     );
     if (methodNode) return methodNode.id;
   }
@@ -235,17 +239,17 @@ function resolveControllerMethod(
 function resolveServiceMethod(
   serviceName: string,
   method: string,
-  context: ResolutionContext
+  context: ResolutionContext,
 ): string | null {
   // Look for the method in files matching the service name
   const methodCandidates = context.getNodesByName(method);
   const stripped = serviceName.replace(/(Service|Helper|Utils?)$/i, '').toLowerCase();
   const methodNodes = methodCandidates.filter(
-    (n) => (n.kind === 'method' || n.kind === 'function') &&
-      n.filePath.toLowerCase().includes(stripped)
+    (n) =>
+      (n.kind === 'method' || n.kind === 'function') && n.filePath.toLowerCase().includes(stripped),
   );
 
-  if (methodNodes.length > 0) return methodNodes[0]!.id;
+  if (methodNodes.length > 0) return methodNodes[0].id;
 
   return null;
 }

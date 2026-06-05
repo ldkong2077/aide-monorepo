@@ -1,11 +1,11 @@
-﻿/**
+/**
  * Graph Traversal Algorithms
  *
  * BFS and DFS traversal for the code knowledge graph.
  */
 
-import { Node, Edge, Subgraph, TraversalOptions, EdgeKind } from '../types.js';
-import { QueryBuilder } from '../db/queries.js';
+import { type Node, type Edge, type Subgraph, type TraversalOptions, type EdgeKind } from '../types.js';
+import { type QueryBuilder } from '../db/queries.js';
 
 /**
  * Default traversal options
@@ -86,7 +86,7 @@ export class GraphTraverser {
       // fanning out to external references (e.g., component usages in templates).
       const adjacentEdges = this.getAdjacentEdges(node.id, opts.direction, opts.edgeKinds);
       adjacentEdges.sort((a, b) => {
-        const priority = (e: Edge) => e.kind === 'contains' ? 0 : e.kind === 'calls' ? 1 : 2;
+        const priority = (e: Edge) => (e.kind === 'contains' ? 0 : e.kind === 'calls' ? 1 : 2);
         return priority(a) - priority(b);
       });
 
@@ -105,7 +105,11 @@ export class GraphTraverser {
         }
 
         // Apply node kind filter
-        if (opts.nodeKinds && opts.nodeKinds.length > 0 && !opts.nodeKinds.includes(nextNode.kind)) {
+        if (
+          opts.nodeKinds &&
+          opts.nodeKinds.length > 0 &&
+          !opts.nodeKinds.includes(nextNode.kind)
+        ) {
           continue;
         }
 
@@ -165,7 +169,7 @@ export class GraphTraverser {
     opts: Required<TraversalOptions>,
     nodes: Map<string, Node>,
     edges: Edge[],
-    visited: Set<string>
+    visited: Set<string>,
   ): void {
     if (visited.has(node.id) || nodes.size >= opts.limit || depth >= opts.maxDepth) {
       return;
@@ -210,7 +214,7 @@ export class GraphTraverser {
   private getAdjacentEdges(
     nodeId: string,
     direction: 'outgoing' | 'incoming' | 'both',
-    edgeKinds?: EdgeKind[]
+    edgeKinds?: EdgeKind[],
   ): Edge[] {
     const kinds = edgeKinds && edgeKinds.length > 0 ? edgeKinds : undefined;
 
@@ -233,8 +237,8 @@ export class GraphTraverser {
    * @param maxDepth - Maximum depth to traverse (default: 1)
    * @returns Array of nodes that call this function
    */
-  getCallers(nodeId: string, maxDepth: number = 1): Array<{ node: Node; edge: Edge }> {
-    const result: Array<{ node: Node; edge: Edge }> = [];
+  getCallers(nodeId: string, maxDepth = 1): { node: Node; edge: Edge }[] {
+    const result: { node: Node; edge: Edge }[] = [];
     const visited = new Set<string>();
 
     this.getCallersRecursive(nodeId, maxDepth, 0, result, visited);
@@ -246,8 +250,8 @@ export class GraphTraverser {
     nodeId: string,
     maxDepth: number,
     currentDepth: number,
-    result: Array<{ node: Node; edge: Edge }>,
-    visited: Set<string>
+    result: { node: Node; edge: Edge }[],
+    visited: Set<string>,
   ): void {
     if (currentDepth >= maxDepth || visited.has(nodeId)) {
       return;
@@ -272,8 +276,8 @@ export class GraphTraverser {
    * @param maxDepth - Maximum depth to traverse (default: 1)
    * @returns Array of nodes called by this function
    */
-  getCallees(nodeId: string, maxDepth: number = 1): Array<{ node: Node; edge: Edge }> {
-    const result: Array<{ node: Node; edge: Edge }> = [];
+  getCallees(nodeId: string, maxDepth = 1): { node: Node; edge: Edge }[] {
+    const result: { node: Node; edge: Edge }[] = [];
     const visited = new Set<string>();
 
     this.getCalleesRecursive(nodeId, maxDepth, 0, result, visited);
@@ -285,8 +289,8 @@ export class GraphTraverser {
     nodeId: string,
     maxDepth: number,
     currentDepth: number,
-    result: Array<{ node: Node; edge: Edge }>,
-    visited: Set<string>
+    result: { node: Node; edge: Edge }[],
+    visited: Set<string>,
   ): void {
     if (currentDepth >= maxDepth || visited.has(nodeId)) {
       return;
@@ -311,7 +315,7 @@ export class GraphTraverser {
    * @param depth - Maximum depth in each direction (default: 2)
    * @returns Subgraph containing the call graph
    */
-  getCallGraph(nodeId: string, depth: number = 2): Subgraph {
+  getCallGraph(nodeId: string, depth = 2): Subgraph {
     const focalNode = this.queries.getNodeById(nodeId);
     if (!focalNode) {
       return { nodes: new Map(), edges: [], roots: [] };
@@ -380,7 +384,7 @@ export class GraphTraverser {
     nodeId: string,
     nodes: Map<string, Node>,
     edges: Edge[],
-    visited: Set<string>
+    visited: Set<string>,
   ): void {
     if (visited.has(nodeId)) {
       return;
@@ -403,7 +407,7 @@ export class GraphTraverser {
     nodeId: string,
     nodes: Map<string, Node>,
     edges: Edge[],
-    visited: Set<string>
+    visited: Set<string>,
   ): void {
     if (visited.has(nodeId)) {
       return;
@@ -428,8 +432,8 @@ export class GraphTraverser {
    * @param nodeId - ID of the symbol node
    * @returns Array of nodes and edges that reference this symbol
    */
-  findUsages(nodeId: string): Array<{ node: Node; edge: Edge }> {
-    const result: Array<{ node: Node; edge: Edge }> = [];
+  findUsages(nodeId: string): { node: Node; edge: Edge }[] {
+    const result: { node: Node; edge: Edge }[] = [];
 
     // Get all incoming edges (references, calls, type_of, etc.)
     const incomingEdges = this.queries.getIncomingEdges(nodeId);
@@ -453,7 +457,7 @@ export class GraphTraverser {
    * @param maxDepth - Maximum depth to traverse (default: 3)
    * @returns Subgraph containing potentially impacted nodes
    */
-  getImpactRadius(nodeId: string, maxDepth: number = 3): Subgraph {
+  getImpactRadius(nodeId: string, maxDepth = 3): Subgraph {
     const focalNode = this.queries.getNodeById(nodeId);
     if (!focalNode) {
       return { nodes: new Map(), edges: [], roots: [] };
@@ -482,7 +486,7 @@ export class GraphTraverser {
     currentDepth: number,
     nodes: Map<string, Node>,
     edges: Edge[],
-    visited: Set<string>
+    visited: Set<string>,
   ): void {
     if (currentDepth >= maxDepth || visited.has(nodeId)) {
       return;
@@ -493,7 +497,15 @@ export class GraphTraverser {
     // into their children so that callers of contained methods appear in impact
     const focalNode = this.queries.getNodeById(nodeId);
     if (focalNode) {
-      const containerKinds = new Set(['class', 'interface', 'struct', 'trait', 'protocol', 'module', 'enum']);
+      const containerKinds = new Set([
+        'class',
+        'interface',
+        'struct',
+        'trait',
+        'protocol',
+        'module',
+        'enum',
+      ]);
       if (containerKinds.has(focalNode.kind)) {
         const containsEdges = this.queries.getOutgoingEdges(nodeId, ['contains']);
         for (const edge of containsEdges) {
@@ -532,8 +544,8 @@ export class GraphTraverser {
   findPath(
     fromId: string,
     toId: string,
-    edgeKinds: EdgeKind[] = []
-  ): Array<{ node: Node; edge: Edge | null }> | null {
+    edgeKinds: EdgeKind[] = [],
+  ): { node: Node; edge: Edge | null }[] | null {
     const fromNode = this.queries.getNodeById(fromId);
     const toNode = this.queries.getNodeById(toId);
 
@@ -543,7 +555,7 @@ export class GraphTraverser {
 
     // BFS to find shortest path
     const visited = new Set<string>();
-    const queue: Array<{ nodeId: string; path: Array<{ node: Node; edge: Edge | null }> }> = [
+    const queue: { nodeId: string; path: { node: Node; edge: Edge | null }[] }[] = [
       { nodeId: fromId, path: [{ node: fromNode, edge: null }] },
     ];
 
@@ -562,7 +574,7 @@ export class GraphTraverser {
       // Get outgoing edges
       const outgoingEdges = this.queries.getOutgoingEdges(
         nodeId,
-        edgeKinds.length > 0 ? edgeKinds : undefined
+        edgeKinds.length > 0 ? edgeKinds : undefined,
       );
 
       for (const edge of outgoingEdges) {

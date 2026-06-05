@@ -18,19 +18,23 @@ describe('ConfidenceScorer', () => {
     });
 
     it('penalizes critical diff changes', () => {
-      const diffResults: DiffResult[] = [{
-        filePath: 'src/main.ts',
-        changes: [{
-          type: 'SIGNATURE_CHANGE',
-          file: 'src/main.ts',
-          location: 'L10',
-          before: 'function foo()',
-          after: 'function foo(x: string)',
-          risk: 'critical',
-          reason: 'Signature changed',
-        }],
-        riskScore: 0.9,
-      }];
+      const diffResults: DiffResult[] = [
+        {
+          filePath: 'src/main.ts',
+          changes: [
+            {
+              type: 'SIGNATURE_CHANGE',
+              file: 'src/main.ts',
+              location: 'L10',
+              before: 'function foo()',
+              after: 'function foo(x: string)',
+              risk: 'critical',
+              reason: 'Signature changed',
+            },
+          ],
+          riskScore: 0.9,
+        },
+      ];
       const score = scorer.computeScore(diffResults, []);
       expect(score.overall).toBeLessThan(80);
       expect(score.dimensions.diffSafety).toBeLessThan(50);
@@ -75,19 +79,21 @@ describe('ConfidenceScorer', () => {
     });
 
     it('REJECT verdict for very low score', () => {
-      const diffResults: DiffResult[] = [{
-        filePath: 'src/main.ts',
-        changes: Array.from({ length: 10 }, () => ({
-          type: 'SIGNATURE_CHANGE' as const,
-          file: 'src/main.ts',
-          location: 'L10',
-          before: 'old',
-          after: 'new',
-          risk: 'critical' as const,
-          reason: 'Critical change',
-        })),
-        riskScore: 0.95,
-      }];
+      const diffResults: DiffResult[] = [
+        {
+          filePath: 'src/main.ts',
+          changes: Array.from({ length: 10 }, () => ({
+            type: 'SIGNATURE_CHANGE' as const,
+            file: 'src/main.ts',
+            location: 'L10',
+            before: 'old',
+            after: 'new',
+            risk: 'critical' as const,
+            reason: 'Critical change',
+          })),
+          riskScore: 0.95,
+        },
+      ];
       const hallucinations: HallucinationReport[] = Array.from({ length: 5 }, () => ({
         severity: 'critical' as const,
         message: 'Critical hallucination',
@@ -118,21 +124,25 @@ describe('ConfidenceScorer', () => {
     });
 
     it('includes critical change factors', () => {
-      const diffResults: DiffResult[] = [{
-        filePath: 'src/main.ts',
-        changes: [{
-          type: 'SIGNATURE_CHANGE',
-          file: 'src/main.ts',
-          location: 'L10',
-          before: 'old',
-          after: 'new',
-          risk: 'critical',
-          reason: 'Critical signature change',
-        }],
-        riskScore: 0.9,
-      }];
+      const diffResults: DiffResult[] = [
+        {
+          filePath: 'src/main.ts',
+          changes: [
+            {
+              type: 'SIGNATURE_CHANGE',
+              file: 'src/main.ts',
+              location: 'L10',
+              before: 'old',
+              after: 'new',
+              risk: 'critical',
+              reason: 'Critical signature change',
+            },
+          ],
+          riskScore: 0.9,
+        },
+      ];
       const factors = scorer.generateRiskFactors(diffResults, []);
-      expect(factors.some(f => f.includes('关键变更'))).toBe(true);
+      expect(factors.some((f) => f.includes('关键变更'))).toBe(true);
     });
 
     it('includes hallucination category summaries', () => {
@@ -142,9 +152,9 @@ describe('ConfidenceScorer', () => {
         { severity: 'low', message: 'AI pattern', category: 'ai_pattern' },
       ];
       const factors = scorer.generateRiskFactors([], hallucinations);
-      expect(factors.some(f => f.includes('包导入'))).toBe(true);
-      expect(factors.some(f => f.includes('API签名'))).toBe(true);
-      expect(factors.some(f => f.includes('AI生成'))).toBe(true);
+      expect(factors.some((f) => f.includes('包导入'))).toBe(true);
+      expect(factors.some((f) => f.includes('API签名'))).toBe(true);
+      expect(factors.some((f) => f.includes('AI生成'))).toBe(true);
     });
   });
 });

@@ -1,4 +1,4 @@
-﻿import { getNodeText, getChildByField } from '../tree-sitter-helpers.js';
+import { getNodeText, getChildByField } from '../tree-sitter-helpers.js';
 import type { LanguageExtractor } from '../tree-sitter-types.js';
 
 export const javascriptExtractor: LanguageExtractor = {
@@ -74,7 +74,9 @@ export const javascriptExtractor: LanguageExtractor = {
   extractImport: (node, source) => {
     const sourceField = node.childForFieldName('source');
     if (sourceField) {
-      const moduleName = source.substring(sourceField.startIndex, sourceField.endIndex).replace(/['"]/g, '');
+      const moduleName = source
+        .substring(sourceField.startIndex, sourceField.endIndex)
+        .replace(/['"]/g, '');
       if (moduleName) {
         return { moduleName, signature: source.substring(node.startIndex, node.endIndex).trim() };
       }

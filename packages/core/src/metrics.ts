@@ -33,7 +33,10 @@ export class MetricsCollector {
     let lastDuration = 0;
 
     return {
-      stop(success = true, metadata?: Record<string, unknown>): number {
+      // Arrow methods capture `this` from the enclosing method body,
+      // so both the parent `MetricsCollector` and the timer state
+      // (start/stopped/lastDuration) are visible without aliasing.
+      stop: (success = true, metadata?: Record<string, unknown>): number => {
         if (stopped) return lastDuration;
         stopped = true;
         lastDuration = Math.round(performance.now() - start);
@@ -47,18 +50,14 @@ export class MetricsCollector {
           metadata,
         };
 
-        // Record via parent collector (captured via closure reference below)
-        collector.record(entry);
+        this.record(entry);
         return lastDuration;
       },
 
-      elapsed(): number {
+      elapsed: (): number => {
         return Math.round(performance.now() - start);
       },
     };
-
-    // Reference to self for the timer callback
-    const collector = this;
   }
 
   record(entry: MetricEntry): void {
@@ -66,7 +65,9 @@ export class MetricsCollector {
     if (this.entries.length > this.maxEntries) {
       this.entries = this.entries.slice(-this.maxEntries);
     }
-    this.logger.debug(`Metric: ${entry.command} took ${entry.duration_ms}ms (${entry.success ? 'ok' : 'fail'})`);
+    this.logger.debug(
+      `Metric: ${entry.command} took ${entry.duration_ms}ms (${entry.success ? 'ok' : 'fail'})`,
+    );
     this.onMetric?.(entry);
   }
 

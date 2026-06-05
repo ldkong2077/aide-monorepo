@@ -1,12 +1,12 @@
-﻿/**
+/**
  * Import Resolver
  *
  * Resolves import paths to actual files and symbols.
  */
 
 import * as path from 'path';
-import { Language, Node } from '../types.js';
-import { UnresolvedRef, ResolvedRef, ResolutionContext, ImportMapping, ReExport } from './types.js';
+import { type Language, type Node } from '../types.js';
+import { type UnresolvedRef, type ResolvedRef, type ResolutionContext, type ImportMapping, type ReExport } from './types.js';
 import { applyAliases } from './path-aliases.js';
 
 /**
@@ -33,7 +33,7 @@ export function resolveImportPath(
   importPath: string,
   fromFile: string,
   language: Language,
-  context: ResolutionContext
+  context: ResolutionContext,
 ): string | null {
   // Skip external/npm packages — but pass the context so the
   // bare-specifier heuristic can consult the project's tsconfig
@@ -66,7 +66,7 @@ export function resolveImportPath(
 function isExternalImport(
   importPath: string,
   language: Language,
-  context?: ResolutionContext
+  context?: ResolutionContext,
 ): boolean {
   // Relative imports are not external
   if (importPath.startsWith('.')) {
@@ -74,9 +74,29 @@ function isExternalImport(
   }
 
   // Common external patterns
-  if (language === 'typescript' || language === 'javascript' || language === 'tsx' || language === 'jsx') {
+  if (
+    language === 'typescript' ||
+    language === 'javascript' ||
+    language === 'tsx' ||
+    language === 'jsx'
+  ) {
     // Node built-ins
-    if (['fs', 'path', 'os', 'crypto', 'http', 'https', 'url', 'util', 'events', 'stream', 'child_process', 'buffer'].includes(importPath)) {
+    if (
+      [
+        'fs',
+        'path',
+        'os',
+        'crypto',
+        'http',
+        'https',
+        'url',
+        'util',
+        'events',
+        'stream',
+        'child_process',
+        'buffer',
+      ].includes(importPath)
+    ) {
       return true;
     }
     // Project-defined alias prefix? Treat as local.
@@ -87,7 +107,11 @@ function isExternalImport(
       }
     }
     // Scoped packages or bare specifiers that don't start with aliases
-    if (!importPath.startsWith('@/') && !importPath.startsWith('~/') && !importPath.startsWith('src/')) {
+    if (
+      !importPath.startsWith('@/') &&
+      !importPath.startsWith('~/') &&
+      !importPath.startsWith('src/')
+    ) {
       // Likely an npm package
       return true;
     }
@@ -95,8 +119,19 @@ function isExternalImport(
 
   if (language === 'python') {
     // Standard library modules
-    const stdLibs = ['os', 'sys', 'json', 're', 'math', 'datetime', 'collections', 'typing', 'pathlib', 'logging'];
-    if (stdLibs.includes(importPath.split('.')[0]!)) {
+    const stdLibs = [
+      'os',
+      'sys',
+      'json',
+      're',
+      'math',
+      'datetime',
+      'collections',
+      'typing',
+      'pathlib',
+      'logging',
+    ];
+    if (stdLibs.includes(importPath.split('.')[0])) {
       return true;
     }
   }
@@ -118,7 +153,7 @@ function resolveRelativeImport(
   importPath: string,
   fromDir: string,
   language: Language,
-  context: ResolutionContext
+  context: ResolutionContext,
 ): string | null {
   const projectRoot = context.getProjectRoot();
   const extensions = EXTENSION_RESOLUTION[language] || [];
@@ -158,7 +193,7 @@ function resolveAliasedImport(
   importPath: string,
   projectRoot: string,
   language: Language,
-  context: ResolutionContext
+  context: ResolutionContext,
 ): string | null {
   const extensions = EXTENSION_RESOLUTION[language] || [];
   const tryWithExt = (basePath: string): string | null => {
@@ -207,11 +242,16 @@ function resolveAliasedImport(
 export function extractImportMappings(
   _filePath: string,
   content: string,
-  language: Language
+  language: Language,
 ): ImportMapping[] {
   const mappings: ImportMapping[] = [];
 
-  if (language === 'typescript' || language === 'javascript' || language === 'tsx' || language === 'jsx') {
+  if (
+    language === 'typescript' ||
+    language === 'javascript' ||
+    language === 'tsx' ||
+    language === 'jsx'
+  ) {
     mappings.push(...extractJSImports(content));
   } else if (language === 'python') {
     mappings.push(...extractPythonImports(content));
@@ -231,7 +271,8 @@ function extractJSImports(content: string): ImportMapping[] {
   const mappings: ImportMapping[] = [];
 
   // ES6 imports
-  const importRegex = /import\s+(?:(\w+)\s*,?\s*)?(?:\{([^}]+)\})?\s*(?:(\*)\s+as\s+(\w+))?\s*from\s*['"]([^'"]+)['"]/g;
+  const importRegex =
+    /import\s+(?:(\w+)\s*,?\s*)?(?:\{([^}]+)\})?\s*(?:(\*)\s+as\s+(\w+))?\s*from\s*['"]([^'"]+)['"]/g;
 
   let match;
   while ((match = importRegex.exec(content)) !== null) {
@@ -242,7 +283,7 @@ function extractJSImports(content: string): ImportMapping[] {
       mappings.push({
         localName: defaultImport,
         exportedName: 'default',
-        source: source!,
+        source: source,
         isDefault: true,
         isNamespace: false,
       });
@@ -252,12 +293,12 @@ function extractJSImports(content: string): ImportMapping[] {
     if (namedImports) {
       const names = namedImports.split(',').map((s) => s.trim());
       for (const name of names) {
-        const aliasMatch = name.match(/(\w+)\s+as\s+(\w+)/);
+        const aliasMatch = /(\w+)\s+as\s+(\w+)/.exec(name);
         if (aliasMatch) {
           mappings.push({
-            localName: aliasMatch[2]!,
-            exportedName: aliasMatch[1]!,
-            source: source!,
+            localName: aliasMatch[2],
+            exportedName: aliasMatch[1],
+            source: source,
             isDefault: false,
             isNamespace: false,
           });
@@ -265,7 +306,7 @@ function extractJSImports(content: string): ImportMapping[] {
           mappings.push({
             localName: name,
             exportedName: name,
-            source: source!,
+            source: source,
             isDefault: false,
             isNamespace: false,
           });
@@ -278,7 +319,7 @@ function extractJSImports(content: string): ImportMapping[] {
       mappings.push({
         localName: namespaceAlias,
         exportedName: '*',
-        source: source!,
+        source: source,
         isDefault: false,
         isNamespace: true,
       });
@@ -294,7 +335,7 @@ function extractJSImports(content: string): ImportMapping[] {
       mappings.push({
         localName: defaultName,
         exportedName: 'default',
-        source: source!,
+        source: source,
         isDefault: true,
         isNamespace: false,
       });
@@ -303,12 +344,12 @@ function extractJSImports(content: string): ImportMapping[] {
     if (destructured) {
       const names = destructured.split(',').map((s) => s.trim());
       for (const name of names) {
-        const aliasMatch = name.match(/(\w+)\s*:\s*(\w+)/);
+        const aliasMatch = /(\w+)\s*:\s*(\w+)/.exec(name);
         if (aliasMatch) {
           mappings.push({
-            localName: aliasMatch[2]!,
-            exportedName: aliasMatch[1]!,
-            source: source!,
+            localName: aliasMatch[2],
+            exportedName: aliasMatch[1],
+            source: source,
             isDefault: false,
             isNamespace: false,
           });
@@ -316,7 +357,7 @@ function extractJSImports(content: string): ImportMapping[] {
           mappings.push({
             localName: name,
             exportedName: name,
-            source: source!,
+            source: source,
             isDefault: false,
             isNamespace: false,
           });
@@ -340,15 +381,15 @@ function extractPythonImports(content: string): ImportMapping[] {
 
   while ((match = fromImportRegex.exec(content)) !== null) {
     const [, source, imports] = match;
-    const names = imports!.split(',').map((s) => s.trim());
+    const names = imports.split(',').map((s) => s.trim());
 
     for (const name of names) {
-      const aliasMatch = name.match(/(\w+)\s+as\s+(\w+)/);
+      const aliasMatch = /(\w+)\s+as\s+(\w+)/.exec(name);
       if (aliasMatch) {
         mappings.push({
-          localName: aliasMatch[2]!,
-          exportedName: aliasMatch[1]!,
-          source: source!,
+          localName: aliasMatch[2],
+          exportedName: aliasMatch[1],
+          source: source,
           isDefault: false,
           isNamespace: false,
         });
@@ -356,7 +397,7 @@ function extractPythonImports(content: string): ImportMapping[] {
         mappings.push({
           localName: name,
           exportedName: name,
-          source: source!,
+          source: source,
           isDefault: false,
           isNamespace: false,
         });
@@ -368,11 +409,11 @@ function extractPythonImports(content: string): ImportMapping[] {
   const importRegex = /^import\s+([\w.]+)(?:\s+as\s+(\w+))?/gm;
   while ((match = importRegex.exec(content)) !== null) {
     const [, source, alias] = match;
-    const localName = alias || source!.split('.').pop()!;
+    const localName = alias || source.split('.').pop()!;
     mappings.push({
       localName,
       exportedName: '*',
-      source: source!,
+      source: source,
       isDefault: false,
       isNamespace: true,
     });
@@ -393,11 +434,11 @@ function extractGoImports(content: string): ImportMapping[] {
 
   while ((match = singleImportRegex.exec(content)) !== null) {
     const [, alias, source] = match;
-    const packageName = source!.split('/').pop()!;
+    const packageName = source.split('/').pop()!;
     mappings.push({
       localName: alias || packageName,
       exportedName: '*',
-      source: source!,
+      source: source,
       isDefault: false,
       isNamespace: true,
     });
@@ -406,17 +447,17 @@ function extractGoImports(content: string): ImportMapping[] {
   // import ( ... ) block
   const blockImportRegex = /import\s*\(\s*([^)]+)\s*\)/gs;
   while ((match = blockImportRegex.exec(content)) !== null) {
-    const block = match[1]!;
+    const block = match[1];
     const lineRegex = /(?:(\w+)\s+)?["']([^"']+)["']/g;
     let lineMatch;
 
     while ((lineMatch = lineRegex.exec(block)) !== null) {
       const [, alias, source] = lineMatch;
-      const packageName = source!.split('/').pop()!;
+      const packageName = source.split('/').pop()!;
       mappings.push({
         localName: alias || packageName,
         exportedName: '*',
-        source: source!,
+        source: source,
         isDefault: false,
         isNamespace: true,
       });
@@ -438,11 +479,11 @@ function extractPHPImports(content: string): ImportMapping[] {
 
   while ((match = useRegex.exec(content)) !== null) {
     const [, fullPath, alias] = match;
-    const className = fullPath!.split('\\').pop()!;
+    const className = fullPath.split('\\').pop()!;
     mappings.push({
       localName: alias || className,
       exportedName: className,
-      source: fullPath!,
+      source: fullPath,
       isDefault: false,
       isNamespace: false,
     });
@@ -478,11 +519,11 @@ function stripJsComments(content: string): string {
   let i = 0;
   let str: '"' | "'" | '`' | null = null;
   while (i < content.length) {
-    const ch = content[i]!;
+    const ch = content[i];
     if (str !== null) {
       out += ch;
       if (ch === '\\' && i + 1 < content.length) {
-        out += content[i + 1]!;
+        out += content[i + 1];
         i += 2;
         continue;
       }
@@ -549,23 +590,23 @@ export function extractReExports(content: string, language: Language): ReExport[
   const wildcardRe = /export\s*\*(?:\s+as\s+\w+)?\s*from\s*['"]([^'"]+)['"]/g;
   let m: RegExpExecArray | null;
   while ((m = wildcardRe.exec(cleaned)) !== null) {
-    out.push({ kind: 'wildcard', source: m[1]! });
+    out.push({ kind: 'wildcard', source: m[1] });
   }
 
   // Named: `export { a, b as c } from '...'`
   const namedRe = /export\s*\{([^}]+)\}\s*from\s*['"]([^'"]+)['"]/g;
   while ((m = namedRe.exec(cleaned)) !== null) {
-    const inner = m[1]!;
-    const source = m[2]!;
+    const inner = m[1];
+    const source = m[2];
     for (const raw of inner.split(',')) {
       const item = raw.trim();
       if (!item) continue;
-      const aliasMatch = item.match(/^(\w+)\s+as\s+(\w+)$/);
+      const aliasMatch = /^(\w+)\s+as\s+(\w+)$/.exec(item);
       if (aliasMatch) {
         out.push({
           kind: 'named',
-          exportedName: aliasMatch[2]!,
-          originalName: aliasMatch[1]!,
+          exportedName: aliasMatch[2],
+          originalName: aliasMatch[1],
           source,
         });
       } else if (/^\w+$/.test(item)) {
@@ -587,7 +628,7 @@ export function extractReExports(content: string, language: Language): ReExport[
  */
 export function resolveViaImport(
   ref: UnresolvedRef,
-  context: ResolutionContext
+  context: ResolutionContext,
 ): ResolvedRef | null {
   // Use cached import mappings (avoids re-reading and re-parsing per ref)
   const imports = context.getImportMappings(ref.filePath, ref.language);
@@ -599,12 +640,7 @@ export function resolveViaImport(
   for (const imp of imports) {
     if (imp.localName === ref.referenceName || ref.referenceName.startsWith(imp.localName + '.')) {
       // Resolve the import path
-      const resolvedPath = resolveImportPath(
-        imp.source,
-        ref.filePath,
-        ref.language,
-        context
-      );
+      const resolvedPath = resolveImportPath(imp.source, ref.filePath, ref.language, context);
 
       if (resolvedPath) {
         const exportedName = imp.isDefault ? 'default' : imp.exportedName;
@@ -617,7 +653,7 @@ export function resolveViaImport(
           { isDefault: imp.isDefault, isNamespace: imp.isNamespace, exportedName, memberName },
           ref.language,
           context,
-          new Set()
+          new Set(),
         );
 
         if (targetNode) {
@@ -661,7 +697,7 @@ function findExportedSymbol(
   language: Language,
   context: ResolutionContext,
   visited: Set<string>,
-  depth = 0
+  depth = 0,
 ): Node | undefined {
   if (depth > REEXPORT_MAX_DEPTH) return undefined;
   if (visited.has(filePath)) return undefined;
@@ -672,18 +708,14 @@ function findExportedSymbol(
   // 1. Direct hit: the symbol is declared in this file.
   if (want.isDefault) {
     const direct = nodesInFile.find(
-      (n) => n.isExported && (n.kind === 'function' || n.kind === 'class')
+      (n) => n.isExported && (n.kind === 'function' || n.kind === 'class'),
     );
     if (direct) return direct;
   } else if (want.isNamespace && want.memberName) {
-    const direct = nodesInFile.find(
-      (n) => n.name === want.memberName && n.isExported
-    );
+    const direct = nodesInFile.find((n) => n.name === want.memberName && n.isExported);
     if (direct) return direct;
   } else {
-    const direct = nodesInFile.find(
-      (n) => n.name === want.exportedName && n.isExported
-    );
+    const direct = nodesInFile.find((n) => n.name === want.exportedName && n.isExported);
     if (direct) return direct;
   }
 
@@ -710,7 +742,7 @@ function findExportedSymbol(
         language,
         context,
         visited,
-        depth + 1
+        depth + 1,
       );
       if (chained) return chained;
     }

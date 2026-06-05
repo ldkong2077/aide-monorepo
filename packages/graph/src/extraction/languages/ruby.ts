@@ -1,4 +1,4 @@
-﻿import type { Node as SyntaxNode } from 'web-tree-sitter';
+import type { Node as SyntaxNode } from 'web-tree-sitter';
 import { getNodeText, getChildByField } from '../tree-sitter-helpers.js';
 import type { LanguageExtractor } from '../tree-sitter-types.js';
 
@@ -48,8 +48,14 @@ export const rubyExtractor: LanguageExtractor = {
 
     // Only statement-level identifiers — direct children of block/body nodes
     const BLOCK_PARENTS = new Set([
-      'body_statement', 'then', 'else', 'do', 'begin',
-      'rescue', 'ensure', 'when',
+      'body_statement',
+      'then',
+      'else',
+      'do',
+      'begin',
+      'rescue',
+      'ensure',
+      'when',
     ]);
     if (!BLOCK_PARENTS.has(parent.type)) return undefined;
 
@@ -57,8 +63,14 @@ export const rubyExtractor: LanguageExtractor = {
 
     // Skip Ruby keywords/literals
     const SKIP = new Set([
-      'true', 'false', 'nil', 'self', 'super',
-      '__FILE__', '__LINE__', '__dir__',
+      'true',
+      'false',
+      'nil',
+      'self',
+      'super',
+      '__FILE__',
+      '__LINE__',
+      '__dir__',
     ]);
     if (SKIP.has(name)) return undefined;
 
@@ -100,7 +112,9 @@ export const rubyExtractor: LanguageExtractor = {
     if (argList) {
       const stringNode = argList.namedChildren.find((c: SyntaxNode) => c.type === 'string');
       if (stringNode) {
-        const stringContent = stringNode.namedChildren.find((c: SyntaxNode) => c.type === 'string_content');
+        const stringContent = stringNode.namedChildren.find(
+          (c: SyntaxNode) => c.type === 'string_content',
+        );
         if (stringContent) {
           return { moduleName: getNodeText(stringContent, source), signature: importText };
         }

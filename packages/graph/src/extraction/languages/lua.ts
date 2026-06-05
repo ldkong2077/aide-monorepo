@@ -1,4 +1,4 @@
-﻿import type { Node as SyntaxNode } from 'web-tree-sitter';
+import type { Node as SyntaxNode } from 'web-tree-sitter';
 import { getNodeText, getChildByField } from '../tree-sitter-helpers.js';
 import type { LanguageExtractor } from '../tree-sitter-types.js';
 
@@ -30,7 +30,7 @@ function requireModule(callNode: SyntaxNode, source: string): string | null {
   const name = getChildByField(callNode, 'name');
   // A dotted/colon callee (e.g. `socket.connect`) is dot/method_index_expression,
   // never a bare `require`.
-  if (!name || name.type !== 'identifier') return null;
+  if (name?.type !== 'identifier') return null;
   if (getNodeText(name, source) !== 'require') return null;
 
   const args = getChildByField(callNode, 'arguments');
@@ -51,7 +51,8 @@ function requireModule(callNode: SyntaxNode, source: string): string | null {
   }
 
   // Roblox/Luau instance-path require: `require(script.Parent.Signal)` → "Signal".
-  const idx = findDescendant(args, 'dot_index_expression') ?? findDescendant(args, 'method_index_expression');
+  const idx =
+    findDescendant(args, 'dot_index_expression') ?? findDescendant(args, 'method_index_expression');
   if (idx) {
     const field = getChildByField(idx, 'field') ?? getChildByField(idx, 'method');
     if (field) return getNodeText(field, source).trim() || null;

@@ -1,12 +1,12 @@
-﻿/**
+/**
  * Svelte / SvelteKit Framework Resolver
  *
  * Handles Svelte component references, Svelte 5 runes,
  * store auto-subscriptions, and SvelteKit route/module patterns.
  */
 
-import { Node } from '../../types.js';
-import { FrameworkResolver, UnresolvedRef, ResolvedRef, ResolutionContext } from '../types.js';
+import { type Node } from '../../types.js';
+import { type FrameworkResolver, type UnresolvedRef, type ResolvedRef, type ResolutionContext } from '../types.js';
 
 /**
  * Svelte 5 runes — compiler-provided, not user code
@@ -83,9 +83,9 @@ export const svelteResolver: FrameworkResolver = {
     // Pattern 2: Store auto-subscriptions ($storeName)
     if (ref.referenceName.startsWith('$') && !ref.referenceName.startsWith('$$')) {
       const storeName = ref.referenceName.substring(1);
-      const storeNode = context.getNodesByName(storeName).find(
-        (n) => n.kind === 'variable' || n.kind === 'constant'
-      );
+      const storeNode = context
+        .getNodesByName(storeName)
+        .find((n) => n.kind === 'variable' || n.kind === 'constant');
       if (storeNode) {
         return {
           original: ref,
@@ -109,7 +109,7 @@ export const svelteResolver: FrameworkResolver = {
             if (nodes.length > 0) {
               return {
                 original: ref,
-                targetNodeId: nodes[0]!.id,
+                targetNodeId: nodes[0].id,
                 confidence: 0.9,
                 resolvedBy: 'framework',
               };
@@ -207,7 +207,7 @@ function isPascalCase(str: string): boolean {
 function resolveComponent(
   name: string,
   fromFile: string,
-  context: ResolutionContext
+  context: ResolutionContext,
 ): string | null {
   // Look for component nodes by name
   const candidates = context.getNodesByName(name);
@@ -218,9 +218,9 @@ function resolveComponent(
   // Prefer same directory
   const fromDir = fromFile.substring(0, fromFile.lastIndexOf('/'));
   const sameDir = components.filter((n) => n.filePath.startsWith(fromDir));
-  if (sameDir.length > 0) return sameDir[0]!.id;
+  if (sameDir.length > 0) return sameDir[0].id;
 
-  return components[0]!.id;
+  return components[0].id;
 }
 
 /**
@@ -268,10 +268,12 @@ function filePathToSvelteKitRoute(filePath: string): string | null {
   const dirPath = lastSlash === -1 ? '' : afterRoutes.substring(0, lastSlash);
 
   // Convert SvelteKit param syntax [param] to :param
-  let route = '/' + dirPath
-    .replace(/\[\.\.\.([^\]]+)\]/g, '*$1')  // [...rest] -> *rest
-    .replace(/\[{2}([^\]]+)\]{2}/g, ':$1?') // [[optional]] -> :optional?
-    .replace(/\[([^\]]+)\]/g, ':$1');        // [param] -> :param
+  const route =
+    '/' +
+    dirPath
+      .replace(/\[\.\.\.([^\]]+)\]/g, '*$1') // [...rest] -> *rest
+      .replace(/\[{2}([^\]]+)\]{2}/g, ':$1?') // [[optional]] -> :optional?
+      .replace(/\[([^\]]+)\]/g, ':$1'); // [param] -> :param
 
   if (route === '/') return '/';
   // Remove trailing slash

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Tree-sitter Extraction Types
  *
  * Defines the LanguageExtractor interface and related types used by
@@ -6,12 +6,8 @@
  * Extracted to a leaf module to avoid circular imports.
  */
 
-import { Node as SyntaxNode } from 'web-tree-sitter';
-import {
-  Node,
-  NodeKind,
-  UnresolvedReference,
-} from '../types.js';
+import { type Node as SyntaxNode } from 'web-tree-sitter';
+import { type Node, type NodeKind, type UnresolvedReference } from '../types.js';
 
 /**
  * Information returned by a language's extractImport hook.

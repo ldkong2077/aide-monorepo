@@ -15,16 +15,16 @@ import type {
 
 /** 各维度的权重配置 */
 const DIMENSION_WEIGHTS = {
-  diffSafety: 0.30,       // 差异安全性权重 30%
+  diffSafety: 0.3, // 差异安全性权重 30%
   hallucinationFree: 0.35, // 无幻觉程度权重 35%
-  testPassRate: 0.25,      // 测试通过率权重 25%
-  typeCheck: 0.10,         // 类型检查权重 10%
+  testPassRate: 0.25, // 测试通过率权重 25%
+  typeCheck: 0.1, // 类型检查权重 10%
 } as const;
 
 /** 置信度判定阈值 */
 const VERDICT_THRESHOLDS = {
-  TRUST: 80,   // >= 80 信任
-  REVIEW: 50,  // >= 50 需要审查
+  TRUST: 80, // >= 80 信任
+  REVIEW: 50, // >= 50 需要审查
   // < 50 拒绝
 } as const;
 
@@ -42,7 +42,7 @@ export class ConfidenceScorer {
   computeScore(
     diffResult: DiffResult[],
     hallucinations: HallucinationReport[],
-    testResult?: TestResult
+    testResult?: TestResult,
   ): ConfidenceScore {
     // 计算各维度分数
     const dimensions: ScoreDimensions = {
@@ -55,9 +55,9 @@ export class ConfidenceScorer {
     // 计算加权总分
     const overall = Math.round(
       dimensions.diffSafety * DIMENSION_WEIGHTS.diffSafety +
-      dimensions.hallucinationFree * DIMENSION_WEIGHTS.hallucinationFree +
-      dimensions.testPassRate * DIMENSION_WEIGHTS.testPassRate +
-      dimensions.typeCheck * DIMENSION_WEIGHTS.typeCheck
+        dimensions.hallucinationFree * DIMENSION_WEIGHTS.hallucinationFree +
+        dimensions.testPassRate * DIMENSION_WEIGHTS.testPassRate +
+        dimensions.typeCheck * DIMENSION_WEIGHTS.typeCheck,
     );
 
     // 判定结果
@@ -85,9 +85,7 @@ export class ConfidenceScorer {
     const avgRisk = diffResult.reduce((sum, r) => sum + r.riskScore, 0) / diffResult.length;
 
     // 检查是否有critical级别的变更
-    const hasCritical = diffResult.some(r =>
-      r.changes.some(c => c.risk === 'critical')
-    );
+    const hasCritical = diffResult.some((r) => r.changes.some((c) => c.risk === 'critical'));
 
     // 基础分数：风险分数越低越安全
     let score = Math.round((1 - avgRisk) * 100);
@@ -95,7 +93,8 @@ export class ConfidenceScorer {
     // 如果存在critical变更，额外扣分
     if (hasCritical) {
       const criticalCount = diffResult.reduce(
-        (sum, r) => sum + r.changes.filter(c => c.risk === 'critical').length, 0
+        (sum, r) => sum + r.changes.filter((c) => c.risk === 'critical').length,
+        0,
       );
       score = Math.max(0, score - criticalCount * 10);
     }
@@ -154,7 +153,8 @@ export class ConfidenceScorer {
   private computeTypeCheckScore(diffResult: DiffResult[]): number {
     // 简化实现：检查是否有签名变更
     const signatureChanges = diffResult.reduce(
-      (sum, r) => sum + r.changes.filter(c => c.type === 'SIGNATURE_CHANGE').length, 0
+      (sum, r) => sum + r.changes.filter((c) => c.type === 'SIGNATURE_CHANGE').length,
+      0,
     );
 
     if (signatureChanges === 0) return 90; // 无签名变更，默认高分
@@ -175,90 +175,85 @@ export class ConfidenceScorer {
   /**
    * 生成人类可读的风险因素描述
    */
-  generateRiskFactors(
-    diffResult: DiffResult[],
-    hallucinations: HallucinationReport[]
-  ): string[] {
+  generateRiskFactors(diffResult: DiffResult[], hallucinations: HallucinationReport[]): string[] {
     const factors: string[] = [];
 
     // 基于差异分析的风险因素
     for (const result of diffResult) {
-      const criticalChanges = result.changes.filter(c => c.risk === 'critical');
-      const highChanges = result.changes.filter(c => c.risk === 'high');
+      const criticalChanges = result.changes.filter((c) => c.risk === 'critical');
+      const highChanges = result.changes.filter((c) => c.risk === 'high');
 
       if (criticalChanges.length > 0) {
         factors.push(
           `🔴 ${result.filePath} 存在 ${criticalChanges.length} 处关键变更: ` +
-          criticalChanges.map(c => c.reason).join('; ')
+            criticalChanges.map((c) => c.reason).join('; '),
         );
       }
 
       if (highChanges.length > 0) {
         factors.push(
           `🟡 ${result.filePath} 存在 ${highChanges.length} 处高风险变更: ` +
-          highChanges.slice(0, 3).map(c => c.reason).join('; ')
+            highChanges
+              .slice(0, 3)
+              .map((c) => c.reason)
+              .join('; '),
         );
       }
 
       if (result.riskScore >= 0.7) {
         factors.push(
-          `⚠️ ${result.filePath} 整体风险分数较高 (${(result.riskScore * 100).toFixed(0)}%)`
+          `⚠️ ${result.filePath} 整体风险分数较高 (${(result.riskScore * 100).toFixed(0)}%)`,
         );
       }
     }
 
     // 基于幻觉检测的风险因素
-    const criticalHallucinations = hallucinations.filter(h => h.severity === 'critical');
-    const highHallucinations = hallucinations.filter(h => h.severity === 'high');
-    const mediumHallucinations = hallucinations.filter(h => h.severity === 'medium');
+    const criticalHallucinations = hallucinations.filter((h) => h.severity === 'critical');
+    const highHallucinations = hallucinations.filter((h) => h.severity === 'high');
+    const mediumHallucinations = hallucinations.filter((h) => h.severity === 'medium');
 
     if (criticalHallucinations.length > 0) {
       factors.push(
         `🔴 检测到 ${criticalHallucinations.length} 处严重幻觉问题: ` +
-        criticalHallucinations.map(h => h.message).join('; ')
+          criticalHallucinations.map((h) => h.message).join('; '),
       );
     }
 
     if (highHallucinations.length > 0) {
       factors.push(
         `🟡 检测到 ${highHallucinations.length} 处高级别幻觉问题: ` +
-        highHallucinations.slice(0, 3).map(h => h.message).join('; ')
+          highHallucinations
+            .slice(0, 3)
+            .map((h) => h.message)
+            .join('; '),
       );
     }
 
     if (mediumHallucinations.length > 0) {
-      factors.push(
-        `⚡ 检测到 ${mediumHallucinations.length} 处中等级别幻觉问题`
-      );
+      factors.push(`⚡ 检测到 ${mediumHallucinations.length} 处中等级别幻觉问题`);
     }
 
     // 按类别汇总
-    const packageImportIssues = hallucinations.filter(h => h.category === 'package_import');
+    const packageImportIssues = hallucinations.filter((h) => h.category === 'package_import');
     if (packageImportIssues.length > 0) {
-      factors.push(
-        `📦 存在 ${packageImportIssues.length} 处包导入问题，可能是不存在的依赖`
-      );
+      factors.push(`📦 存在 ${packageImportIssues.length} 处包导入问题，可能是不存在的依赖`);
     }
 
-    const apiSignatureIssues = hallucinations.filter(h => h.category === 'api_signature');
+    const apiSignatureIssues = hallucinations.filter((h) => h.category === 'api_signature');
     if (apiSignatureIssues.length > 0) {
-      factors.push(
-        `🔧 存在 ${apiSignatureIssues.length} 处API签名问题，可能是虚构的方法调用`
-      );
+      factors.push(`🔧 存在 ${apiSignatureIssues.length} 处API签名问题，可能是虚构的方法调用`);
     }
 
-    const aiPatternIssues = hallucinations.filter(h => h.category === 'ai_pattern');
+    const aiPatternIssues = hallucinations.filter((h) => h.category === 'ai_pattern');
     if (aiPatternIssues.length > 0) {
       factors.push(
-        `🤖 存在 ${aiPatternIssues.length} 处AI生成模式特征，代码可能由AI生成且未充分审查`
+        `🤖 存在 ${aiPatternIssues.length} 处AI生成模式特征，代码可能由AI生成且未充分审查`,
       );
     }
 
-    const logicIssues = hallucinations.filter(h => h.category === 'logic_issue');
+    const logicIssues = hallucinations.filter((h) => h.category === 'logic_issue');
     if (logicIssues.length > 0) {
-      factors.push(
-        `🧩 存在 ${logicIssues.length} 处逻辑问题，可能影响代码正确性`
-      );
+      factors.push(`🧩 存在 ${logicIssues.length} 处逻辑问题，可能影响代码正确性`);
     }
 
     return factors;

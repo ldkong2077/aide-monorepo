@@ -44,19 +44,28 @@ export class ReportFormatter {
     const verdictText = this.getVerdictText(confidence.verdict);
     lines.push(`│  🛡️  CodeGuard 验证报告                                      │`);
     lines.push(`│                                                             │`);
-    lines.push(visualPadEnd(`│  置信度: ${scoreColor}${confidence.overall}/100${this.resetColor()}  ${verdictText}`, 62) + '│');
+    lines.push(
+      visualPadEnd(
+        `│  置信度: ${scoreColor}${confidence.overall}/100${this.resetColor()}  ${verdictText}`,
+        62,
+      ) + '│',
+    );
     lines.push('├─────────────────────────────────────────────────────────────┤');
 
     // 评分维度分解
     lines.push('│  📊 评分维度                                                │');
     lines.push(this.formatDimensionLine('差异安全性', confidence.dimensions.diffSafety, '30%'));
-    lines.push(this.formatDimensionLine('无幻觉程度', confidence.dimensions.hallucinationFree, '35%'));
+    lines.push(
+      this.formatDimensionLine('无幻觉程度', confidence.dimensions.hallucinationFree, '35%'),
+    );
     lines.push(this.formatDimensionLine('测试通过率', confidence.dimensions.testPassRate, '25%'));
     lines.push(this.formatDimensionLine('类型检查  ', confidence.dimensions.typeCheck, '10%'));
     lines.push('├─────────────────────────────────────────────────────────────┤');
 
     // 关键问题（严重和高）
-    const criticalIssues = hallucinations.filter(h => h.severity === 'critical' || h.severity === 'high');
+    const criticalIssues = hallucinations.filter(
+      (h) => h.severity === 'critical' || h.severity === 'high',
+    );
     if (criticalIssues.length > 0) {
       lines.push('│  🔴 关键问题                                                │');
       for (const issue of criticalIssues.slice(0, 10)) {
@@ -68,7 +77,7 @@ export class ReportFormatter {
     }
 
     // 警告（中等）
-    const warnings = hallucinations.filter(h => h.severity === 'medium');
+    const warnings = hallucinations.filter((h) => h.severity === 'medium');
     if (warnings.length > 0) {
       lines.push('│  🟡 警告                                                    │');
       for (const warning of warnings.slice(0, 5)) {
@@ -93,7 +102,12 @@ export class ReportFormatter {
     if (testResult) {
       lines.push('│  🧪 测试结果                                                │');
       const testIcon = testResult.failed === 0 ? '✅' : '❌';
-      lines.push(visualPadEnd(`│  ${testIcon} 通过: ${testResult.passed}/${testResult.total}  失败: ${testResult.failed}  耗时: ${testResult.duration}ms`, 62) + '│');
+      lines.push(
+        visualPadEnd(
+          `│  ${testIcon} 通过: ${testResult.passed}/${testResult.total}  失败: ${testResult.failed}  耗时: ${testResult.duration}ms`,
+          62,
+        ) + '│',
+      );
       if (testResult.errors.length > 0) {
         for (const error of testResult.errors.slice(0, 3)) {
           const errMsg = this.truncate(`  ❌ ${error.testName}: ${error.message}`, 57);
@@ -157,13 +171,17 @@ export class ReportFormatter {
     lines.push('| 维度 | 分数 | 权重 |');
     lines.push('|------|------|------|');
     lines.push(`| 差异安全性 | ${this.formatScoreBar(confidence.dimensions.diffSafety)} | 30% |`);
-    lines.push(`| 无幻觉程度 | ${this.formatScoreBar(confidence.dimensions.hallucinationFree)} | 35% |`);
+    lines.push(
+      `| 无幻觉程度 | ${this.formatScoreBar(confidence.dimensions.hallucinationFree)} | 35% |`,
+    );
     lines.push(`| 测试通过率 | ${this.formatScoreBar(confidence.dimensions.testPassRate)} | 25% |`);
     lines.push(`| 类型检查 | ${this.formatScoreBar(confidence.dimensions.typeCheck)} | 10% |`);
     lines.push('');
 
     // 关键问题
-    const criticalIssues = hallucinations.filter(h => h.severity === 'critical' || h.severity === 'high');
+    const criticalIssues = hallucinations.filter(
+      (h) => h.severity === 'critical' || h.severity === 'high',
+    );
     if (criticalIssues.length > 0) {
       lines.push('### 🔴 关键问题\n');
       for (const issue of criticalIssues) {
@@ -177,7 +195,7 @@ export class ReportFormatter {
     }
 
     // 警告
-    const warnings = hallucinations.filter(h => h.severity === 'medium');
+    const warnings = hallucinations.filter((h) => h.severity === 'medium');
     if (warnings.length > 0) {
       lines.push('### 🟡 警告\n');
       for (const warning of warnings) {
@@ -200,7 +218,9 @@ export class ReportFormatter {
     if (testResult) {
       lines.push('### 🧪 测试结果\n');
       const testIcon = testResult.failed === 0 ? '✅' : '❌';
-      lines.push(`${testIcon} 通过: **${testResult.passed}/${testResult.total}** | 失败: **${testResult.failed}** | 耗时: ${testResult.duration}ms\n`);
+      lines.push(
+        `${testIcon} 通过: **${testResult.passed}/${testResult.total}** | 失败: **${testResult.failed}** | 耗时: ${testResult.duration}ms\n`,
+      );
       if (testResult.errors.length > 0) {
         lines.push('<details><summary>失败详情</summary>\n');
         for (const error of testResult.errors) {
@@ -266,10 +286,14 @@ export class ReportFormatter {
    */
   private getVerdictText(verdict: string): string {
     switch (verdict) {
-      case 'TRUST': return '✅ 信任';
-      case 'REVIEW': return '⚠️ 需审查';
-      case 'REJECT': return '🔴 拒绝';
-      default: return verdict;
+      case 'TRUST':
+        return '✅ 信任';
+      case 'REVIEW':
+        return '⚠️ 需审查';
+      case 'REJECT':
+        return '🔴 拒绝';
+      default:
+        return verdict;
     }
   }
 
@@ -336,11 +360,14 @@ export class ReportFormatter {
   /**
    * 获取通过的检查列表
    */
-  private getPassedChecks(diffResults: DiffResult[], hallucinations: HallucinationReport[]): string[] {
+  private getPassedChecks(
+    diffResults: DiffResult[],
+    hallucinations: HallucinationReport[],
+  ): string[] {
     const checks: string[] = [];
 
     // 检查各类幻觉是否未检测到
-    const categories = new Set(hallucinations.map(h => h.category));
+    const categories = new Set(hallucinations.map((h) => h.category));
     if (!categories.has('package_import')) {
       checks.push('所有包导入验证通过');
     }
@@ -355,15 +382,15 @@ export class ReportFormatter {
     }
 
     // 检查差异分析
-    const hasCriticalChanges = diffResults.some(r =>
-      r.changes.some(c => c.risk === 'critical')
+    const hasCriticalChanges = diffResults.some((r) =>
+      r.changes.some((c) => c.risk === 'critical'),
     );
     if (!hasCriticalChanges) {
       checks.push('无关键结构性变更');
     }
 
-    const hasGuardRemoval = diffResults.some(r =>
-      r.changes.some(c => c.type === 'GUARD_REMOVED')
+    const hasGuardRemoval = diffResults.some((r) =>
+      r.changes.some((c) => c.type === 'GUARD_REMOVED'),
     );
     if (!hasGuardRemoval) {
       checks.push('守卫条件未被移除');
@@ -419,10 +446,14 @@ export class ReportFormatter {
    */
   private getVerdictBadge(verdict: string): string {
     switch (verdict) {
-      case 'TRUST': return '![trust](https://img.shields.io/badge/verdict-TRUST-green)';
-      case 'REVIEW': return '![review](https://img.shields.io/badge/verdict-REVIEW-yellow)';
-      case 'REJECT': return '![reject](https://img.shields.io/badge/verdict-REJECT-red)';
-      default: return verdict;
+      case 'TRUST':
+        return '![trust](https://img.shields.io/badge/verdict-TRUST-green)';
+      case 'REVIEW':
+        return '![review](https://img.shields.io/badge/verdict-REVIEW-yellow)';
+      case 'REJECT':
+        return '![reject](https://img.shields.io/badge/verdict-REJECT-red)';
+      default:
+        return verdict;
     }
   }
 
@@ -440,11 +471,16 @@ export class ReportFormatter {
    */
   private getRiskIcon(riskLevel: string): string {
     switch (riskLevel) {
-      case 'critical': return '🔴';
-      case 'high': return '🟠';
-      case 'medium': return '🟡';
-      case 'low': return '🟢';
-      default: return '⚪';
+      case 'critical':
+        return '🔴';
+      case 'high':
+        return '🟠';
+      case 'medium':
+        return '🟡';
+      case 'low':
+        return '🟢';
+      default:
+        return '⚪';
     }
   }
 }

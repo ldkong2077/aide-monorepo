@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Watch Policy
  *
  * Decides whether the live file watcher should run for a given project.

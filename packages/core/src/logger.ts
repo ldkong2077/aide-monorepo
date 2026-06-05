@@ -69,11 +69,7 @@ export function createLogger(opts: LoggerOptions = {}): Logger {
 
   const pinoOpts: pino.LoggerOptions = {
     level,
-    ...(transports.length > 0
-      ? { transport: { targets: transports } }
-      : pretty
-        ? {}
-        : {}),
+    ...(transports.length > 0 ? { transport: { targets: transports } } : pretty ? {} : {}),
   };
 
   const base = pino(pinoOpts);

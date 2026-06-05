@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Project-level import-path alias loading.
  *
  * Reads `compilerOptions.paths` from `tsconfig.json` / `jsconfig.json`
@@ -67,11 +67,11 @@ function stripJsonc(src: string): string {
   let i = 0;
   let inString = false;
   while (i < src.length) {
-    const ch = src[i]!;
+    const ch = src[i];
     if (inString) {
       out += ch;
       if (ch === '\\' && i + 1 < src.length) {
-        out += src[i + 1]!;
+        out += src[i + 1];
         i += 2;
         continue;
       }
@@ -208,11 +208,7 @@ export function loadProjectAliases(projectRoot: string): AliasMap | null {
  * Callers still need to try each candidate with the language's
  * extension list — this function only does the alias rewrite.
  */
-export function applyAliases(
-  importPath: string,
-  aliases: AliasMap,
-  projectRoot: string
-): string[] {
+export function applyAliases(importPath: string, aliases: AliasMap, projectRoot: string): string[] {
   for (const pat of aliases.patterns) {
     if (!importPath.startsWith(pat.prefix)) continue;
     if (pat.suffix && !importPath.endsWith(pat.suffix)) continue;

@@ -52,7 +52,10 @@ export function stripCommentsForRegex(content: string, lang: CommentLang): strin
     case 'java':
     case 'csharp':
     case 'swift':
-      return stripCStyle(content, /* allowSingleQuoteStrings */ lang === 'javascript' || lang === 'typescript');
+      return stripCStyle(
+        content,
+        /* allowSingleQuoteStrings */ lang === 'javascript' || lang === 'typescript',
+      );
     default:
       return content;
   }
@@ -76,7 +79,7 @@ function stripPython(src: string): string {
   const n = src.length;
 
   while (i < n) {
-    const c = src[i]!;
+    const c = src[i];
     const c2 = src[i + 1] ?? '';
     const c3 = src[i + 2] ?? '';
 
@@ -139,7 +142,7 @@ function stripRuby(src: string): string {
   let atLineStart = true;
 
   while (i < n) {
-    const c = src[i]!;
+    const c = src[i];
 
     // =begin / =end block comments must be at start of line (after optional whitespace)
     if (atLineStart && c === '=' && src.startsWith('=begin', i)) {
@@ -216,7 +219,7 @@ function stripCStyle(src: string, allowSingleQuoteStrings: boolean): string {
   const n = src.length;
 
   while (i < n) {
-    const c = src[i]!;
+    const c = src[i];
     const c2 = src[i + 1] ?? '';
 
     // Block comment
@@ -268,7 +271,7 @@ function stripPhp(src: string): string {
   const n = src.length;
 
   while (i < n) {
-    const c = src[i]!;
+    const c = src[i];
     const c2 = src[i + 1] ?? '';
 
     // Block comment
@@ -328,7 +331,7 @@ function stripGo(src: string): string {
   const n = src.length;
 
   while (i < n) {
-    const c = src[i]!;
+    const c = src[i];
     const c2 = src[i + 1] ?? '';
 
     // Block comment
@@ -401,7 +404,7 @@ function stripRust(src: string): string {
   const n = src.length;
 
   while (i < n) {
-    const c = src[i]!;
+    const c = src[i];
     const c2 = src[i + 1] ?? '';
 
     // Nested block comment /* ... /* ... */ ... */

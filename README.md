@@ -1,175 +1,213 @@
-# AIDE - AI Development Environment
+# AIDE - AI 编程验证工具
 
-> Unified code intelligence, verification, and routing toolkit for AI-assisted development.
+> 让非专业程序员也能安全地使用 AI 编程
 
-AIDE provides a complete infrastructure for AI coding tools: code knowledge graphs, hallucination detection, smart model routing, and MCP server integration.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Node.js](https://img.shields.io/badge/Node.js-20%2B-green.svg)](https://nodejs.org/)
+[![MCP](https://img.shields.io/badge/MCP-Compatible-blue.svg)](https://modelcontextprotocol.io/)
 
-## Quick Start
+---
 
-### Direct Installation (Recommended)
+## 为什么需要 AIDE？
+
+**问题**：84% 的开发者使用 AI 编程工具，但 AI 生成的代码经常有问题：
+
+- ❌ 编造不存在的包和函数（幻觉）
+- ❌ 逻辑错误、死代码
+- ❌ 安全漏洞
+- ❌ 非专业程序员无法判断代码质量
+
+**解决方案**：AIDE 自动验证 AI 生成的代码，确保每一行都可靠。
+
+---
+
+## 30 秒快速开始
 
 ```bash
-# Install globally
+# 1. 安装
 npm install -g aide
 
-# Auto-detect and configure your AI tools
-aide install --yes
-
-# Initialize in your project
+# 2. 进入你的项目
 cd your-project
-aide graph init -i
+
+# 3. 一键初始化（自动配置所有 AI 工具）
+aide init
 ```
 
-### Docker Deployment
+**完成！** 现在你的 AI 编程工具（Claude Code、Cursor、opencode）会自动验证每一次代码修改。
+
+---
+
+## 核心功能
+
+### 1. 自动验证 AI 代码
+
+AI 每次修改代码后，AIDE 自动检查：
 
 ```bash
-# Generate config
-aide config init
+# 手动验证单个文件
+aide guard check -f src/auth.ts
 
-# Start with Docker
-cd deploy/docker
-docker compose up -d
+# 验证整个项目
+aide guard verify -p .
 ```
 
-## Features
+**检查内容**：
+- 幻觉检测（不存在的包/函数）
+- 逻辑错误
+- 代码质量
+- 测试覆盖
 
-### CodeGraph - AST Knowledge Graph
+**输出结果**：
+- ✅ `TRUST` - 代码可靠，可以使用
+- ⚠️ `REVIEW` - 需要人工审查
+- ❌ `REJECT` - 代码有问题，需要修复
 
-Builds a semantic knowledge graph from your codebase using tree-sitter parsers. Supports 25+ languages and 15+ frameworks.
+---
+
+### 2. 从想法到代码（非专业程序员首选）
+
+不知道如何开始？告诉 AIDE 你的想法：
 
 ```bash
-aide graph init          # Initialize in project
-aide graph index         # Index codebase
-aide graph status        # Check status
+# 描述你的想法，AIDE 帮你规划
+aide mind full "我想做一个待办事项应用"
 ```
 
-### Guard - Code Verification Pipeline
+**AIDE 会**：
+1. 问你问题理解需求
+2. 生成设计文档
+3. 创建实施计划
+4. 指导你逐步实现
 
-Detects hallucinations in AI-generated code with confidence scoring.
+---
+
+### 3. 代码知识图谱
+
+理解代码结构，快速定位问题：
 
 ```bash
-aide guard verify        # Verify files
-aide guard check -f src/main.ts  # Check single file
+# 查询函数定义
+codegraph_query(query="authenticate", kind="definition")
+
+# 查询谁调用了这个函数
+codegraph_query(query="authenticate", kind="reference")
 ```
 
-**Detection capabilities:**
-- Non-existent package imports (Python/Node.js/Go)
-- Fabricated API signatures
-- AI-specific code patterns (empty catch blocks, generic variables)
-- Logic issues (unreachable code, always-true conditions)
+---
 
-### Router - Smart Model Routing
-
-Routes AI tasks to optimal models based on cost, quality, or balanced strategies.
+### 4. 项目模板快速启动
 
 ```bash
-aide router start        # Start proxy server on port 9900
+# 查看可用模板
+aide template list
+
+# 从模板创建项目
+aide template create todo-app my-todo-app
 ```
 
-### Mind - Project Scaffolding
+**可用模板**：
+- `todo-app` - React + TypeScript 待办事项
+- `api-server` - Express + Prisma API 服务
+- `cli-tool` - Commander.js 命令行工具
 
-Transforms natural language ideas into structured project files.
+---
 
-```bash
-aide mind process -i "Build a real-time chat application"
-```
-
-## MCP Server Integration
-
-AIDE exposes tools via the Model Context Protocol (MCP) for AI agents:
-
-| Tool | Description |
-|------|-------------|
-| `codegraph_index` | Build/update code graph |
-| `codegraph_query` | Query symbols, references, definitions |
-| `guard_verify` | Verify AI-generated code |
-| `guard_check` | Hallucination check on single file |
-| `mind_process` | Process idea into project files |
-
-### Configure for Claude Code
-
-```json
-// .mcp.json
-{
-  "mcpServers": {
-    "aide": {
-      "command": "aide",
-      "args": ["mcp", "serve"]
-    }
-  }
-}
-```
-
-### Configure for Cursor
-
-```json
-// .cursor/mcp.json
-{
-  "mcpServers": {
-    "aide": {
-      "command": "aide",
-      "args": ["mcp", "serve"]
-    }
-  }
-}
-```
-
-## Configuration
-
-AIDE uses `aide.config.yaml` with multi-level fallback:
-
-1. Explicit path (`--config`)
-2. Current working directory
-3. `~/.aide/aide.config.yaml`
-4. Built-in defaults
-
-```yaml
-server:
-  port: 9900
-
-strategy: balanced  # cost | quality | balanced
-
-providers:
-  deepseek:
-    enabled: true
-    apiKey: ${DEEPSEEK_API_KEY}
-  openai:
-    enabled: false
-    apiKey: ${OPENAI_API_KEY}
-
-guard:
-  enabled: true
-  hallucinationCheck: true
-  autoRejectThreshold: 30
-```
-
-## Architecture
+## 工作原理
 
 ```
-@aide/cli          Unified CLI entry point
-@aide/mcp-server   MCP protocol server
-@aide/router       Smart model routing (re-exports guard)
-@aide/guard        Verification pipeline + proxy server
-@aide/graph        AST code knowledge graph (90+ source files)
-@aide/mind         Project understanding engine
-@aide/core         Shared types, config, logging, errors
+你：告诉 AI 要做什么
+        ↓
+AI：编写代码
+        ↓
+AIDE：自动验证（guard_verify）
+        ↓
+    ┌─────────────┐
+    │ 检查结果    │
+    │ TRUST ✓     │
+    │ REVIEW ⚠️   │
+    │ REJECT ✗    │
+    └─────────────┘
+        ↓
+通过 → 提交代码
+失败 → AI 自动修复后重新验证
 ```
 
-## Docker
+---
 
-```bash
-# Build and run
-cd deploy/docker
-docker compose up -d
+## 支持的 AI 工具
 
-# The server starts on port 9900
-curl http://localhost:9900/health
-```
+| 工具 | 支持状态 |
+|------|----------|
+| Claude Code | ✅ 完全支持 |
+| Cursor | ✅ 完全支持 |
+| opencode | ✅ 完全支持 |
+| Codex CLI | ✅ 完全支持 |
+| Hermes | ✅ 完全支持 |
 
-## License
+---
 
-MIT
+## 安装要求
 
-## Contributing
+- Node.js 20.0.0 或更高版本
+- npm 9.0.0 或更高版本
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and guidelines.
+---
+
+## 详细文档
+
+- [快速开始指南](docs/quick-start.md)
+- [CLI 命令参考](docs/cli-reference.md)
+- [架构说明](docs/architecture.md)
+- [贡献指南](CONTRIBUTING.md)
+
+---
+
+## 常见问题
+
+### Q: 非专业程序员能用吗？
+
+**可以！** AIDE 就是为非专业程序员设计的。你只需要：
+
+1. `npm install -g aide` - 安装
+2. `aide init` - 初始化
+3. 告诉 AI 你要做什么 - AIDE 自动验证
+
+### Q: 会收费吗？
+
+**核心功能永久免费**。AIDE 是开源项目，MIT 协议。
+
+### Q: 我的代码会被上传吗？
+
+**不会**。所有验证都在本地进行，代码不会上传到任何服务器。
+
+### Q: 支持哪些编程语言？
+
+支持所有主流语言：
+- JavaScript / TypeScript
+- Python
+- Go
+- 以及更多...
+
+---
+
+## 贡献
+
+欢迎贡献！请阅读 [CONTRIBUTING.md](CONTRIBUTING.md) 了解详情。
+
+---
+
+## 许可证
+
+MIT License - 详见 [LICENSE](LICENSE)
+
+---
+
+## 联系方式
+
+- GitHub Issues: [提交问题](https://github.com/ldkong2077/aide-monorepo/issues)
+- Email: info@numboxhub.com
+
+---
+
+**如果 AIDE 对你有帮助，请给个 Star ⭐ 支持一下！**

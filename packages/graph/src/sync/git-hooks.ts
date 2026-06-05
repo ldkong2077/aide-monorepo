@@ -90,8 +90,14 @@ function stripMarkerBlock(content: string): string {
   let inBlock = false;
   for (const line of lines) {
     const trimmed = line.trim();
-    if (trimmed === MARKER_BEGIN) { inBlock = true; continue; }
-    if (trimmed === MARKER_END) { inBlock = false; continue; }
+    if (trimmed === MARKER_BEGIN) {
+      inBlock = true;
+      continue;
+    }
+    if (trimmed === MARKER_END) {
+      inBlock = false;
+      continue;
+    }
     if (!inBlock) kept.push(line);
   }
   return kept.join('\n');
@@ -143,9 +149,7 @@ export function installGitSyncHook(
     if (fs.existsSync(file)) {
       // Strip any prior block, then re-append the current one.
       const base = stripMarkerBlock(fs.readFileSync(file, 'utf8')).replace(/\s*$/, '');
-      content = base.length > 0
-        ? `${base}\n\n${block}\n`
-        : `#!/bin/sh\n${block}\n`;
+      content = base.length > 0 ? `${base}\n\n${block}\n` : `#!/bin/sh\n${block}\n`;
     } else {
       content = `#!/bin/sh\n${block}\n`;
     }

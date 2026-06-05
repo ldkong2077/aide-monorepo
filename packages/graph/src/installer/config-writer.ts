@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Backwards-compat shim — original Claude-only writer functions.
  *
  * The installer now uses the multi-target architecture in
@@ -11,17 +11,17 @@
  *   abstraction instead.
  */
 
-import * as fs from 'fs';
-import * as path from 'path';
-import * as os from 'os';
+import * as fs from "fs";
+import * as path from "path";
+import * as os from "os";
 import {
   writeMcpEntry,
   writePermissionsEntry,
   writeInstructionsEntry,
-} from './targets/claude.js';
-import { readJsonFile } from './targets/shared.js';
+} from "./targets/claude.js";
+import { readJsonFile } from "./targets/shared.js";
 
-export type InstallLocation = 'global' | 'local';
+export type InstallLocation = "global" | "local";
 
 /**
  * Each shim calls ONLY the named per-file helper — writeMcpConfig
@@ -37,42 +37,56 @@ export function writePermissions(location: InstallLocation): void {
   writePermissionsEntry(location);
 }
 
-export function writeClaudeMd(location: InstallLocation): { created: boolean; updated: boolean } {
+export function writeClaudeMd(location: InstallLocation): {
+  created: boolean;
+  updated: boolean;
+} {
   const file = writeInstructionsEntry(location);
   return {
-    created: file.action === 'created',
-    updated: file.action === 'updated',
+    created: file.action === "created",
+    updated: file.action === "updated",
   };
 }
 
 export function hasMcpConfig(location: InstallLocation): boolean {
   // local scope lives in ./.mcp.json (project scope); global is the
   // user-scope ~/.claude.json. Mirrors the Claude target's paths.
-  const file = location === 'global'
-    ? path.join(os.homedir(), '.claude.json')
-    : path.join(process.cwd(), '.mcp.json');
+  const file =
+    location === "global"
+      ? path.join(os.homedir(), ".claude.json")
+      : path.join(process.cwd(), ".mcp.json");
   const config = readJsonFile(file);
-  return !!config.mcpServers?.codegraph;
+  // Match either the new `aide` key or a legacy `codegraph` one so
+  // detection stays honest across the rename.
+  return !!(config.mcpServers?.aide || config.mcpServers?.codegraph);
 }
 
 export function hasPermissions(location: InstallLocation): boolean {
-  const file = location === 'global'
-    ? path.join(os.homedir(), '.claude', 'settings.json')
-    : path.join(process.cwd(), '.claude', 'settings.json');
+  const file =
+    location === "global"
+      ? path.join(os.homedir(), ".claude", "settings.json")
+      : path.join(process.cwd(), ".claude", "settings.json");
   const settings = readJsonFile(file);
   const allow = settings.permissions?.allow;
   if (!Array.isArray(allow)) return false;
-  return allow.some((p: string) => p.startsWith('mcp__codegraph__'));
+  return allow.some(
+    (p: string) =>
+      p.startsWith("mcp__aide__") || p.startsWith("mcp__codegraph__"),
+  );
 }
 
 export function hasClaudeMdSection(location: InstallLocation): boolean {
-  const file = location === 'global'
-    ? path.join(os.homedir(), '.claude', 'CLAUDE.md')
-    : path.join(process.cwd(), '.claude', 'CLAUDE.md');
+  const file =
+    location === "global"
+      ? path.join(os.homedir(), ".claude", "CLAUDE.md")
+      : path.join(process.cwd(), ".claude", "CLAUDE.md");
   try {
     if (!fs.existsSync(file)) return false;
-    const content = fs.readFileSync(file, 'utf-8');
-    return content.includes('<!-- CODEGRAPH_START -->') || content.includes('## CodeGraph');
+    const content = fs.readFileSync(file, "utf-8");
+    return (
+      content.includes("<!-- CODEGRAPH_START -->") ||
+      content.includes("## CodeGraph")
+    );
   } catch {
     return false;
   }

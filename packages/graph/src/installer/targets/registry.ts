@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Registry of all known agent targets.
  *
  * Adding a new target = create `targets/<id>.ts` exporting an
@@ -7,7 +7,7 @@
  * and in `--print-config`'s help listing — keep it stable.
  */
 
-import { AgentTarget, Location, TargetId } from './types.js';
+import { type AgentTarget, type Location, type TargetId } from './types.js';
 import { claudeTarget } from './claude.js';
 import { cursorTarget } from './cursor.js';
 import { codexTarget } from './codex.js';
@@ -36,10 +36,10 @@ export function listTargetIds(): TargetId[] {
  * this to seed the multiselect prompt with installed agents
  * pre-checked.
  */
-export function detectAll(loc: Location): Array<{
+export function detectAll(loc: Location): {
   target: AgentTarget;
   detection: ReturnType<AgentTarget['detect']>;
-}> {
+}[] {
   return ALL_TARGETS.map((target) => ({
     target,
     detection: target.detect(loc),
@@ -67,7 +67,10 @@ export function resolveTargetFlag(value: string, loc: Location): AgentTarget[] {
     return fallback ? [fallback] : [];
   }
 
-  const ids = value.split(',').map((s) => s.trim()).filter(Boolean);
+  const ids = value
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
   const resolved: AgentTarget[] = [];
   const unknown: string[] = [];
   for (const id of ids) {

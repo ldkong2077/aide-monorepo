@@ -99,12 +99,21 @@ export function getVerifyOutputBudget(fileCount: number): VerifyOutputBudget {
 export function countProjectFiles(projectDir: string): number {
   const codeExtensions = new Set(['.py', '.ts', '.tsx', '.js', '.jsx', '.go', '.rs', '.java']);
   const ignoreDirs = new Set([
-    'node_modules', '.git', '__pycache__', 'dist', 'build',
-    '.venv', 'venv', 'vendor', '.next', '.nuxt', 'target',
+    'node_modules',
+    '.git',
+    '__pycache__',
+    'dist',
+    'build',
+    '.venv',
+    'venv',
+    'vendor',
+    '.next',
+    '.nuxt',
+    'target',
   ]);
   let count = 0;
 
-  const walk = (dir: string, depth: number = 0): void => {
+  const walk = (dir: string, depth = 0): void => {
     if (depth > 10) return; // 防止过深递归
     try {
       const entries = fs.readdirSync(dir, { withFileTypes: true });
@@ -169,15 +178,20 @@ export class ContextBuilder {
     // 幻觉检测摘要
     if (report.hallucinations.length > 0) {
       parts.push('### Issues Found');
-      const critical = report.hallucinations.filter(h => h.severity === 'critical');
-      const high = report.hallucinations.filter(h => h.severity === 'high');
-      const other = report.hallucinations.filter(h => h.severity !== 'critical' && h.severity !== 'high');
+      const critical = report.hallucinations.filter((h) => h.severity === 'critical');
+      const high = report.hallucinations.filter((h) => h.severity === 'high');
+      const other = report.hallucinations.filter(
+        (h) => h.severity !== 'critical' && h.severity !== 'high',
+      );
 
       // 优先显示严重问题
       const prioritized = [
         ...critical.slice(0, this.budget.maxHallucinationReports),
         ...high.slice(0, Math.max(0, this.budget.maxHallucinationReports - critical.length)),
-        ...other.slice(0, Math.max(0, this.budget.maxHallucinationReports - critical.length - high.length)),
+        ...other.slice(
+          0,
+          Math.max(0, this.budget.maxHallucinationReports - critical.length - high.length),
+        ),
       ];
 
       for (const issue of prioritized) {
@@ -200,7 +214,9 @@ export class ContextBuilder {
     const testResult = report.testResult;
     if (testResult && this.budget.includeTestDetails) {
       parts.push('### Tests');
-      parts.push(`Passed: ${testResult.passed}/${testResult.total} | Failed: ${testResult.failed} | Duration: ${testResult.duration}ms`);
+      parts.push(
+        `Passed: ${testResult.passed}/${testResult.total} | Failed: ${testResult.failed} | Duration: ${testResult.duration}ms`,
+      );
       if (testResult.errors.length > 0) {
         parts.push('Failed tests:');
         for (const err of testResult.errors.slice(0, 5)) {
@@ -245,7 +261,9 @@ export class ContextBuilder {
     // 预算提示
     if (this.budget.includeBudgetNote) {
       parts.push('');
-      parts.push(`_Report budget: ${this.budget.maxOutputChars} chars | Files checked: ${report.files_checked.length}_`);
+      parts.push(
+        `_Report budget: ${this.budget.maxOutputChars} chars | Files checked: ${report.files_checked.length}_`,
+      );
     }
 
     // 裁剪到最大字符数

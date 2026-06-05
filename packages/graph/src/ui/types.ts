@@ -5,5 +5,4 @@ export type ShimmerWorkerMessage =
   | { type: 'stop' };
 
 /** Messages from worker to main thread */
-export type ShimmerMainMessage =
-  | { type: 'stopped' };
+export type ShimmerMainMessage = { type: 'stopped' };

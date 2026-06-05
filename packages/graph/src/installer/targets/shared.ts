@@ -8,38 +8,59 @@
  * shape onto everyone.
  */
 
-import * as fs from 'fs';
-import * as path from 'path';
+import * as fs from "fs";
+import * as path from "path";
+import { logWarn } from "../../errors.js";
 
 /**
- * The MCP-server config block codegraph injects. Same shape across
- * all JSON-shaped agent configs (Claude, Cursor, opencode), only the
+ * The MCP-server config block AIDE injects. Same shape across all
+ * JSON-shaped agent configs (Claude, Cursor, opencode), only the
  * surrounding wrapper differs. Codex (TOML) builds its own block.
+ *
+ * The binary name (`aide`) and argv (`mcp serve`) match the
+ * `aide mcp serve` command exposed by `@aide/cli`. The MCP server
+ * name (i.e. the key under `mcpServers` / `mcp` / `mcp_servers`)
+ * is `aide` too — see each target's `writeMcpEntry` for where it
+ * is set.
  */
-export function getMcpServerConfig(): { type: string; command: string; args: string[] } {
+export function getMcpServerConfig(): {
+  type: string;
+  command: string;
+  args: string[];
+} {
   return {
-    type: 'stdio',
-    command: 'codegraph',
-    args: ['serve', '--mcp'],
+    type: "stdio",
+    command: "aide",
+    args: ["mcp", "serve"],
   };
 }
 
 /**
  * Permissions list for Claude `settings.json`. Other targets that
  * have a permissions concept can compose this list directly. The
- * permission strings follow Claude's `mcp__<server>__<tool>` format.
+ * permission strings follow Claude's `mcp__<server>__<tool>` format
+ * where `<server>` is the MCP-server name (here: `aide`).
+ *
+ * Tool names MUST stay in sync with what `@aide/mcp-server` actually
+ * exposes (see `packages/mcp-server/src/index.ts` `TOOLS` constant).
+ * Wrong entries here would make `aide install` grant permissions for
+ * tools that don't exist, and miss permissions for tools that do.
  */
-export function getCodeGraphPermissions(): string[] {
+export function getAidePermissions(): string[] {
   return [
-    'mcp__codegraph__codegraph_search',
-    'mcp__codegraph__codegraph_context',
-    'mcp__codegraph__codegraph_callers',
-    'mcp__codegraph__codegraph_callees',
-    'mcp__codegraph__codegraph_impact',
-    'mcp__codegraph__codegraph_node',
-    'mcp__codegraph__codegraph_status',
+    "mcp__aide__codegraph_index",
+    "mcp__aide__codegraph_query",
+    "mcp__aide__guard_verify",
+    "mcp__aide__guard_check",
   ];
 }
+
+/**
+ * @deprecated Kept for backwards-compat with any downstream importer.
+ * New code should call `getAidePermissions()` — the name reflects the
+ * AIDE binary rather than the legacy codegraph one.
+ */
+export const getCodeGraphPermissions = getAidePermissions;
 
 /**
  * Read a JSON file, returning `{}` when missing or unparseable.
@@ -48,19 +69,27 @@ export function getCodeGraphPermissions(): string[] {
  * `{}` — so an idempotent re-run never silently deletes a user's
  * existing config that happened to break JSON parse temporarily.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function readJsonFile(filePath: string): Record<string, any> {
   if (!fs.existsSync(filePath)) {
     return {};
   }
   try {
-    return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+    return JSON.parse(fs.readFileSync(filePath, "utf-8"));
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.warn(`  Warning: Could not parse ${path.basename(filePath)}: ${msg}`);
-    console.warn(`  A backup will be created before overwriting.`);
+    logWarn(
+      `Could not parse ${path.basename(filePath)}: ${msg}. A backup will be created before overwriting.`,
+      {
+        filePath: path.basename(filePath),
+        error: msg,
+      },
+    );
     try {
-      fs.copyFileSync(filePath, filePath + '.backup');
-    } catch { /* ignore backup failure */ }
+      fs.copyFileSync(filePath, filePath + ".backup");
+    } catch {
+      /* ignore backup failure */
+    }
     return {};
   }
 }
@@ -76,12 +105,16 @@ export function atomicWriteFileSync(filePath: string, content: string): void {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
-  const tmpPath = filePath + '.tmp.' + process.pid;
+  const tmpPath = filePath + ".tmp." + process.pid;
   try {
     fs.writeFileSync(tmpPath, content);
     fs.renameSync(tmpPath, filePath);
   } catch (err) {
-    try { fs.unlinkSync(tmpPath); } catch { /* ignore */ }
+    try {
+      fs.unlinkSync(tmpPath);
+    } catch {
+      /* ignore */
+    }
     throw err;
   }
 }
@@ -90,8 +123,12 @@ export function atomicWriteFileSync(filePath: string, content: string): void {
  * Atomic JSON write. Trailing newline matches the convention every
  * existing target had — preserves diff-friendly file shape.
  */
-export function writeJsonFile(filePath: string, data: Record<string, any>): void {
-  atomicWriteFileSync(filePath, JSON.stringify(data, null, 2) + '\n');
+export function writeJsonFile(
+  filePath: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  data: Record<string, any>,
+): void {
+  atomicWriteFileSync(filePath, JSON.stringify(data, null, 2) + "\n");
 }
 
 /**
@@ -105,7 +142,7 @@ export function jsonDeepEqual(a: unknown, b: unknown): boolean {
   if (a === b) return true;
   if (typeof a !== typeof b) return false;
   if (a === null || b === null) return a === b;
-  if (typeof a !== 'object') return false;
+  if (typeof a !== "object") return false;
   if (Array.isArray(a) !== Array.isArray(b)) return false;
   if (Array.isArray(a) && Array.isArray(b)) {
     if (a.length !== b.length) return false;
@@ -137,33 +174,36 @@ export function replaceOrAppendMarkedSection(
   body: string,
   startMarker: string,
   endMarker: string,
-): 'created' | 'updated' | 'appended' | 'unchanged' {
+): "created" | "updated" | "appended" | "unchanged" {
   if (!fs.existsSync(filePath)) {
-    atomicWriteFileSync(filePath, body + '\n');
-    return 'created';
+    atomicWriteFileSync(filePath, body + "\n");
+    return "created";
   }
 
-  const content = fs.readFileSync(filePath, 'utf-8');
+  const content = fs.readFileSync(filePath, "utf-8");
   const startIdx = content.indexOf(startMarker);
   const endIdx = content.indexOf(endMarker);
 
   if (startIdx !== -1 && endIdx > startIdx) {
-    const existingBlock = content.substring(startIdx, endIdx + endMarker.length);
+    const existingBlock = content.substring(
+      startIdx,
+      endIdx + endMarker.length,
+    );
     if (existingBlock === body) {
-      return 'unchanged';
+      return "unchanged";
     }
     const before = content.substring(0, startIdx);
     const after = content.substring(endIdx + endMarker.length);
     atomicWriteFileSync(filePath, before + body + after);
-    return 'updated';
+    return "updated";
   }
 
   // No markers — append. Preserve existing content with a separating
   // blank line.
   const trimmed = content.trimEnd();
-  const sep = trimmed.length > 0 ? '\n\n' : '';
-  atomicWriteFileSync(filePath, trimmed + sep + body + '\n');
-  return 'appended';
+  const sep = trimmed.length > 0 ? "\n\n" : "";
+  atomicWriteFileSync(filePath, trimmed + sep + body + "\n");
+  return "appended";
 }
 
 /**
@@ -179,28 +219,32 @@ export function removeMarkedSection(
   filePath: string,
   startMarker: string,
   endMarker: string,
-): 'removed' | 'not-found' | 'kept' {
-  if (!fs.existsSync(filePath)) return 'kept';
+): "removed" | "not-found" | "kept" {
+  if (!fs.existsSync(filePath)) return "kept";
 
   let content: string;
   try {
-    content = fs.readFileSync(filePath, 'utf-8');
+    content = fs.readFileSync(filePath, "utf-8");
   } catch {
-    return 'kept';
+    return "kept";
   }
 
   const startIdx = content.indexOf(startMarker);
   const endIdx = content.indexOf(endMarker);
-  if (startIdx === -1 || endIdx <= startIdx) return 'not-found';
+  if (startIdx === -1 || endIdx <= startIdx) return "not-found";
 
   const before = content.substring(0, startIdx).trimEnd();
   const after = content.substring(endIdx + endMarker.length).trimStart();
-  const joined = before + (before && after ? '\n\n' : '') + after;
+  const joined = before + (before && after ? "\n\n" : "") + after;
 
-  if (joined.trim() === '') {
-    try { fs.unlinkSync(filePath); } catch { /* ignore */ }
+  if (joined.trim() === "") {
+    try {
+      fs.unlinkSync(filePath);
+    } catch {
+      /* ignore */
+    }
   } else {
-    atomicWriteFileSync(filePath, joined.trim() + '\n');
+    atomicWriteFileSync(filePath, joined.trim() + "\n");
   }
-  return 'removed';
+  return "removed";
 }

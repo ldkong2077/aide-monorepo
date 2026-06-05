@@ -1,4 +1,4 @@
-﻿import type { Node as SyntaxNode } from 'web-tree-sitter';
+import type { Node as SyntaxNode } from 'web-tree-sitter';
 import { getNodeText } from '../tree-sitter-helpers.js';
 import type { LanguageExtractor } from '../tree-sitter-types.js';
 
@@ -45,7 +45,9 @@ export const phpExtractor: LanguageExtractor = {
     // Handle class constants: const_declaration inside classes
     // These are skipped by the main visitor because variableTypes check excludes class-like contexts
     if (node.type === 'const_declaration') {
-      const constElements = node.namedChildren.filter((c: SyntaxNode) => c.type === 'const_element');
+      const constElements = node.namedChildren.filter(
+        (c: SyntaxNode) => c.type === 'const_element',
+      );
       for (const elem of constElements) {
         const nameNode = elem.namedChildren.find((c: SyntaxNode) => c.type === 'name');
         if (!nameNode) continue;
@@ -58,8 +60,11 @@ export const phpExtractor: LanguageExtractor = {
     // Handle trait usage: use TraitName, OtherTrait; inside classes
     // Creates unresolved references that will be resolved to 'implements' edges
     if (node.type === 'use_declaration') {
-      const names = node.namedChildren.filter((c: SyntaxNode) => c.type === 'name' || c.type === 'qualified_name');
-      const parentId = ctx.nodeStack.length > 0 ? ctx.nodeStack[ctx.nodeStack.length - 1] : undefined;
+      const names = node.namedChildren.filter(
+        (c: SyntaxNode) => c.type === 'name' || c.type === 'qualified_name',
+      );
+      const parentId =
+        ctx.nodeStack.length > 0 ? ctx.nodeStack[ctx.nodeStack.length - 1] : undefined;
       if (parentId) {
         for (const nameNode of names) {
           const traitName = getNodeText(nameNode, ctx.source);
@@ -91,7 +96,9 @@ export const phpExtractor: LanguageExtractor = {
     // Single import - find namespace_use_clause
     const useClause = node.namedChildren.find((c: SyntaxNode) => c.type === 'namespace_use_clause');
     if (useClause) {
-      const qualifiedName = useClause.namedChildren.find((c: SyntaxNode) => c.type === 'qualified_name');
+      const qualifiedName = useClause.namedChildren.find(
+        (c: SyntaxNode) => c.type === 'qualified_name',
+      );
       if (qualifiedName) {
         return { moduleName: getNodeText(qualifiedName, source), signature: importText };
       }

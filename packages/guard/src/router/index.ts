@@ -3,9 +3,7 @@
  * 根据任务类型、策略和历史性能选择最优模型
  */
 
-import {
-  TaskType,
-} from '../types.js';
+import { TaskType } from '../types.js';
 import type {
   RouteStrategy,
   ModelConfig,
@@ -19,40 +17,103 @@ import type {
 /** 各任务类型的关键词映射 */
 const TASK_KEYWORDS: Record<TaskType, string[]> = {
   [TaskType.debugging]: [
-    'debug', 'fix', 'error', 'bug', 'issue', 'crash', 'exception',
-    'traceback', 'stack trace', '修复', '调试', '报错', '异常',
+    'debug',
+    'fix',
+    'error',
+    'bug',
+    'issue',
+    'crash',
+    'exception',
+    'traceback',
+    'stack trace',
+    '修复',
+    '调试',
+    '报错',
+    '异常',
   ],
   [TaskType.refactoring]: [
-    'refactor', 'rename', 'restructure', 'clean up', 'optimize',
-    'simplify', '重构', '重命名', '优化',
+    'refactor',
+    'rename',
+    'restructure',
+    'clean up',
+    'optimize',
+    'simplify',
+    '重构',
+    '重命名',
+    '优化',
   ],
   [TaskType.testing]: [
-    'test', 'spec', 'unit test', 'integration test', 'coverage',
-    'mock', 'stub', '测试', '单元测试',
+    'test',
+    'spec',
+    'unit test',
+    'integration test',
+    'coverage',
+    'mock',
+    'stub',
+    '测试',
+    '单元测试',
   ],
   [TaskType.code_review]: [
-    'review', 'audit', 'check', 'inspect', 'analyze', 'lint',
-    '审查', '检查', '审计',
+    'review',
+    'audit',
+    'check',
+    'inspect',
+    'analyze',
+    'lint',
+    '审查',
+    '检查',
+    '审计',
   ],
   [TaskType.code_generation]: [
-    'generate', 'create', 'implement', 'build', 'write', 'develop',
-    'scaffold', '生成', '创建', '实现', '编写',
+    'generate',
+    'create',
+    'implement',
+    'build',
+    'write',
+    'develop',
+    'scaffold',
+    '生成',
+    '创建',
+    '实现',
+    '编写',
   ],
   [TaskType.explanation]: [
-    'explain', 'what does', 'how does', 'why', 'describe', 'tell me',
-    '解释', '说明', '什么是', '为什么',
+    'explain',
+    'what does',
+    'how does',
+    'why',
+    'describe',
+    'tell me',
+    '解释',
+    '说明',
+    '什么是',
+    '为什么',
   ],
-  [TaskType.code_completion]: [
-    'complete', 'continue', 'finish', 'fill', '补全', '继续',
-  ],
+  [TaskType.code_completion]: ['complete', 'continue', 'finish', 'fill', '补全', '继续'],
   [TaskType.general]: [],
 };
 
 /** 代码存在指示词 */
 const CODE_INDICATORS = [
-  'function', 'class', 'import', 'export', 'const', 'let', 'var',
-  'def ', 'return', 'async', 'await', '=>', '===', '!==',
-  '{', '}', '()', '[]', '```',
+  'function',
+  'class',
+  'import',
+  'export',
+  'const',
+  'let',
+  'var',
+  'def ',
+  'return',
+  'async',
+  'await',
+  '=>',
+  '===',
+  '!==',
+  '{',
+  '}',
+  '()',
+  '[]',
+  '```',
 ];
 
 /**
@@ -65,9 +126,7 @@ export class RuleBasedClassifier {
    */
   classify(messages: ChatMessage[]): TaskType {
     // 合并所有用户消息
-    const userMessages = messages
-      .filter((m) => m.role === 'user')
-      .map((m) => m.content);
+    const userMessages = messages.filter((m) => m.role === 'user').map((m) => m.content);
     const combinedText = userMessages.join(' ').toLowerCase();
 
     if (!combinedText.trim()) {
@@ -94,7 +153,9 @@ export class RuleBasedClassifier {
     }
 
     // 考虑消息长度和代码存在性
-    const hasCode = CODE_INDICATORS.some((indicator) => combinedText.includes(indicator.toLowerCase()));
+    const hasCode = CODE_INDICATORS.some((indicator) =>
+      combinedText.includes(indicator.toLowerCase()),
+    );
     const messageLength = combinedText.length;
 
     // 有代码且消息较长，倾向 code_generation 或 debugging
@@ -445,9 +506,7 @@ export class RouteEngine {
 
       // 基础分数
       let score =
-        config!.quality_score * 0.5 +
-        config!.speed_score * 0.3 +
-        (1 - normalizedCost) * 0.2;
+        config!.quality_score * 0.5 + config!.speed_score * 0.3 + (1 - normalizedCost) * 0.2;
 
       // 根据历史性能调整
       if (perf && perf.total_requests >= 3) {

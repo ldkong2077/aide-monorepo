@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Field-qualified search query parser.
  *
  * Splits a raw query like
@@ -79,10 +79,10 @@ export function parseQuery(raw: string): ParsedQuery {
   const tokens: string[] = [];
   let i = 0;
   while (i < raw.length) {
-    while (i < raw.length && /\s/.test(raw[i]!)) i++;
+    while (i < raw.length && /\s/.test(raw[i])) i++;
     if (i >= raw.length) break;
     const start = i;
-    while (i < raw.length && !/\s/.test(raw[i]!)) {
+    while (i < raw.length && !/\s/.test(raw[i])) {
       if (raw[i] === '"') {
         const end = raw.indexOf('"', i + 1);
         if (end === -1) {
@@ -168,17 +168,17 @@ export function boundedEditDistance(a: string, b: string, maxDist: number): numb
 
   for (let i = 1; i <= al; i++) {
     cur[0] = i;
-    let rowMin = cur[0]!;
+    let rowMin = cur[0];
     for (let j = 1; j <= bl; j++) {
       const cost = a.charCodeAt(i - 1) === b.charCodeAt(j - 1) ? 0 : 1;
-      const insertion = cur[j - 1]! + 1;
-      const deletion = prev[j]! + 1;
-      const substitution = prev[j - 1]! + cost;
+      const insertion = cur[j - 1] + 1;
+      const deletion = prev[j] + 1;
+      const substitution = prev[j - 1] + cost;
       cur[j] = Math.min(insertion, deletion, substitution);
-      if (cur[j]! < rowMin) rowMin = cur[j]!;
+      if (cur[j] < rowMin) rowMin = cur[j]!;
     }
     if (rowMin > maxDist) return maxDist + 1;
     [prev, cur] = [cur, prev];
   }
-  return prev[bl]!;
+  return prev[bl];
 }

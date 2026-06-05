@@ -1,4 +1,4 @@
-﻿import { Node, Edge, ExtractionResult, ExtractionError, UnresolvedReference } from '../types.js';
+import { type Node, type Edge, type ExtractionResult, type ExtractionError, type UnresolvedReference } from '../types.js';
 import { generateNodeId } from './tree-sitter-helpers.js';
 
 /**
@@ -99,11 +99,11 @@ export class LiquidExtractor {
       const line = this.getLineNumber(match.index);
 
       // Create an import node for searchability
-      const importNodeId = generateNodeId(this.filePath, 'import', snippetName!, line);
+      const importNodeId = generateNodeId(this.filePath, 'import', snippetName, line);
       const importNode: Node = {
         id: importNodeId,
         kind: 'import',
-        name: snippetName!,
+        name: snippetName,
         qualifiedName: `${this.filePath}::import:${snippetName}`,
         filePath: this.filePath,
         language: 'liquid',
@@ -129,7 +129,7 @@ export class LiquidExtractor {
       const node: Node = {
         id: nodeId,
         kind: 'component',
-        name: snippetName!,
+        name: snippetName,
         qualifiedName: `${this.filePath}::${tagType}:${snippetName}`,
         filePath: this.filePath,
         language: 'liquid',
@@ -173,11 +173,11 @@ export class LiquidExtractor {
       const line = this.getLineNumber(match.index);
 
       // Create an import node for searchability
-      const importNodeId = generateNodeId(this.filePath, 'import', sectionName!, line);
+      const importNodeId = generateNodeId(this.filePath, 'import', sectionName, line);
       const importNode: Node = {
         id: importNodeId,
         kind: 'import',
-        name: sectionName!,
+        name: sectionName,
         qualifiedName: `${this.filePath}::import:${sectionName}`,
         filePath: this.filePath,
         language: 'liquid',
@@ -203,7 +203,7 @@ export class LiquidExtractor {
       const node: Node = {
         id: nodeId,
         kind: 'component',
-        name: sectionName!,
+        name: sectionName,
         qualifiedName: `${this.filePath}::section:${sectionName}`,
         filePath: this.filePath,
         language: 'liquid',
@@ -250,12 +250,13 @@ export class LiquidExtractor {
       // Try to parse the schema JSON to get the name
       let schemaName = 'schema';
       try {
-        const schemaJson = JSON.parse(schemaContent!);
+        const schemaJson = JSON.parse(schemaContent);
         if (schemaJson.name) {
           // Shopify schema names can be translation objects like {"en": "...", "fr": "..."}
-          schemaName = typeof schemaJson.name === 'string'
-            ? schemaJson.name
-            : schemaJson.name.en || Object.values(schemaJson.name)[0] as string || 'schema';
+          schemaName =
+            typeof schemaJson.name === 'string'
+              ? schemaJson.name
+              : schemaJson.name.en || (Object.values(schemaJson.name)[0] as string) || 'schema';
         }
       } catch {
         // Schema isn't valid JSON, use default name
@@ -303,12 +304,12 @@ export class LiquidExtractor {
       const line = this.getLineNumber(match.index);
 
       // Create a variable node
-      const nodeId = generateNodeId(this.filePath, 'variable', variableName!, line);
+      const nodeId = generateNodeId(this.filePath, 'variable', variableName, line);
 
       const node: Node = {
         id: nodeId,
         kind: 'variable',
-        name: variableName!,
+        name: variableName,
         qualifiedName: `${this.filePath}::${variableName}`,
         filePath: this.filePath,
         language: 'liquid',
@@ -345,7 +346,7 @@ export class LiquidExtractor {
     const lines = this.source.split('\n');
     let index = 0;
     for (let i = 0; i < lineNumber - 1 && i < lines.length; i++) {
-      index += lines[i]!.length + 1; // +1 for newline
+      index += lines[i].length + 1; // +1 for newline
     }
     return index;
   }

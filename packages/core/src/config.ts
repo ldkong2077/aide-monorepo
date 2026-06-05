@@ -1,4 +1,4 @@
-﻿/**
+/**
  * AIDE Core - Unified Configuration System
  * Loads aide.config.yaml with multi-level fallback and environment variable resolution.
  */
@@ -12,7 +12,6 @@ import type {
   AppConfig,
   ProviderConfig,
   RoutingEntry,
-  RouteStrategy,
   GuardConfig,
   CostConfig,
   ServerConfig,
@@ -47,7 +46,7 @@ const ALLOWED_ENV_PATTERNS = [
 ];
 
 function isAllowedEnvVar(varName: string): boolean {
-  return ALLOWED_ENV_PATTERNS.some(pattern => pattern.test(varName));
+  return ALLOWED_ENV_PATTERNS.some((pattern) => pattern.test(varName));
 }
 
 /**
@@ -80,7 +79,26 @@ function resolveEnvVars(obj: unknown): unknown {
 // ==================== Default Configuration ====================
 
 function getDefaultServer(): ServerConfig {
-  return { port: 9900, dashboard_port: 9901 };
+  return {
+    port: 9900,
+    dashboard_port: 9901,
+    // Default CORS policy: enabled, localhost-only, no credentials.
+    // Production deployments MUST override `server.cors.origins` to
+    // their public dashboard / client origin (e.g. the k8s Ingress
+    // hostname or the standalone deployment's reverse-proxy FQDN).
+    cors: {
+      enabled: true,
+      origins: [
+        'http://localhost:9900',
+        'http://127.0.0.1:9900',
+        'http://localhost:9901',
+        'http://127.0.0.1:9901',
+      ],
+      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-Id'],
+      credentials: false,
+    },
+  };
 }
 
 function getDefaultProviders(): Record<string, ProviderConfig> {
@@ -157,8 +175,16 @@ function getDefaultGuard(): GuardConfig {
     diffAnalysis: true,
     autoRejectThreshold: 30,
     trusted_packages: [
-      'react', 'vue', 'express', 'fastify', 'lodash',
-      'axios', 'numpy', 'pandas', 'requests', 'flask',
+      'react',
+      'vue',
+      'express',
+      'fastify',
+      'lodash',
+      'axios',
+      'numpy',
+      'pandas',
+      'requests',
+      'flask',
     ],
   };
 }
@@ -168,7 +194,11 @@ function getDefaultCost(): CostConfig {
 }
 
 function getDefaultGraph(): GraphConfig {
-  return { enabled: true, languages: ['typescript', 'javascript', 'python', 'go'], watchMode: false };
+  return {
+    enabled: true,
+    languages: ['typescript', 'javascript', 'python', 'go'],
+    watchMode: false,
+  };
 }
 
 function getDefaultMind(): MindConfig {
@@ -179,7 +209,7 @@ function getDefaultMind(): MindConfig {
 export function getDefaultConfig(): AppConfig {
   return {
     server: getDefaultServer(),
-    strategy: 'balanced' as RouteStrategy,
+    strategy: 'balanced',
     providers: getDefaultProviders(),
     routing: getDefaultRouting(),
     cost: getDefaultCost(),
@@ -192,16 +222,26 @@ export function getDefaultConfig(): AppConfig {
 // ==================== Config Loading ====================
 
 /** Deep merge two objects (source overrides target) */
-function deepMerge(target: Record<string, unknown>, source: Record<string, unknown>): Record<string, unknown> {
+function deepMerge(
+  target: Record<string, unknown>,
+  source: Record<string, unknown>,
+): Record<string, unknown> {
   const result = { ...target };
   for (const key of Object.keys(source)) {
     const sourceVal = source[key];
     const targetVal = result[key];
     if (
-      sourceVal !== null && typeof sourceVal === 'object' && !Array.isArray(sourceVal) &&
-      targetVal !== null && typeof targetVal === 'object' && !Array.isArray(targetVal)
+      sourceVal !== null &&
+      typeof sourceVal === 'object' &&
+      !Array.isArray(sourceVal) &&
+      targetVal !== null &&
+      typeof targetVal === 'object' &&
+      !Array.isArray(targetVal)
     ) {
-      result[key] = deepMerge(targetVal as Record<string, unknown>, sourceVal as Record<string, unknown>);
+      result[key] = deepMerge(
+        targetVal as Record<string, unknown>,
+        sourceVal as Record<string, unknown>,
+      );
     } else {
       result[key] = sourceVal;
     }
@@ -210,7 +250,9 @@ function deepMerge(target: Record<string, unknown>, source: Record<string, unkno
 }
 
 /** Fill provider API keys from environment variables */
-function fillProviderApiKeys(providers: Record<string, ProviderConfig>): Record<string, ProviderConfig> {
+function fillProviderApiKeys(
+  providers: Record<string, ProviderConfig>,
+): Record<string, ProviderConfig> {
   for (const [name, config] of Object.entries(providers)) {
     if (!config.apiKey) {
       const envMap: Record<string, string> = {
@@ -223,7 +265,9 @@ function fillProviderApiKeys(providers: Record<string, ProviderConfig>): Record<
         minimax: 'MINIMAX_API_KEY',
       };
       const envVar = envMap[name.toLowerCase()];
-      config.apiKey = envVar ? (process.env[envVar] || '') : (process.env[`${name.toUpperCase()}_API_KEY`] || '');
+      config.apiKey = envVar
+        ? process.env[envVar] || ''
+        : process.env[`${name.toUpperCase()}_API_KEY`] || '';
     }
     if (name.toLowerCase() === 'ollama' && !config.apiKey) {
       config.apiKey = 'ollama';
@@ -272,7 +316,10 @@ export function loadConfig(configPath?: string): AppConfig {
     if (!rawConfig || typeof rawConfig !== 'object') return defaults;
 
     const resolved = resolveEnvVars(rawConfig) as Record<string, unknown>;
-    const merged = deepMerge(defaults as unknown as Record<string, unknown>, resolved) as unknown as AppConfig;
+    const merged = deepMerge(
+      defaults as unknown as Record<string, unknown>,
+      resolved,
+    ) as unknown as AppConfig;
 
     if (merged.providers) {
       merged.providers = fillProviderApiKeys(merged.providers);
@@ -418,4 +465,3 @@ cost:
   fs.writeFileSync(filePath, content, 'utf-8');
   return filePath;
 }
-

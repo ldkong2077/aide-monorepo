@@ -1,4 +1,4 @@
-﻿import type { Node as SyntaxNode } from 'web-tree-sitter';
+import type { Node as SyntaxNode } from 'web-tree-sitter';
 import { getChildByField, getNodeText } from '../tree-sitter-helpers.js';
 import type { LanguageExtractor } from '../tree-sitter-types.js';
 
@@ -34,11 +34,16 @@ export const cExtractor: LanguageExtractor = {
     // C includes: #include <stdio.h>, #include "myheader.h"
     const systemLib = node.namedChildren.find((c: SyntaxNode) => c.type === 'system_lib_string');
     if (systemLib) {
-      return { moduleName: getNodeText(systemLib, source).replace(/^<|>$/g, ''), signature: importText };
+      return {
+        moduleName: getNodeText(systemLib, source).replace(/^<|>$/g, ''),
+        signature: importText,
+      };
     }
     const stringLiteral = node.namedChildren.find((c: SyntaxNode) => c.type === 'string_literal');
     if (stringLiteral) {
-      const stringContent = stringLiteral.namedChildren.find((c: SyntaxNode) => c.type === 'string_content');
+      const stringContent = stringLiteral.namedChildren.find(
+        (c: SyntaxNode) => c.type === 'string_content',
+      );
       if (stringContent) {
         return { moduleName: getNodeText(stringContent, source), signature: importText };
       }
@@ -102,11 +107,16 @@ export const cppExtractor: LanguageExtractor = {
     // C++ includes: #include <iostream>, #include "myheader.h"
     const systemLib = node.namedChildren.find((c: SyntaxNode) => c.type === 'system_lib_string');
     if (systemLib) {
-      return { moduleName: getNodeText(systemLib, source).replace(/^<|>$/g, ''), signature: importText };
+      return {
+        moduleName: getNodeText(systemLib, source).replace(/^<|>$/g, ''),
+        signature: importText,
+      };
     }
     const stringLiteral = node.namedChildren.find((c: SyntaxNode) => c.type === 'string_literal');
     if (stringLiteral) {
-      const stringContent = stringLiteral.namedChildren.find((c: SyntaxNode) => c.type === 'string_content');
+      const stringContent = stringLiteral.namedChildren.find(
+        (c: SyntaxNode) => c.type === 'string_content',
+      );
       if (stringContent) {
         return { moduleName: getNodeText(stringContent, source), signature: importText };
       }

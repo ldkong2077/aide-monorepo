@@ -1,4 +1,4 @@
-﻿import type { Node as SyntaxNode } from 'web-tree-sitter';
+import type { Node as SyntaxNode } from 'web-tree-sitter';
 import { getNodeText } from '../tree-sitter-helpers.js';
 import type { LanguageExtractor } from '../tree-sitter-types.js';
 
@@ -31,11 +31,11 @@ export const scalaExtractor: LanguageExtractor = {
   interfaceTypes: [],
   structTypes: [],
   enumTypes: ['enum_definition'],
-  enumMemberTypes: [],        // handled in visitNode — enum_case_definitions wraps the cases
+  enumMemberTypes: [], // handled in visitNode — enum_case_definitions wraps the cases
   typeAliasTypes: ['type_definition'],
   importTypes: ['import_declaration'],
   callTypes: ['call_expression'],
-  variableTypes: [],          // val/var handled in visitNode (use `pattern` field, not `name`)
+  variableTypes: [], // val/var handled in visitNode (use `pattern` field, not `name`)
   fieldTypes: [],
   extraClassNodeTypes: [],
 
@@ -79,18 +79,23 @@ export const scalaExtractor: LanguageExtractor = {
       const name = getValVarName(node, ctx.source);
       if (!name) return false;
 
-      const isInClass = ctx.nodeStack.length > 0 &&
+      const isInClass =
+        ctx.nodeStack.length > 0 &&
         (() => {
           const parentId = ctx.nodeStack[ctx.nodeStack.length - 1];
           const parentNode = ctx.nodes.find((n) => n.id === parentId);
-          return parentNode != null && (
-            parentNode.kind === 'class' || parentNode.kind === 'trait' ||
-            parentNode.kind === 'interface' || parentNode.kind === 'struct' ||
-            parentNode.kind === 'enum' || parentNode.kind === 'module'
+          return (
+            parentNode != null &&
+            (parentNode.kind === 'class' ||
+              parentNode.kind === 'trait' ||
+              parentNode.kind === 'interface' ||
+              parentNode.kind === 'struct' ||
+              parentNode.kind === 'enum' ||
+              parentNode.kind === 'module')
           );
         })();
 
-      const kind = isInClass ? 'field' : (t === 'val_definition' ? 'constant' : 'variable');
+      const kind = isInClass ? 'field' : t === 'val_definition' ? 'constant' : 'variable';
       const typeNode = node.childForFieldName('type');
       const sig = typeNode
         ? `${t === 'val_definition' ? 'val' : 'var'} ${name}: ${getNodeText(typeNode, ctx.source)}`

@@ -1,11 +1,11 @@
-﻿/**
+/**
  * Name Matcher
  *
  * Handles symbol name matching for reference resolution.
  */
 
-import { Node } from '../types.js';
-import { UnresolvedRef, ResolvedRef, ResolutionContext } from './types.js';
+import { type Node } from '../types.js';
+import { type UnresolvedRef, type ResolvedRef, type ResolutionContext } from './types.js';
 
 /**
  * Try to resolve a path-like reference (e.g., "snippets/drawer-menu.liquid")
@@ -13,7 +13,7 @@ import { UnresolvedRef, ResolvedRef, ResolutionContext } from './types.js';
  */
 export function matchByFilePath(
   ref: UnresolvedRef,
-  context: ResolutionContext
+  context: ResolutionContext,
 ): ResolvedRef | null {
   if (!ref.referenceName.includes('/')) return null;
 
@@ -23,12 +23,14 @@ export function matchByFilePath(
 
   // Search for file nodes with this name
   const candidates = context.getNodesByName(fileName);
-  const fileNodes = candidates.filter(n => n.kind === 'file');
+  const fileNodes = candidates.filter((n) => n.kind === 'file');
 
   if (fileNodes.length === 0) return null;
 
   // Prefer exact path match on qualified_name
-  const exactMatch = fileNodes.find(n => n.qualifiedName === ref.referenceName || n.filePath === ref.referenceName);
+  const exactMatch = fileNodes.find(
+    (n) => n.qualifiedName === ref.referenceName || n.filePath === ref.referenceName,
+  );
   if (exactMatch) {
     return {
       original: ref,
@@ -39,7 +41,9 @@ export function matchByFilePath(
   }
 
   // Fall back to suffix match (e.g., ref="snippets/foo.liquid" matches "src/snippets/foo.liquid")
-  const suffixMatch = fileNodes.find(n => n.qualifiedName.endsWith(ref.referenceName) || n.filePath.endsWith(ref.referenceName));
+  const suffixMatch = fileNodes.find(
+    (n) => n.qualifiedName.endsWith(ref.referenceName) || n.filePath.endsWith(ref.referenceName),
+  );
   if (suffixMatch) {
     return {
       original: ref,
@@ -53,7 +57,7 @@ export function matchByFilePath(
   if (fileNodes.length === 1) {
     return {
       original: ref,
-      targetNodeId: fileNodes[0]!.id,
+      targetNodeId: fileNodes[0].id,
       confidence: 0.7,
       resolvedBy: 'file-path',
     };
@@ -67,7 +71,7 @@ export function matchByFilePath(
  */
 export function matchByExactName(
   ref: UnresolvedRef,
-  context: ResolutionContext
+  context: ResolutionContext,
 ): ResolvedRef | null {
   const candidates = context.getNodesByName(ref.referenceName);
 
@@ -77,10 +81,10 @@ export function matchByExactName(
 
   // If only one match, use it — but penalize cross-language matches
   if (candidates.length === 1) {
-    const isCrossLanguage = candidates[0]!.language !== ref.language;
+    const isCrossLanguage = candidates[0].language !== ref.language;
     return {
       original: ref,
-      targetNodeId: candidates[0]!.id,
+      targetNodeId: candidates[0].id,
       confidence: isCrossLanguage ? 0.5 : 0.9,
       resolvedBy: 'exact-match',
     };
@@ -108,7 +112,7 @@ export function matchByExactName(
  */
 export function matchByQualifiedName(
   ref: UnresolvedRef,
-  context: ResolutionContext
+  context: ResolutionContext,
 ): ResolvedRef | null {
   // Check if the reference name looks qualified (contains :: or .)
   if (!ref.referenceName.includes('::') && !ref.referenceName.includes('.')) {
@@ -120,7 +124,7 @@ export function matchByQualifiedName(
   if (candidates.length === 1) {
     return {
       original: ref,
-      targetNodeId: candidates[0]!.id,
+      targetNodeId: candidates[0].id,
       confidence: 0.95,
       resolvedBy: 'qualified-name',
     };
@@ -151,11 +155,11 @@ export function matchByQualifiedName(
  */
 export function matchMethodCall(
   ref: UnresolvedRef,
-  context: ResolutionContext
+  context: ResolutionContext,
 ): ResolvedRef | null {
   // Parse method call patterns like "obj.method" or "Class::method"
-  const dotMatch = ref.referenceName.match(/^(\w+)\.(\w+)$/);
-  const colonMatch = ref.referenceName.match(/^(\w+)::(\w+)$/);
+  const dotMatch = /^(\w+)\.(\w+)$/.exec(ref.referenceName);
+  const colonMatch = /^(\w+)::(\w+)$/.exec(ref.referenceName);
 
   const match = dotMatch || colonMatch;
   if (!match) {
@@ -165,19 +169,21 @@ export function matchMethodCall(
   const [, objectOrClass, methodName] = match;
 
   // Strategy 1: Direct class name match (existing logic)
-  const classCandidates = context.getNodesByName(objectOrClass!);
+  const classCandidates = context.getNodesByName(objectOrClass);
 
   for (const classNode of classCandidates) {
-    if (classNode.kind === 'class' || classNode.kind === 'struct' || classNode.kind === 'interface') {
+    if (
+      classNode.kind === 'class' ||
+      classNode.kind === 'struct' ||
+      classNode.kind === 'interface'
+    ) {
       // Skip cross-language class matches
       if (classNode.language !== ref.language) continue;
 
       const nodesInFile = context.getNodesInFile(classNode.filePath);
       const methodNode = nodesInFile.find(
         (n) =>
-          n.kind === 'method' &&
-          n.name === methodName &&
-          n.qualifiedName.includes(classNode.name)
+          n.kind === 'method' && n.name === methodName && n.qualifiedName.includes(classNode.name),
       );
 
       if (methodNode) {
@@ -193,11 +199,15 @@ export function matchMethodCall(
 
   // Strategy 2: Instance variable receiver - try capitalized form to find class
   // e.g., "permissionEngine" → look for classes containing "PermissionEngine"
-  const capitalizedReceiver = objectOrClass!.charAt(0).toUpperCase() + objectOrClass!.slice(1);
+  const capitalizedReceiver = objectOrClass.charAt(0).toUpperCase() + objectOrClass.slice(1);
   if (capitalizedReceiver !== objectOrClass) {
     const fuzzyClassCandidates = context.getNodesByName(capitalizedReceiver);
     for (const classNode of fuzzyClassCandidates) {
-      if (classNode.kind === 'class' || classNode.kind === 'struct' || classNode.kind === 'interface') {
+      if (
+        classNode.kind === 'class' ||
+        classNode.kind === 'struct' ||
+        classNode.kind === 'interface'
+      ) {
         // Skip cross-language class matches
         if (classNode.language !== ref.language) continue;
 
@@ -206,7 +216,7 @@ export function matchMethodCall(
           (n) =>
             n.kind === 'method' &&
             n.name === methodName &&
-            n.qualifiedName.includes(classNode.name)
+            n.qualifiedName.includes(classNode.name),
         );
 
         if (methodNode) {
@@ -225,20 +235,18 @@ export function matchMethodCall(
   // name similarity with the containing class. Handles abbreviated variable
   // names like permissionEngine → PermissionRuleEngine.
   if (methodName) {
-    const methodCandidates = context.getNodesByName(methodName!);
-    const methods = methodCandidates.filter(
-      (n) => n.kind === 'method' && n.name === methodName
-    );
+    const methodCandidates = context.getNodesByName(methodName);
+    const methods = methodCandidates.filter((n) => n.kind === 'method' && n.name === methodName);
 
     // Filter to same-language candidates first
-    const sameLanguageMethods = methods.filter(m => m.language === ref.language);
+    const sameLanguageMethods = methods.filter((m) => m.language === ref.language);
     const targetMethods = sameLanguageMethods.length > 0 ? sameLanguageMethods : methods;
 
     // If only one same-language method with this name exists, use it
-    if (targetMethods.length === 1 && targetMethods[0]!.language === ref.language) {
+    if (targetMethods.length === 1 && targetMethods[0].language === ref.language) {
       return {
         original: ref,
-        targetNodeId: targetMethods[0]!.id,
+        targetNodeId: targetMethods[0].id,
         confidence: 0.7,
         resolvedBy: 'instance-method',
       };
@@ -246,14 +254,14 @@ export function matchMethodCall(
 
     // Multiple methods: score by receiver name word overlap with class name
     if (targetMethods.length > 1) {
-      const receiverWords = splitCamelCase(objectOrClass!);
-      let bestMatch: typeof targetMethods[0] | undefined;
+      const receiverWords = splitCamelCase(objectOrClass);
+      let bestMatch: (typeof targetMethods)[0] | undefined;
       let bestScore = 0;
 
       for (const method of targetMethods) {
         const classWords = splitCamelCase(method.qualifiedName);
-        let score = receiverWords.filter(w =>
-          classWords.some(cw => cw.toLowerCase() === w.toLowerCase())
+        let score = receiverWords.filter((w) =>
+          classWords.some((cw) => cw.toLowerCase() === w.toLowerCase()),
         ).length;
         // Bonus for same language
         if (method.language === ref.language) score += 1;
@@ -281,10 +289,11 @@ export function matchMethodCall(
  * Split a camelCase or PascalCase string into words.
  */
 function splitCamelCase(str: string): string[] {
-  return str.replace(/([a-z])([A-Z])/g, '$1 $2')
+  return str
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
     .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
-    .split(/[\s._:\/\\]+/)
-    .filter(w => w.length > 1);
+    .split(/[\s._:/\\]+/)
+    .filter((w) => w.length > 1);
 }
 
 /**
@@ -315,7 +324,7 @@ function computePathProximity(filePath1: string, filePath2: string): number {
 function findBestMatch(
   ref: UnresolvedRef,
   candidates: Node[],
-  _context: ResolutionContext
+  _context: ResolutionContext,
 ): Node | null {
   // Prioritization rules:
   // 1. Same file > different file
@@ -399,10 +408,7 @@ function findBestMatch(
 /**
  * Fuzzy match - last resort with lower confidence
  */
-export function matchFuzzy(
-  ref: UnresolvedRef,
-  context: ResolutionContext
-): ResolvedRef | null {
+export function matchFuzzy(ref: UnresolvedRef, context: ResolutionContext): ResolvedRef | null {
   const lowerName = ref.referenceName.toLowerCase();
 
   // Use pre-built lowercase index for O(1) lookup instead of scanning all nodes
@@ -413,14 +419,15 @@ export function matchFuzzy(
   const callableCandidates = candidates.filter((n) => callableKinds.has(n.kind));
 
   // Prefer same-language matches
-  const sameLanguageCandidates = callableCandidates.filter(n => n.language === ref.language);
-  const finalCandidates = sameLanguageCandidates.length > 0 ? sameLanguageCandidates : callableCandidates;
+  const sameLanguageCandidates = callableCandidates.filter((n) => n.language === ref.language);
+  const finalCandidates =
+    sameLanguageCandidates.length > 0 ? sameLanguageCandidates : callableCandidates;
 
   if (finalCandidates.length === 1) {
-    const isCrossLanguage = finalCandidates[0]!.language !== ref.language;
+    const isCrossLanguage = finalCandidates[0].language !== ref.language;
     return {
       original: ref,
-      targetNodeId: finalCandidates[0]!.id,
+      targetNodeId: finalCandidates[0].id,
       confidence: isCrossLanguage ? 0.3 : 0.5,
       resolvedBy: 'fuzzy',
     };
@@ -432,10 +439,7 @@ export function matchFuzzy(
 /**
  * Match all strategies in order of confidence
  */
-export function matchReference(
-  ref: UnresolvedRef,
-  context: ResolutionContext
-): ResolvedRef | null {
+export function matchReference(ref: UnresolvedRef, context: ResolutionContext): ResolvedRef | null {
   // Try strategies in order of confidence
   let result: ResolvedRef | null;
 

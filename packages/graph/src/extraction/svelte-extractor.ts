@@ -1,12 +1,25 @@
-﻿import { Node, Edge, ExtractionResult, ExtractionError, UnresolvedReference, Language } from '../types.js';
+import {
+  type Node,
+  type Edge,
+  type ExtractionResult,
+  type ExtractionError,
+  type UnresolvedReference,
+  type Language,
+} from '../types.js';
 import { generateNodeId } from './tree-sitter-helpers.js';
 import { TreeSitterExtractor } from './tree-sitter.js';
 import { isLanguageSupported } from './grammars.js';
 
 /** Svelte 5 rune names — compiler builtins, not real functions */
 const SVELTE_RUNES = new Set([
-  '$props', '$state', '$derived', '$effect', '$bindable',
-  '$inspect', '$host', '$snippet',
+  '$props',
+  '$state',
+  '$derived',
+  '$effect',
+  '$bindable',
+  '$inspect',
+  '$host',
+  '$snippet',
 ]);
 
 /**
@@ -59,7 +72,7 @@ export class SvelteExtractor {
 
       // Filter out Svelte rune calls ($state, $props, $derived, etc.)
       this.unresolvedReferences = this.unresolvedReferences.filter(
-        ref => !SVELTE_RUNES.has(ref.referenceName)
+        (ref) => !SVELTE_RUNES.has(ref.referenceName),
       );
     } catch (error) {
       this.errors.push({
@@ -109,18 +122,18 @@ export class SvelteExtractor {
   /**
    * Extract <script> blocks from the Svelte source
    */
-  private extractScriptBlocks(): Array<{
+  private extractScriptBlocks(): {
     content: string;
     startLine: number;
     isModule: boolean;
     isTypeScript: boolean;
-  }> {
-    const blocks: Array<{
+  }[] {
+    const blocks: {
       content: string;
       startLine: number;
       isModule: boolean;
       isTypeScript: boolean;
-    }> = [];
+    }[] = [];
 
     const scriptRegex = /<script(\s[^>]*)?>(?<content>[\s\S]*?)<\/script>/g;
     let match;
@@ -159,7 +172,7 @@ export class SvelteExtractor {
    */
   private processScriptBlock(
     block: { content: string; startLine: number; isModule: boolean; isTypeScript: boolean },
-    componentNodeId: string
+    componentNodeId: string,
   ): void {
     const scriptLanguage: Language = block.isTypeScript ? 'typescript' : 'javascript';
 
@@ -226,10 +239,10 @@ export class SvelteExtractor {
    */
   private extractTemplateCalls(
     componentNodeId: string,
-    _scriptBlocks: Array<{ content: string; startLine: number }>
+    _scriptBlocks: { content: string; startLine: number }[],
   ): void {
     // Build a set of line ranges covered by <script> and <style> blocks so we skip them
-    const coveredRanges: Array<[number, number]> = [];
+    const coveredRanges: [number, number][] = [];
 
     // Find all <script>...</script> and <style>...</style> ranges
     const tagRegex = /<(script|style)(\s[^>]*)?>[\s\S]*?<\/\1>/g;
@@ -249,19 +262,25 @@ export class SvelteExtractor {
       // Skip lines inside script/style blocks
       if (coveredRanges.some(([start, end]) => lineIdx >= start && lineIdx <= end)) continue;
 
-      const line = lines[lineIdx]!;
+      const line = lines[lineIdx];
       let exprMatch;
       while ((exprMatch = exprRegex.exec(line)) !== null) {
-        const expr = exprMatch[1]!;
+        const expr = exprMatch[1];
         // Extract function calls: identifiers followed by (
         // Matches: cn(...), buttonVariants(...), obj.method(...)
         const callRegex = /\b([a-zA-Z_$][\w$.]*)\s*\(/g;
         let callMatch;
         while ((callMatch = callRegex.exec(expr)) !== null) {
-          const calleeName = callMatch[1]!;
+          const calleeName = callMatch[1];
           // Skip Svelte runes, control flow keywords, and common non-function patterns
           if (SVELTE_RUNES.has(calleeName)) continue;
-          if (calleeName === 'if' || calleeName === 'else' || calleeName === 'each' || calleeName === 'await') continue;
+          if (
+            calleeName === 'if' ||
+            calleeName === 'else' ||
+            calleeName === 'each' ||
+            calleeName === 'await'
+          )
+            continue;
 
           this.unresolvedReferences.push({
             fromNodeId: componentNodeId,
@@ -287,7 +306,7 @@ export class SvelteExtractor {
    */
   private extractTemplateComponents(componentNodeId: string): void {
     // Build ranges covered by <script> and <style> blocks to skip them
-    const coveredRanges: Array<[number, number]> = [];
+    const coveredRanges: [number, number][] = [];
     const tagRegex = /<(script|style)(\s[^>]*)?>[\s\S]*?<\/\1>/g;
     let tagMatch;
     while ((tagMatch = tagRegex.exec(this.source)) !== null) {
@@ -303,10 +322,10 @@ export class SvelteExtractor {
     for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
       if (coveredRanges.some(([start, end]) => lineIdx >= start && lineIdx <= end)) continue;
 
-      const line = lines[lineIdx]!;
+      const line = lines[lineIdx];
       let match;
       while ((match = componentTagRegex.exec(line)) !== null) {
-        const componentName = match[1]!;
+        const componentName = match[1];
 
         this.unresolvedReferences.push({
           fromNodeId: componentNodeId,

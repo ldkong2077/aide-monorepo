@@ -1,4 +1,4 @@
-﻿/**
+/**
  * MCP Tool Definitions
  *
  * Defines the tools exposed by the CodeGraph MCP server.
@@ -38,7 +38,14 @@ const RUST_PATH_PREFIXES = new Set(['crate', 'super', 'self']);
  * multi-thousand-character wall of source that bloats the agent's context.
  */
 const CONTAINER_NODE_KINDS = new Set<NodeKind>([
-  'class', 'struct', 'interface', 'trait', 'protocol', 'enum', 'namespace', 'module',
+  'class',
+  'struct',
+  'interface',
+  'trait',
+  'protocol',
+  'enum',
+  'namespace',
+  'module',
 ]);
 
 /** Last `::` / `.` / `/`-separated segment of a qualified symbol. */
@@ -212,7 +219,8 @@ function markSessionConsulted(sessionId: string): void {
     // O_CREAT + O_TRUNC keep the original "create-or-overwrite" semantics, and
     // mode 0o600 prevents readback by other local users (the marker payload is
     // benign, but narrowing the exposure costs nothing).
-    const flags = fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_TRUNC | fsConstants.O_NOFOLLOW;
+    const flags =
+      fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_TRUNC | fsConstants.O_NOFOLLOW;
     const fd = openSync(markerPath, flags, 0o600);
     try {
       writeSync(fd, new Date().toISOString());
@@ -250,10 +258,10 @@ interface PropertySchema {
  * Tool execution result
  */
 export interface ToolResult {
-  content: Array<{
+  content: {
     type: 'text';
     text: string;
-  }>;
+  }[];
   isError?: boolean;
 }
 
@@ -262,7 +270,8 @@ export interface ToolResult {
  */
 const projectPathProperty: PropertySchema = {
   type: 'string',
-  description: 'Path to a different project with .codegraph/ initialized. If omitted, uses current project. Use this to query other codebases.',
+  description:
+    'Path to a different project with .codegraph/ initialized. If omitted, uses current project. Use this to query other codebases.',
 };
 
 /**
@@ -276,7 +285,8 @@ const projectPathProperty: PropertySchema = {
 export const tools: ToolDefinition[] = [
   {
     name: 'codegraph_search',
-    description: 'Quick symbol search by name. Returns locations only (no code). Use codegraph_context instead for comprehensive task context.',
+    description:
+      'Quick symbol search by name. Returns locations only (no code). Use codegraph_context instead for comprehensive task context.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -287,7 +297,16 @@ export const tools: ToolDefinition[] = [
         kind: {
           type: 'string',
           description: 'Filter by node kind',
-          enum: ['function', 'method', 'class', 'interface', 'type', 'variable', 'route', 'component'],
+          enum: [
+            'function',
+            'method',
+            'class',
+            'interface',
+            'type',
+            'variable',
+            'route',
+            'component',
+          ],
         },
         limit: {
           type: 'number',
@@ -301,7 +320,8 @@ export const tools: ToolDefinition[] = [
   },
   {
     name: 'codegraph_context',
-    description: 'PRIMARY TOOL — call this FIRST for any "how does X work", architecture, feature, or bug-context question. Composes search + node + callers + callees and returns entry points, related symbols, and key code in ONE call — usually enough to answer with no further search/Read/Grep. Prefer this over chaining codegraph_search + codegraph_node, and over codegraph_explore. NOTE: provides CODE context, not product requirements; for new features still clarify UX/edge cases with the user.',
+    description:
+      'PRIMARY TOOL — call this FIRST for any "how does X work", architecture, feature, or bug-context question. Composes search + node + callers + callees and returns entry points, related symbols, and key code in ONE call — usually enough to answer with no further search/Read/Grep. Prefer this over chaining codegraph_search + codegraph_node, and over codegraph_explore. NOTE: provides CODE context, not product requirements; for new features still clarify UX/edge cases with the user.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -326,7 +346,8 @@ export const tools: ToolDefinition[] = [
   },
   {
     name: 'codegraph_callers',
-    description: 'Find all functions/methods that call a specific symbol. Useful for understanding usage patterns and impact of changes.',
+    description:
+      'Find all functions/methods that call a specific symbol. Useful for understanding usage patterns and impact of changes.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -346,7 +367,8 @@ export const tools: ToolDefinition[] = [
   },
   {
     name: 'codegraph_callees',
-    description: 'Find all functions/methods that a specific symbol calls. Useful for understanding dependencies and code flow.',
+    description:
+      'Find all functions/methods that a specific symbol calls. Useful for understanding dependencies and code flow.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -366,7 +388,8 @@ export const tools: ToolDefinition[] = [
   },
   {
     name: 'codegraph_impact',
-    description: 'Analyze the impact radius of changing a symbol. Shows what code could be affected by modifications.',
+    description:
+      'Analyze the impact radius of changing a symbol. Shows what code could be affected by modifications.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -386,7 +409,8 @@ export const tools: ToolDefinition[] = [
   },
   {
     name: 'codegraph_node',
-    description: 'Get detailed info about ONE symbol (location, signature, docstring). Pass includeCode=true for source: a function/method returns its body; a class/interface/struct/enum returns a compact member OUTLINE (fields + method signatures + line numbers), not every method body — Read or codegraph_node a specific member for its body. Keep includeCode=false to minimize context. For SEVERAL related symbols, make ONE codegraph_explore (or codegraph_context) call instead of many node calls — repeated node calls each re-read the whole context and cost far more.',
+    description:
+      'Get detailed info about ONE symbol (location, signature, docstring). Pass includeCode=true for source: a function/method returns its body; a class/interface/struct/enum returns a compact member OUTLINE (fields + method signatures + line numbers), not every method body — Read or codegraph_node a specific member for its body. Keep includeCode=false to minimize context. For SEVERAL related symbols, make ONE codegraph_explore (or codegraph_context) call instead of many node calls — repeated node calls each re-read the whole context and cost far more.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -406,13 +430,15 @@ export const tools: ToolDefinition[] = [
   },
   {
     name: 'codegraph_explore',
-    description: 'Returns source for SEVERAL related symbols grouped by file, plus a relationship map, in ONE capped call. This is the efficient way to inspect many related symbols at once — strongly prefer it over a series of codegraph_node or Read calls (each separate call re-reads the whole context, so 8 node calls cost far more than 1 explore). Use it after codegraph_context when you need to see the actual source of several symbols. Query with specific symbol/file/code terms, NOT natural-language sentences — run codegraph_search first to find names. Bad: "how are agent prompts loaded and passed to the CLI". Good: "renderStaticScene drawElementOnCanvas ShapeCache renderElement.ts".',
+    description:
+      'Returns source for SEVERAL related symbols grouped by file, plus a relationship map, in ONE capped call. This is the efficient way to inspect many related symbols at once — strongly prefer it over a series of codegraph_node or Read calls (each separate call re-reads the whole context, so 8 node calls cost far more than 1 explore). Use it after codegraph_context when you need to see the actual source of several symbols. Query with specific symbol/file/code terms, NOT natural-language sentences — run codegraph_search first to find names. Bad: "how are agent prompts loaded and passed to the CLI". Good: "renderStaticScene drawElementOnCanvas ShapeCache renderElement.ts".',
     inputSchema: {
       type: 'object',
       properties: {
         query: {
           type: 'string',
-          description: 'Symbol names, file names, or short code terms to explore (e.g., "AuthService loginUser session-manager", "GraphTraverser BFS impact traversal.ts"). Use codegraph_search first to find relevant names.',
+          description:
+            'Symbol names, file names, or short code terms to explore (e.g., "AuthService loginUser session-manager", "GraphTraverser BFS impact traversal.ts"). Use codegraph_search first to find relevant names.',
         },
         maxFiles: {
           type: 'number',
@@ -426,7 +452,8 @@ export const tools: ToolDefinition[] = [
   },
   {
     name: 'codegraph_status',
-    description: 'Get the status of the CodeGraph index, including statistics about indexed files, nodes, and edges.',
+    description:
+      'Get the status of the CodeGraph index, including statistics about indexed files, nodes, and edges.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -436,13 +463,15 @@ export const tools: ToolDefinition[] = [
   },
   {
     name: 'codegraph_files',
-    description: 'REQUIRED for file/folder exploration. Get the project file structure from the CodeGraph index. Returns a tree view of all indexed files with metadata (language, symbol count). Much faster than Glob/filesystem scanning. Use this FIRST when exploring project structure, finding files, or understanding codebase organization.',
+    description:
+      'REQUIRED for file/folder exploration. Get the project file structure from the CodeGraph index. Returns a tree view of all indexed files with metadata (language, symbol count). Much faster than Glob/filesystem scanning. Use this FIRST when exploring project structure, finding files, or understanding codebase organization.',
     inputSchema: {
       type: 'object',
       properties: {
         path: {
           type: 'string',
-          description: 'Filter to files under this directory path (e.g., "src/components"). Returns all files if not specified.',
+          description:
+            'Filter to files under this directory path (e.g., "src/components"). Returns all files if not specified.',
         },
         pattern: {
           type: 'string',
@@ -450,7 +479,8 @@ export const tools: ToolDefinition[] = [
         },
         format: {
           type: 'string',
-          description: 'Output format: "tree" (hierarchical, default), "flat" (simple list), "grouped" (by language)',
+          description:
+            'Output format: "tree" (hierarchical, default), "flat" (simple list), "grouped" (by language)',
           enum: ['tree', 'flat', 'grouped'],
           default: 'tree',
         },
@@ -477,7 +507,7 @@ export const tools: ToolDefinition[] = [
  */
 export class ToolHandler {
   // Cache of opened CodeGraph instances for cross-project queries
-  private projectCache: Map<string, CodeGraph> = new Map();
+  private projectCache = new Map<string, CodeGraph>();
   // The directory the server last searched for a default project. Surfaced in
   // the "not initialized" error so users can see why detection missed.
   private defaultProjectHint: string | null = null;
@@ -518,7 +548,7 @@ export class ToolHandler {
       const stats = this.cg.getStats();
       const budget = getExploreBudget(stats.fileCount);
 
-      return tools.map(tool => {
+      return tools.map((tool) => {
         if (tool.name === 'codegraph_explore') {
           return {
             ...tool,
@@ -547,12 +577,12 @@ export class ToolHandler {
         const searched = this.defaultProjectHint ?? process.cwd();
         throw new Error(
           'No CodeGraph project is loaded for this session.\n' +
-          `Searched for a .codegraph/ directory starting from: ${searched}\n` +
-          'The index is likely fine — this is a working-directory detection issue: ' +
-          "the MCP client launched the server outside your project and didn't report the " +
-          'workspace root. Fix it either way:\n' +
-          '  • Pass projectPath to the tool call, e.g. projectPath: "/absolute/path/to/your/project"\n' +
-          '  • Or add --path to the server\'s MCP config args: ["serve", "--mcp", "--path", "/absolute/path/to/your/project"]'
+            `Searched for a .codegraph/ directory starting from: ${searched}\n` +
+            'The index is likely fine — this is a working-directory detection issue: ' +
+            "the MCP client launched the server outside your project and didn't report the " +
+            'workspace root. Fix it either way:\n' +
+            '  • Pass projectPath to the tool call, e.g. projectPath: "/absolute/path/to/your/project"\n' +
+            '  • Or add --path to the server\'s MCP config args: ["serve", "--mcp", "--path", "/absolute/path/to/your/project"]',
         );
       }
       return this.cg;
@@ -567,7 +597,9 @@ export class ToolHandler {
     const resolvedRoot = findNearestCodeGraphRoot(projectPath);
 
     if (!resolvedRoot) {
-      throw new Error(`CodeGraph not initialized in ${projectPath}. Run 'codegraph init' in that project first.`);
+      throw new Error(
+        `CodeGraph not initialized in ${projectPath}. Run 'codegraph init' in that project first.`,
+      );
     }
 
     // If the path resolves to the default project, reuse the already-open
@@ -577,7 +609,7 @@ export class ToolHandler {
     // "database is locked" on concurrent tool calls. See issue #238. Deliberately
     // not cached under projectPath — the server owns and closes the default
     // instance, so routing it through projectCache.closeAll() would double-close it.
-    if (this.cg && this.cg.getProjectRoot() === resolvedRoot) {
+    if (this.cg?.getProjectRoot() === resolvedRoot) {
       return this.cg;
     }
 
@@ -646,7 +678,9 @@ export class ToolHandler {
           return this.errorResult(`Unknown tool: ${toolName}`);
       }
     } catch (err) {
-      return this.errorResult(`Tool execution failed: ${err instanceof Error ? err.message : String(err)}`);
+      return this.errorResult(
+        `Tool execution failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
   }
 
@@ -718,27 +752,54 @@ export class ToolHandler {
    */
   private looksLikeFeatureRequest(task: string): boolean {
     const featureKeywords = [
-      'add', 'create', 'implement', 'build', 'enable', 'allow',
-      'new feature', 'support for', 'ability to', 'want to',
-      'should be able', 'need to add', 'swap', 'edit', 'modify'
+      'add',
+      'create',
+      'implement',
+      'build',
+      'enable',
+      'allow',
+      'new feature',
+      'support for',
+      'ability to',
+      'want to',
+      'should be able',
+      'need to add',
+      'swap',
+      'edit',
+      'modify',
     ];
     const bugKeywords = [
-      'fix', 'bug', 'error', 'broken', 'crash', 'issue', 'problem',
-      'not working', 'fails', 'undefined', 'null'
+      'fix',
+      'bug',
+      'error',
+      'broken',
+      'crash',
+      'issue',
+      'problem',
+      'not working',
+      'fails',
+      'undefined',
+      'null',
     ];
     const explorationKeywords = [
-      'how does', 'where is', 'what is', 'find', 'show me',
-      'explain', 'understand', 'explore'
+      'how does',
+      'where is',
+      'what is',
+      'find',
+      'show me',
+      'explain',
+      'understand',
+      'explore',
     ];
 
     const lowerTask = task.toLowerCase();
 
     // If it's clearly a bug or exploration, not a feature
-    if (bugKeywords.some(k => lowerTask.includes(k))) return false;
-    if (explorationKeywords.some(k => lowerTask.includes(k))) return false;
+    if (bugKeywords.some((k) => lowerTask.includes(k))) return false;
+    if (explorationKeywords.some((k) => lowerTask.includes(k))) return false;
 
     // If it matches feature keywords, it's likely a feature request
-    return featureKeywords.some(k => lowerTask.includes(k));
+    return featureKeywords.some((k) => lowerTask.includes(k));
   }
 
   /**
@@ -772,7 +833,8 @@ export class ToolHandler {
       return this.textResult(`No callers found for "${symbol}"${allMatches.note}`);
     }
 
-    const formatted = this.formatNodeList(allCallers.slice(0, limit), `Callers of ${symbol}`) + allMatches.note;
+    const formatted =
+      this.formatNodeList(allCallers.slice(0, limit), `Callers of ${symbol}`) + allMatches.note;
     return this.textResult(this.truncateOutput(formatted));
   }
 
@@ -807,7 +869,8 @@ export class ToolHandler {
       return this.textResult(`No callees found for "${symbol}"${allMatches.note}`);
     }
 
-    const formatted = this.formatNodeList(allCallees.slice(0, limit), `Callees of ${symbol}`) + allMatches.note;
+    const formatted =
+      this.formatNodeList(allCallees.slice(0, limit), `Callees of ${symbol}`) + allMatches.note;
     return this.textResult(this.truncateOutput(formatted));
   }
 
@@ -848,7 +911,7 @@ export class ToolHandler {
     const mergedImpact = {
       nodes: mergedNodes,
       edges: mergedEdges,
-      roots: allMatches.nodes.map(n => n.id),
+      roots: allMatches.nodes.map((n) => n.id),
     };
 
     const formatted = this.formatImpact(symbol, mergedImpact) + allMatches.note;
@@ -931,7 +994,10 @@ export class ToolHandler {
     const relevantFiles = [...fileGroups.entries()].filter(([, group]) => group.score >= 3);
 
     // Extract query terms for relevance checking
-    const queryTerms = query.toLowerCase().split(/\s+/).filter(t => t.length >= 3);
+    const queryTerms = query
+      .toLowerCase()
+      .split(/\s+/)
+      .filter((t) => t.length >= 3);
 
     // Sort files: highest relevance first, deprioritize low-value files
     const sortedFiles = relevantFiles.sort((a, b) => {
@@ -941,8 +1007,8 @@ export class ToolHandler {
       // Check if any node name or file path relates to query terms
       const hasQueryRelevance = (filePath: string, nodes: Node[]) => {
         const fp = filePath.toLowerCase();
-        if (queryTerms.some(t => fp.includes(t))) return true;
-        return nodes.some(n => queryTerms.some(t => n.name.toLowerCase().includes(t)));
+        if (queryTerms.some((t) => fp.includes(t))) return true;
+        return nodes.some((n) => queryTerms.some((t) => n.name.toLowerCase().includes(t)));
       };
 
       const aRelevant = hasQueryRelevance(aPath, a[1].nodes);
@@ -951,9 +1017,7 @@ export class ToolHandler {
 
       // Deprioritize test files, icon files, and i18n files
       const isLowValue = (p: string) =>
-        /\/(tests?|__tests?__|spec)\//i.test(p) ||
-        /\bicons?\b/i.test(p) ||
-        /\bi18n\b/i.test(p);
+        /\/(tests?|__tests?__|spec)\//i.test(p) || /\bicons?\b/i.test(p) || /\bi18n\b/i.test(p);
       const aLow = isLowValue(aPath);
       const bLow = isLowValue(bPath);
       if (aLow !== bLow) return aLow ? 1 : -1;
@@ -971,8 +1035,8 @@ export class ToolHandler {
     ];
 
     // Relationship map — show how symbols connect
-    const significantEdges = subgraph.edges.filter(e =>
-      e.kind !== 'contains' // skip contains — it's implied by file grouping
+    const significantEdges = subgraph.edges.filter(
+      (e) => e.kind !== 'contains', // skip contains — it's implied by file grouping
     );
 
     if (budget.includeRelationships && significantEdges.length > 0) {
@@ -980,7 +1044,7 @@ export class ToolHandler {
       lines.push('');
 
       // Group edges by kind for readability
-      const byKind = new Map<string, Array<{ source: string; target: string }>>();
+      const byKind = new Map<string, { source: string; target: string }[]>();
       for (const edge of significantEdges) {
         const sourceNode = subgraph.nodes.get(edge.source);
         const targetNode = subgraph.nodes.get(edge.target);
@@ -1049,12 +1113,32 @@ export class ToolHandler {
       // query actually asked about (#185 follow-up — Session.swift in
       // Alamofire is the canonical case: the `Session` class spans ~1,400
       // lines). We want the granular symbols inside, not the envelope.
-      const ENVELOPE_KINDS = new Set(['file', 'module', 'class', 'struct', 'interface', 'enum', 'namespace', 'protocol', 'trait', 'component']);
-      const ranges: Array<{ start: number; end: number; name: string; kind: string; importance: number }> = group.nodes
-        .filter(n => n.startLine > 0 && n.endLine > 0)
+      const ENVELOPE_KINDS = new Set([
+        'file',
+        'module',
+        'class',
+        'struct',
+        'interface',
+        'enum',
+        'namespace',
+        'protocol',
+        'trait',
+        'component',
+      ]);
+      const ranges: {
+        start: number;
+        end: number;
+        name: string;
+        kind: string;
+        importance: number;
+      }[] = group.nodes
+        .filter((n) => n.startLine > 0 && n.endLine > 0)
         // Drop whole-file envelope nodes (containers covering >50% of the file).
-        .filter(n => !(ENVELOPE_KINDS.has(n.kind) && (n.endLine - n.startLine + 1) > fileLines.length * 0.5))
-        .map(n => {
+        .filter(
+          (n) =>
+            !(ENVELOPE_KINDS.has(n.kind) && n.endLine - n.startLine + 1 > fileLines.length * 0.5),
+        )
+        .map((n) => {
           let importance = 1;
           if (entryNodeIds.has(n.id)) importance = 10;
           else if (connectedToEntry.has(n.id)) importance = 3;
@@ -1076,7 +1160,13 @@ export class ToolHandler {
           // Look up target name from subgraph first, fall back to edge kind
           const targetNode = subgraph.nodes.get(edge.target);
           const targetName = targetNode?.name ?? edge.kind;
-          ranges.push({ start: edge.line, end: edge.line, name: targetName, kind: edge.kind, importance: 2 });
+          ranges.push({
+            start: edge.line,
+            end: edge.line,
+            name: targetName,
+            kind: edge.kind,
+            importance: 2,
+          });
         }
       }
 
@@ -1085,17 +1175,23 @@ export class ToolHandler {
       if (ranges.length === 0) continue;
 
       const gapThreshold = budget.gapThreshold;
-      const clusters: Array<{ start: number; end: number; symbols: string[]; score: number; maxImportance: number }> = [];
+      const clusters: {
+        start: number;
+        end: number;
+        symbols: string[];
+        score: number;
+        maxImportance: number;
+      }[] = [];
       let current = {
-        start: ranges[0]!.start,
-        end: ranges[0]!.end,
-        symbols: [`${ranges[0]!.name}(${ranges[0]!.kind})`],
-        score: ranges[0]!.importance,
-        maxImportance: ranges[0]!.importance,
+        start: ranges[0].start,
+        end: ranges[0].end,
+        symbols: [`${ranges[0].name}(${ranges[0].kind})`],
+        score: ranges[0].importance,
+        maxImportance: ranges[0].importance,
       };
 
       for (let i = 1; i < ranges.length; i++) {
-        const r = ranges[i]!;
+        const r = ranges[i];
         if (r.start <= current.end + gapThreshold) {
           current.end = Math.max(current.end, r.end);
           current.symbols.push(`${r.name}(${r.kind})`);
@@ -1158,7 +1254,8 @@ export class ToolHandler {
       const chosenIndices = new Set<number>();
       let projectedChars = 0;
       for (const rc of rankedClusters) {
-        const sectionLen = buildSection(rc.c).length + (chosenIndices.size > 0 ? GAP_MARKER.length : 0);
+        const sectionLen =
+          buildSection(rc.c).length + (chosenIndices.size > 0 ? GAP_MARKER.length : 0);
         // Always take the top-ranked cluster, even if oversize, so we don't
         // return an empty file section (agent would then re-Read the file,
         // negating the savings).
@@ -1178,7 +1275,7 @@ export class ToolHandler {
       let fileTrimmed = false;
       for (let i = 0; i < clusters.length; i++) {
         if (!chosenIndices.has(i)) continue;
-        const cluster = clusters[i]!;
+        const cluster = clusters[i];
         const section = buildSection(cluster);
         if (fileSection.length > 0) fileSection += GAP_MARKER;
         fileSection += section;
@@ -1209,9 +1306,10 @@ export class ToolHandler {
       const headerCap = budget.maxSymbolsInFileHeader;
       const headerSymbols = sortedSymbols.slice(0, headerCap);
       const omittedCount = sortedSymbols.length - headerSymbols.length;
-      const headerSuffix = omittedCount > 0
-        ? `${headerSymbols.join(', ')}, +${omittedCount} more`
-        : headerSymbols.join(', ');
+      const headerSuffix =
+        omittedCount > 0
+          ? `${headerSymbols.join(', ')}, +${omittedCount} more`
+          : headerSymbols.join(', ');
       const fileHeader = `#### ${filePath} — ${headerSuffix}`;
 
       // Respect the total output cap on a file-by-file basis.
@@ -1256,7 +1354,7 @@ export class ToolHandler {
         lines.push('### Additional relevant files (not shown)');
         lines.push('');
         for (const [filePath, group] of remainingFiles.slice(0, 10)) {
-          const symbols = group.nodes.map(n => `${n.name}:${n.startLine}`).join(', ');
+          const symbols = group.nodes.map((n) => `${n.name}:${n.startLine}`).join(', ');
           lines.push(`- ${filePath}: ${symbols}`);
         }
         if (remainingFiles.length > 10) {
@@ -1272,10 +1370,14 @@ export class ToolHandler {
     if (budget.includeCompletenessSignal) {
       lines.push('');
       lines.push('---');
-      lines.push(`> **Complete source code is included above for ${filesIncluded} files.** You do NOT need to re-read these files — the relevant sections are already shown in full. Only use Read/Grep for files listed under "Additional relevant files" if you need more detail.`);
+      lines.push(
+        `> **Complete source code is included above for ${filesIncluded} files.** You do NOT need to re-read these files — the relevant sections are already shown in full. Only use Read/Grep for files listed under "Additional relevant files" if you need more detail.`,
+      );
     } else if (anyFileTrimmed) {
       lines.push('');
-      lines.push(`> Some file sections were trimmed for size. Use \`codegraph_node\` or Read for the full source if needed.`);
+      lines.push(
+        `> Some file sections were trimmed for size. Use \`codegraph_node\` or Read for the full source if needed.`,
+      );
     }
 
     // Add explore budget note based on project size
@@ -1284,7 +1386,9 @@ export class ToolHandler {
         const stats = cg.getStats();
         const callBudget = getExploreBudget(stats.fileCount);
         lines.push('');
-        lines.push(`> **Explore budget: ${callBudget} calls max for this project (${stats.fileCount.toLocaleString()} files indexed).** Stop exploring and synthesize your answer once you've used ${callBudget} calls — do NOT make additional explore calls beyond this budget.`);
+        lines.push(
+          `> **Explore budget: ${callBudget} calls max for this project (${stats.fileCount.toLocaleString()} files indexed).** Stop exploring and synthesize your answer once you've used ${callBudget} calls — do NOT make additional explore calls beyond this budget.`,
+        );
       } catch {
         // Stats unavailable — skip budget note
       }
@@ -1301,7 +1405,9 @@ export class ToolHandler {
       const cut = output.slice(0, budget.maxOutputChars);
       const lastNewline = cut.lastIndexOf('\n');
       const safe = lastNewline > budget.maxOutputChars * 0.8 ? cut.slice(0, lastNewline) : cut;
-      return this.textResult(safe + '\n\n... (explore output truncated to budget — use codegraph_node or Read for more)');
+      return this.textResult(
+        safe + '\n\n... (explore output truncated to budget — use codegraph_node or Read for more)',
+      );
     }
     return this.textResult(output);
   }
@@ -1374,21 +1480,21 @@ export class ToolHandler {
     } else {
       lines.push(
         `**Journal mode:** ⚠ ${journalMode || 'unknown'} — WAL not active, so reads ` +
-        `can block on a concurrent write (WAL appears unsupported on this filesystem)`
+          `can block on a concurrent write (WAL appears unsupported on this filesystem)`,
       );
     }
 
     lines.push('', '### Nodes by Kind:');
 
     for (const [kind, count] of Object.entries(stats.nodesByKind)) {
-      if ((count as number) > 0) {
+      if (count > 0) {
         lines.push(`- ${kind}: ${count}`);
       }
     }
 
     lines.push('', '### Languages:');
     for (const [lang, count] of Object.entries(stats.filesByLanguage)) {
-      if ((count as number) > 0) {
+      if (count > 0) {
         lines.push(`- ${lang}: ${count}`);
       }
     }
@@ -1416,13 +1522,15 @@ export class ToolHandler {
 
     // Filter by path prefix
     let files = pathFilter
-      ? allFiles.filter(f => f.path.startsWith(pathFilter) || f.path.startsWith('./' + pathFilter))
+      ? allFiles.filter(
+          (f) => f.path.startsWith(pathFilter) || f.path.startsWith('./' + pathFilter),
+        )
       : allFiles;
 
     // Filter by glob pattern
     if (pattern) {
       const regex = this.globToRegex(pattern);
-      files = files.filter(f => regex.test(f.path));
+      files = files.filter((f) => regex.test(f.path));
     }
 
     if (files.length === 0) {
@@ -1452,18 +1560,21 @@ export class ToolHandler {
    */
   private globToRegex(pattern: string): RegExp {
     const escaped = pattern
-      .replace(/[.+^${}()|[\]\\]/g, '\\$&')  // Escape special regex chars except * and ?
-      .replace(/\*\*/g, '{{GLOBSTAR}}')       // Temp placeholder for **
-      .replace(/\*/g, '[^/]*')                // * matches anything except /
-      .replace(/\?/g, '[^/]')                 // ? matches single char except /
-      .replace(/\{\{GLOBSTAR\}\}/g, '.*');    // ** matches anything including /
+      .replace(/[.+^${}()|[\]\\]/g, '\\$&') // Escape special regex chars except * and ?
+      .replace(/\*\*/g, '{{GLOBSTAR}}') // Temp placeholder for **
+      .replace(/\*/g, '[^/]*') // * matches anything except /
+      .replace(/\?/g, '[^/]') // ? matches single char except /
+      .replace(/\{\{GLOBSTAR\}\}/g, '.*'); // ** matches anything including /
     return new RegExp(escaped);
   }
 
   /**
    * Format files as a flat list
    */
-  private formatFilesFlat(files: { path: string; language: string; nodeCount: number }[], includeMetadata: boolean): string {
+  private formatFilesFlat(
+    files: { path: string; language: string; nodeCount: number }[],
+    includeMetadata: boolean,
+  ): string {
     const lines: string[] = [`## Files (${files.length})`, ''];
 
     for (const file of files.sort((a, b) => a.path.localeCompare(b.path))) {
@@ -1480,7 +1591,10 @@ export class ToolHandler {
   /**
    * Format files grouped by language
    */
-  private formatFilesGrouped(files: { path: string; language: string; nodeCount: number }[], includeMetadata: boolean): string {
+  private formatFilesGrouped(
+    files: { path: string; language: string; nodeCount: number }[],
+    includeMetadata: boolean,
+  ): string {
     const byLang = new Map<string, typeof files>();
 
     for (const file of files) {
@@ -1515,7 +1629,7 @@ export class ToolHandler {
   private formatFilesTree(
     files: { path: string; language: string; nodeCount: number }[],
     includeMetadata: boolean,
-    maxDepth?: number
+    maxDepth?: number,
   ): string {
     // Build tree structure
     interface TreeNode {
@@ -1573,7 +1687,7 @@ export class ToolHandler {
       });
 
       for (let i = 0; i < children.length; i++) {
-        const child = children[i]!;
+        const child = children[i];
         const nextPrefix = node.name ? prefix + childPrefix : prefix;
         renderNode(child, nextPrefix, i === children.length - 1, depth + 1);
       }
@@ -1619,11 +1733,11 @@ export class ToolHandler {
     // Qualified-name lookups: split on any supported separator. `\w` keeps
     // identifier chars (incl. `_`) intact; everything else is treated as
     // a separator we tolerate.
-    if (!/[.\/]|::/.test(symbol)) return false;
+    if (!/[./]|::/.test(symbol)) return false;
     const parts = symbol.split(/::|[./]/).filter((p) => p.length > 0);
     if (parts.length < 2) return false;
 
-    const lastPart = parts[parts.length - 1]!;
+    const lastPart = parts[parts.length - 1];
     if (node.name !== lastPart) return false;
 
     // Stage 1: qualified-name suffix match. The extractor joins the
@@ -1643,7 +1757,7 @@ export class ToolHandler {
 
     const segments = node.filePath.split('/').filter((s) => s.length > 0);
     return containerHints.every((hint) =>
-      segments.some((seg) => seg === hint || seg.replace(/\.[^.]+$/, '') === hint)
+      segments.some((seg) => seg === hint || seg.replace(/\.[^.]+$/, '') === hint),
     );
   }
 
@@ -1651,7 +1765,7 @@ export class ToolHandler {
     // Use higher limit for qualified lookups (e.g., "Session.request",
     // "stage_apply::run") since the target may rank lower in FTS when
     // there are many partial matches across the qualifier parts.
-    const isQualified = /[.\/]|::/.test(symbol);
+    const isQualified = /[./]|::/.test(symbol);
     const limit = isQualified ? 50 : 10;
     let results = cg.searchNodes(symbol, { limit });
 
@@ -1667,18 +1781,18 @@ export class ToolHandler {
       return null;
     }
 
-    const exactMatches = results.filter(r => this.matchesSymbol(r.node, symbol));
+    const exactMatches = results.filter((r) => this.matchesSymbol(r.node, symbol));
 
     if (exactMatches.length === 1) {
-      return { node: exactMatches[0]!.node, note: '' };
+      return { node: exactMatches[0].node, note: '' };
     }
 
     if (exactMatches.length > 1) {
       // Multiple exact matches - pick first, note the others
-      const picked = exactMatches[0]!.node;
-      const others = exactMatches.slice(1).map(r =>
-        `${r.node.name} (${r.node.kind}) at ${r.node.filePath}:${r.node.startLine}`
-      );
+      const picked = exactMatches[0].node;
+      const others = exactMatches
+        .slice(1)
+        .map((r) => `${r.node.name} (${r.node.kind}) at ${r.node.filePath}:${r.node.startLine}`);
       const note = `\n\n> **Note:** ${exactMatches.length} symbols named "${symbol}". Showing results for \`${picked.filePath}:${picked.startLine}\`. Others: ${others.join(', ')}`;
       return { node: picked, note };
     }
@@ -1688,7 +1802,7 @@ export class ToolHandler {
     // resolving `stage_apply::nonexistent_fn` to the unrelated
     // `stage_apply.rs` file would be actively misleading (#173).
     if (isQualified) return null;
-    return { node: results[0]!.node, note: '' };
+    return { node: results[0].node, note: '' };
   }
 
   /**
@@ -1701,7 +1815,7 @@ export class ToolHandler {
     // Mirror the fallback in `findSymbol` for qualified queries — FTS
     // strips colons, so a module-qualified lookup needs a second pass
     // by the bare last part.
-    if (results.length === 0 && /[.\/]|::/.test(symbol)) {
+    if (results.length === 0 && /[./]|::/.test(symbol)) {
       const tail = lastQualifierPart(symbol);
       if (tail && tail !== symbol) results = cg.searchNodes(tail, { limit: 50 });
     }
@@ -1710,18 +1824,18 @@ export class ToolHandler {
       return { nodes: [], note: '' };
     }
 
-    const exactMatches = results.filter(r => this.matchesSymbol(r.node, symbol));
+    const exactMatches = results.filter((r) => this.matchesSymbol(r.node, symbol));
 
     if (exactMatches.length <= 1) {
-      const node = exactMatches[0]?.node ?? results[0]!.node;
+      const node = exactMatches[0]?.node ?? results[0].node;
       return { nodes: [node], note: '' };
     }
 
-    const locations = exactMatches.map(r =>
-      `${r.node.kind} at ${r.node.filePath}:${r.node.startLine}`
+    const locations = exactMatches.map(
+      (r) => `${r.node.kind} at ${r.node.filePath}:${r.node.startLine}`,
     );
     const note = `\n\n> **Note:** Aggregated results across ${exactMatches.length} symbols named "${symbol}": ${locations.join(', ')}`;
-    return { nodes: exactMatches.map(r => r.node), note };
+    return { nodes: exactMatches.map((r) => r.node), note };
   }
 
   /**
@@ -1771,10 +1885,7 @@ export class ToolHandler {
     const nodeCount = impact.nodes.size;
 
     // Compact format: just list affected symbols grouped by file
-    const lines: string[] = [
-      `## Impact: "${symbol}" affects ${nodeCount} symbols`,
-      '',
-    ];
+    const lines: string[] = [`## Impact: "${symbol}" affects ${nodeCount} symbols`, ''];
 
     // Group by file
     const byFile = new Map<string, Node[]>();
@@ -1787,7 +1898,7 @@ export class ToolHandler {
     for (const [file, nodes] of byFile) {
       lines.push(`**${file}:**`);
       // Compact: inline list
-      const nodeList = nodes.map(n => `${n.name}:${n.startLine}`).join(', ');
+      const nodeList = nodes.map((n) => `${n.name}:${n.startLine}`).join(', ');
       lines.push(nodeList);
       lines.push('');
     }
@@ -1803,8 +1914,9 @@ export class ToolHandler {
    * has no indexed children, so the caller can fall back to full source.
    */
   private buildContainerOutline(cg: CodeGraph, node: Node): string {
-    const children = cg.getChildren(node.id)
-      .filter(c => c.kind !== 'import' && c.kind !== 'export')
+    const children = cg
+      .getChildren(node.id)
+      .filter((c) => c.kind !== 'import' && c.kind !== 'export')
       .sort((a, b) => (a.startLine ?? 0) - (b.startLine ?? 0));
     if (children.length === 0) return '';
 
@@ -1835,8 +1947,12 @@ export class ToolHandler {
     }
 
     if (outline) {
-      lines.push('', outline, '',
-        `> Structural outline only. Read \`${node.filePath}\` or call codegraph_node on a specific member for its body.`);
+      lines.push(
+        '',
+        outline,
+        '',
+        `> Structural outline only. Read \`${node.filePath}\` or call codegraph_node on a specific member for its body.`,
+      );
     } else if (code) {
       lines.push('', '```' + node.language, code, '```');
     }

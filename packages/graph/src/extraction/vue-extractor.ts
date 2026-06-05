@@ -1,4 +1,11 @@
-﻿import { Node, Edge, ExtractionResult, ExtractionError, UnresolvedReference, Language } from '../types.js';
+import {
+  type Node,
+  type Edge,
+  type ExtractionResult,
+  type ExtractionError,
+  type UnresolvedReference,
+  type Language,
+} from '../types.js';
 import { generateNodeId } from './tree-sitter-helpers.js';
 import { TreeSitterExtractor } from './tree-sitter.js';
 import { isLanguageSupported } from './grammars.js';
@@ -88,18 +95,18 @@ export class VueExtractor {
   /**
    * Extract <script> and <script setup> blocks from the Vue source
    */
-  private extractScriptBlocks(): Array<{
+  private extractScriptBlocks(): {
     content: string;
     startLine: number;
     isSetup: boolean;
     isTypeScript: boolean;
-  }> {
-    const blocks: Array<{
+  }[] {
+    const blocks: {
       content: string;
       startLine: number;
       isSetup: boolean;
       isTypeScript: boolean;
-    }> = [];
+    }[] = [];
 
     const scriptRegex = /<script(\s[^>]*)?>(?<content>[\s\S]*?)<\/script>/g;
     let match;
@@ -138,7 +145,7 @@ export class VueExtractor {
    */
   private processScriptBlock(
     block: { content: string; startLine: number; isSetup: boolean; isTypeScript: boolean },
-    componentNodeId: string
+    componentNodeId: string,
   ): void {
     const scriptLanguage: Language = block.isTypeScript ? 'typescript' : 'javascript';
 

@@ -42,7 +42,7 @@ export class ASTDiffAnalyzer {
     const afterAST = this.parseToAST(afterContent, language);
 
     const changes = this.extractStructuralChanges(beforeAST, afterAST);
-    const classifiedChanges = changes.map(c => this.classifyChange(c, filePath));
+    const classifiedChanges = changes.map((c) => this.classifyChange(c, filePath));
     const riskScore = this.computeRiskScore(classifiedChanges);
     const summary = this.generateDiffSummary({
       filePath: filePath,
@@ -276,7 +276,7 @@ export class ASTDiffAnalyzer {
     }
 
     // 列出关键变更
-    const criticalChanges = changes.filter(c => c.risk === 'critical');
+    const criticalChanges = changes.filter((c) => c.risk === 'critical');
     if (criticalChanges.length > 0) {
       parts.push('  关键变更:');
       for (const change of criticalChanges.slice(0, 5)) {
@@ -295,11 +295,18 @@ export class ASTDiffAnalyzer {
   private detectLanguage(filePath: string): Language {
     const ext = filePath.split('.').pop()?.toLowerCase();
     switch (ext) {
-      case 'py': return 'python';
-      case 'ts': case 'tsx': return 'typescript';
-      case 'js': case 'jsx': return 'javascript';
-      case 'go': return 'go';
-      default: return 'unknown';
+      case 'py':
+        return 'python';
+      case 'ts':
+      case 'tsx':
+        return 'typescript';
+      case 'js':
+      case 'jsx':
+        return 'javascript';
+      case 'go':
+        return 'go';
+      default:
+        return 'unknown';
     }
   }
 
@@ -386,11 +393,11 @@ export class ASTDiffAnalyzer {
     const traverse = (node: ASTNode) => {
       // 匹配各种语言的函数定义节点类型
       const functionTypes = [
-        'function_definition',       // Python, Go
-        'function_declaration',      // JavaScript/TypeScript
-        'arrow_function',            // JavaScript/TypeScript
-        'method_definition',         // JavaScript/TypeScript 类方法
-        'function_expression',       // JavaScript/TypeScript
+        'function_definition', // Python, Go
+        'function_declaration', // JavaScript/TypeScript
+        'arrow_function', // JavaScript/TypeScript
+        'method_definition', // JavaScript/TypeScript 类方法
+        'function_expression', // JavaScript/TypeScript
       ];
 
       if (functionTypes.includes(node.type)) {
@@ -415,17 +422,21 @@ export class ASTDiffAnalyzer {
   private extractFunctionName(node: ASTNode): string | null {
     // 从子节点中查找函数名
     for (const child of node.children) {
-      if (child.type === 'identifier' || child.type === 'name' || child.type === 'property_identifier') {
+      if (
+        child.type === 'identifier' ||
+        child.type === 'name' ||
+        child.type === 'property_identifier'
+      ) {
         return child.text || null;
       }
     }
 
     // 从文本中提取
     if (node.text) {
-      const match = node.text.match(/(?:function|def|func)\s+(\w+)/);
+      const match = /(?:function|def|func)\s+(\w+)/.exec(node.text);
       if (match) return match[1];
 
-      const arrowMatch = node.text.match(/(?:const|let|var)\s+(\w+)\s*=/);
+      const arrowMatch = /(?:const|let|var)\s+(\w+)\s*=/.exec(node.text);
       if (arrowMatch) return arrowMatch[1];
     }
 
@@ -435,7 +446,11 @@ export class ASTDiffAnalyzer {
   /**
    * 检测函数签名变更
    */
-  private detectSignatureChanges(beforeNode: ASTNode, afterNode: ASTNode, name: string): DiffChange[] {
+  private detectSignatureChanges(
+    beforeNode: ASTNode,
+    afterNode: ASTNode,
+    name: string,
+  ): DiffChange[] {
     const changes: DiffChange[] = [];
     const beforeText = beforeNode.text || '';
     const afterText = afterNode.text || '';
@@ -479,7 +494,7 @@ export class ASTDiffAnalyzer {
    * 提取参数列表文本
    */
   private extractParameters(funcText: string): string {
-    const match = funcText.match(/\(([^)]*)\)/);
+    const match = /\(([^)]*)\)/.exec(funcText);
     return match ? match[1].replace(/\s+/g, ' ').trim() : '';
   }
 
@@ -487,13 +502,13 @@ export class ASTDiffAnalyzer {
    * 提取返回类型
    */
   private extractReturnType(funcText: string): string {
-    const tsMatch = funcText.match(/\)\s*:\s*([A-Za-z_]\w*(?:<[^>]*>)?(?:\[\])?)/);
+    const tsMatch = /\)\s*:\s*([A-Za-z_]\w*(?:<[^>]*>)?(?:\[\])?)/.exec(funcText);
     if (tsMatch) return tsMatch[1];
 
-    const pyMatch = funcText.match(/\)\s*->\s*(\w+)/);
+    const pyMatch = /\)\s*->\s*(\w+)/.exec(funcText);
     if (pyMatch) return pyMatch[1];
 
-    const goMatch = funcText.match(/\)\s*([A-Za-z_*]+)\s*\{/);
+    const goMatch = /\)\s*([A-Za-z_*]+)\s*\{/.exec(funcText);
     if (goMatch) return goMatch[1];
 
     return '';
@@ -505,11 +520,16 @@ export class ASTDiffAnalyzer {
   private extractControlFlow(ast: ASTNode): ASTNode[] {
     const controlFlowNodes: ASTNode[] = [];
     const controlFlowTypes = [
-      'if_statement', 'if_expression',
-      'for_statement', 'for_expression', 'for_in_statement',
+      'if_statement',
+      'if_expression',
+      'for_statement',
+      'for_expression',
+      'for_in_statement',
       'while_statement',
-      'switch_statement', 'match_expression',
-      'try_statement', 'try_expression',
+      'switch_statement',
+      'match_expression',
+      'try_statement',
+      'try_expression',
     ];
 
     const traverse = (node: ASTNode) => {
@@ -532,8 +552,8 @@ export class ASTDiffAnalyzer {
     const changes: DiffChange[] = [];
 
     // 简化比较：比较控制流节点的文本
-    const beforeTexts = new Set(beforeFlow.map(n => n.text?.trim()));
-    const afterTexts = new Set(afterFlow.map(n => n.text?.trim()));
+    const beforeTexts = new Set(beforeFlow.map((n) => n.text?.trim()));
+    const afterTexts = new Set(afterFlow.map((n) => n.text?.trim()));
 
     // 新增的控制流
     for (const node of afterFlow) {
@@ -630,7 +650,7 @@ export class ASTDiffAnalyzer {
 
       // Go: 大写开头的标识符即为导出
       if (node.type === 'function_definition' && node.text) {
-        const nameMatch = node.text.match(/func\s+([A-Z]\w*)/);
+        const nameMatch = /func\s+([A-Z]\w*)/.exec(node.text);
         if (nameMatch) {
           exports.set(nameMatch[1], node);
         }
@@ -650,7 +670,10 @@ export class ASTDiffAnalyzer {
    */
   private extractExportName(node: ASTNode): string | null {
     if (node.text) {
-      const match = node.text.match(/export\s+(?:default\s+)?(?:function|const|let|var|class|interface|type)\s+(\w+)/);
+      const match =
+        /export\s+(?:default\s+)?(?:function|const|let|var|class|interface|type)\s+(\w+)/.exec(
+          node.text,
+        );
       if (match) return match[1];
     }
     return null;
@@ -694,13 +717,13 @@ export class ASTDiffAnalyzer {
         const text = node.text;
         // 检测常见的守卫模式
         const guardPatterns = [
-          /if\s*\(\s*!?(\w+)\s*\)/,                      // if (x) / if (!x)
-          /if\s*\(\s*\w+\s*(?:===?|!==?)\s*null\s*\)/,   // if (x === null)
+          /if\s*\(\s*!?(\w+)\s*\)/, // if (x) / if (!x)
+          /if\s*\(\s*\w+\s*(?:===?|!==?)\s*null\s*\)/, // if (x === null)
           /if\s*\(\s*\w+\s*(?:===?|!==?)\s*undefined\s*\)/, // if (x === undefined)
-          /if\s*\(\s*\w+\s*instanceof\s+\w+\s*\)/,       // if (x instanceof Y)
-          /if\s*\(\s*Array\.isArray\(/,                   // if (Array.isArray(x))
-          /if\s*\(\s*typeof\s+\w+/,                       // if (typeof x === ...)
-          /if\s+\w+\s+is\s+None/,                         // Python: if x is None
+          /if\s*\(\s*\w+\s*instanceof\s+\w+\s*\)/, // if (x instanceof Y)
+          /if\s*\(\s*Array\.isArray\(/, // if (Array.isArray(x))
+          /if\s*\(\s*typeof\s+\w+/, // if (typeof x === ...)
+          /if\s+\w+\s+is\s+None/, // Python: if x is None
         ];
 
         for (const pattern of guardPatterns) {
@@ -752,7 +775,7 @@ export class ASTDiffAnalyzer {
           // 简单的文本相似度检查
           const similarity = this.computeTextSimilarity(
             beforeNode.text || '',
-            afterNode.text || ''
+            afterNode.text || '',
           );
 
           if (similarity > 0.7) {
@@ -827,7 +850,7 @@ export class ASTDiffAnalyzer {
     const words1 = new Set(text1.split(/\s+/));
     const words2 = new Set(text2.split(/\s+/));
 
-    const intersection = new Set([...words1].filter(w => words2.has(w)));
+    const intersection = new Set([...words1].filter((w) => words2.has(w)));
     const union = new Set([...words1, ...words2]);
 
     return union.size === 0 ? 0 : intersection.size / union.size;

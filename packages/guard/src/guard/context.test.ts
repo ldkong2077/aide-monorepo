@@ -3,11 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import {
-  getVerifyOutputBudget,
-  countProjectFiles,
-  ContextBuilder,
-} from '../guard/context.js';
+import { getVerifyOutputBudget, countProjectFiles, ContextBuilder } from '../guard/context.js';
 import type { VerificationReport, HallucinationReport, ConfidenceScore } from '../types.js';
 
 describe('getVerifyOutputBudget', () => {

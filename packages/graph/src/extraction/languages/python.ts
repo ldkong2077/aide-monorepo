@@ -1,4 +1,4 @@
-﻿import { getNodeText, getChildByField } from '../tree-sitter-helpers.js';
+import { getNodeText, getChildByField } from '../tree-sitter-helpers.js';
 import type { LanguageExtractor } from '../tree-sitter-types.js';
 
 export const pythonExtractor: LanguageExtractor = {
@@ -44,7 +44,10 @@ export const pythonExtractor: LanguageExtractor = {
     if (node.type === 'import_from_statement') {
       const moduleNode = node.childForFieldName('module_name');
       if (moduleNode) {
-        return { moduleName: source.substring(moduleNode.startIndex, moduleNode.endIndex), signature: importText };
+        return {
+          moduleName: source.substring(moduleNode.startIndex, moduleNode.endIndex),
+          signature: importText,
+        };
       }
     }
     // import_statement creates multiple imports - return null for core fallback

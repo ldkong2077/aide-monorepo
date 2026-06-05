@@ -65,10 +65,13 @@ export class StdioTransport {
   private messageHandler: MessageHandler | null = null;
   // Outstanding server-initiated requests (e.g. roots/list), keyed by the id
   // we sent. Responses from the client are matched back here.
-  private pending = new Map<string | number, {
-    resolve: (value: unknown) => void;
-    reject: (error: Error) => void;
-  }>();
+  private pending = new Map<
+    string | number,
+    {
+      resolve: (value: unknown) => void;
+      reject: (error: Error) => void;
+    }
+  >();
   private nextRequestId = 1;
 
   /**
@@ -125,8 +128,14 @@ export class StdioTransport {
       // Don't let a pending request keep the process alive on shutdown.
       timer.unref?.();
       this.pending.set(id, {
-        resolve: (value) => { clearTimeout(timer); resolve(value); },
-        reject: (error) => { clearTimeout(timer); reject(error); },
+        resolve: (value) => {
+          clearTimeout(timer);
+          resolve(value);
+        },
+        reject: (error) => {
+          clearTimeout(timer);
+          reject(error);
+        },
       });
       process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id, method, params }) + '\n');
     });
@@ -205,7 +214,11 @@ export class StdioTransport {
 
     // Validate basic JSON-RPC structure
     if (!this.isValidMessage(parsed)) {
-      this.sendError(null, ErrorCodes.InvalidRequest, 'Invalid Request: not a valid JSON-RPC 2.0 message');
+      this.sendError(
+        null,
+        ErrorCodes.InvalidRequest,
+        'Invalid Request: not a valid JSON-RPC 2.0 message',
+      );
       return;
     }
 
@@ -218,7 +231,7 @@ export class StdioTransport {
           this.sendError(
             message.id,
             ErrorCodes.InternalError,
-            `Internal error: ${err instanceof Error ? err.message : String(err)}`
+            `Internal error: ${err instanceof Error ? err.message : String(err)}`,
           );
         }
       }

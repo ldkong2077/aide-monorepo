@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Sync Module
  *
  * Provides synchronization functionality for keeping the code graph

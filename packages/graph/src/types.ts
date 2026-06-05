@@ -46,18 +46,18 @@ export type NodeKind = (typeof NODE_KINDS)[number];
  * Types of edges (relationships) between nodes
  */
 export type EdgeKind =
-  | 'contains'        // Parent contains child (file→class, class→method)
-  | 'calls'           // Function/method calls another
-  | 'imports'         // File imports from another
-  | 'exports'         // File exports a symbol
-  | 'extends'         // Class/interface extends another
-  | 'implements'      // Class implements interface
-  | 'references'      // Generic reference to another symbol
-  | 'type_of'         // Variable/parameter has type
-  | 'returns'         // Function returns type
-  | 'instantiates'    // Creates instance of class
-  | 'overrides'       // Method overrides parent method
-  | 'decorates';      // Decorator applied to symbol
+  | 'contains' // Parent contains child (file→class, class→method)
+  | 'calls' // Function/method calls another
+  | 'imports' // File imports from another
+  | 'exports' // File exports a symbol
+  | 'extends' // Class/interface extends another
+  | 'implements' // Class implements interface
+  | 'references' // Generic reference to another symbol
+  | 'type_of' // Variable/parameter has type
+  | 'returns' // Function returns type
+  | 'instantiates' // Creates instance of class
+  | 'overrides' // Method overrides parent method
+  | 'decorates'; // Decorator applied to symbol
 
 /**
  * Supported programming languages. See NODE_KINDS for why this is a
@@ -391,10 +391,10 @@ export interface Context {
   children: Node[];
 
   /** Incoming references (who calls/uses this) */
-  incomingRefs: Array<{ node: Node; edge: Edge }>;
+  incomingRefs: { node: Node; edge: Edge }[];
 
   /** Outgoing references (what this calls/uses) */
-  outgoingRefs: Array<{ node: Node; edge: Edge }>;
+  outgoingRefs: { node: Node; edge: Edge }[];
 
   /** Related type information */
   types: Node[];

@@ -1,10 +1,11 @@
-﻿/**
+/**
  * Reference Resolution Types
  *
  * Types for the reference resolution system.
  */
 
-import { EdgeKind, Language, Node } from '../types.js';
+import { type EdgeKind, type Language, type Node } from '../types.js';
+import type { AliasMap } from './path-aliases.js';
 
 /**
  * An unresolved reference from extraction
@@ -39,7 +40,14 @@ export interface ResolvedRef {
   /** Confidence score (0-1) */
   confidence: number;
   /** How it was resolved */
-  resolvedBy: 'exact-match' | 'import' | 'qualified-name' | 'framework' | 'fuzzy' | 'instance-method' | 'file-path';
+  resolvedBy:
+    | 'exact-match'
+    | 'import'
+    | 'qualified-name'
+    | 'framework'
+    | 'fuzzy'
+    | 'instance-method'
+    | 'file-path';
 }
 
 /**
@@ -90,7 +98,7 @@ export interface ResolutionContext {
    * existing test fixtures and external context implementations
    * compile without modification; production resolver implements it.
    */
-  getProjectAliases?(): import('./path-aliases.js').AliasMap | null;
+  getProjectAliases?(): AliasMap | null;
   /**
    * Re-exports declared by a file (`export { x } from './other.js'`,
    * `export * from './other.js'`). Empty array when the file has none.

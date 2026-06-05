@@ -1,11 +1,11 @@
-﻿/**
+/**
  * Graph Query Functions
  *
  * Higher-level query functions built on top of traversal algorithms.
  */
 
-import { Node, Edge, Context, Subgraph, EdgeKind } from '../types.js';
-import { QueryBuilder } from '../db/queries.js';
+import { type Node, type Edge, type Context, type Subgraph, type EdgeKind } from '../types.js';
+import { type QueryBuilder } from '../db/queries.js';
 import { GraphTraverser } from './traversal.js';
 
 /**
@@ -44,7 +44,7 @@ export class GraphQueryManager {
 
     // Get incoming references (things that reference this node)
     const incomingEdges = this.queries.getIncomingEdges(nodeId);
-    const incomingRefs: Array<{ node: Node; edge: Edge }> = [];
+    const incomingRefs: { node: Node; edge: Edge }[] = [];
     for (const edge of incomingEdges) {
       // Skip containment edges (already in ancestors)
       if (edge.kind === 'contains') {
@@ -58,7 +58,7 @@ export class GraphQueryManager {
 
     // Get outgoing references (things this node references)
     const outgoingEdges = this.queries.getOutgoingEdges(nodeId);
-    const outgoingRefs: Array<{ node: Node; edge: Edge }> = [];
+    const outgoingRefs: { node: Node; edge: Edge }[] = [];
     for (const edge of outgoingEdges) {
       // Skip containment edges (already in children)
       if (edge.kind === 'contains') {
@@ -368,10 +368,7 @@ export class GraphQueryManager {
    * @param includeEdges - Whether to include edges between matching nodes
    * @returns Subgraph containing matching nodes
    */
-  getFilteredSubgraph(
-    filter: (node: Node) => boolean,
-    includeEdges: boolean = true
-  ): Subgraph {
+  getFilteredSubgraph(filter: (node: Node) => boolean, includeEdges = true): Subgraph {
     const nodes = new Map<string, Node>();
     const edges: Edge[] = [];
 

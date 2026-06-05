@@ -1,11 +1,11 @@
-﻿/**
+/**
  * Java Framework Resolver
  *
  * Handles Spring Boot and general Java patterns.
  */
 
-import { Node } from '../../types.js';
-import { FrameworkResolver, UnresolvedRef, ResolvedRef, ResolutionContext } from '../types.js';
+import { type Node } from '../../types.js';
+import { type FrameworkResolver, type UnresolvedRef, type ResolvedRef, type ResolutionContext } from '../types.js';
 import { stripCommentsForRegex } from '../strip-comments.js';
 
 export const springResolver: FrameworkResolver = {
@@ -21,12 +21,18 @@ export const springResolver: FrameworkResolver = {
 
     // Check for build.gradle with Spring
     const buildGradle = context.readFile('build.gradle');
-    if (buildGradle && (buildGradle.includes('spring-boot') || buildGradle.includes('springframework'))) {
+    if (
+      buildGradle &&
+      (buildGradle.includes('spring-boot') || buildGradle.includes('springframework'))
+    ) {
       return true;
     }
 
     const buildGradleKts = context.readFile('build.gradle.kts');
-    if (buildGradleKts && (buildGradleKts.includes('spring-boot') || buildGradleKts.includes('springframework'))) {
+    if (
+      buildGradleKts &&
+      (buildGradleKts.includes('spring-boot') || buildGradleKts.includes('springframework'))
+    ) {
       return true;
     }
 
@@ -35,12 +41,13 @@ export const springResolver: FrameworkResolver = {
     for (const file of allFiles) {
       if (file.endsWith('.java')) {
         const content = context.readFile(file);
-        if (content && (
-          content.includes('@SpringBootApplication') ||
-          content.includes('@RestController') ||
-          content.includes('@Service') ||
-          content.includes('@Repository')
-        )) {
+        if (
+          content &&
+          (content.includes('@SpringBootApplication') ||
+            content.includes('@RestController') ||
+            content.includes('@Service') ||
+            content.includes('@Repository'))
+        ) {
           return true;
         }
       }
@@ -126,13 +133,16 @@ export const springResolver: FrameworkResolver = {
     const safe = stripCommentsForRegex(content, 'java');
 
     // @GetMapping("/path"), @PostMapping(value = "/path"), @RequestMapping("/path")
-    const mappingRegex = /@(GetMapping|PostMapping|PutMapping|PatchMapping|DeleteMapping|RequestMapping)\s*\(\s*(?:value\s*=\s*|path\s*=\s*)?["']([^"']+)["'][^)]*\)/g;
+    const mappingRegex =
+      /@(GetMapping|PostMapping|PutMapping|PatchMapping|DeleteMapping|RequestMapping)\s*\(\s*(?:value\s*=\s*|path\s*=\s*)?["']([^"']+)["'][^)]*\)/g;
     let match: RegExpExecArray | null;
     while ((match = mappingRegex.exec(safe)) !== null) {
       const [, mappingName, routePath] = match;
       const line = safe.slice(0, match.index).split('\n').length;
       const method =
-        mappingName === 'RequestMapping' ? 'ANY' : mappingName!.replace(/Mapping$/, '').toUpperCase();
+        mappingName === 'RequestMapping'
+          ? 'ANY'
+          : mappingName.replace(/Mapping$/, '').toUpperCase();
 
       const routeNode: Node = {
         id: `route:${filePath}:${line}:${method}:${routePath}`,
@@ -151,11 +161,11 @@ export const springResolver: FrameworkResolver = {
 
       // Look for the next public/private/protected method after the annotation
       const tail = safe.slice(match.index + match[0].length);
-      const methodMatch = tail.match(/\b(?:public|private|protected)\s+[^;{]*?\s+(\w+)\s*\(/);
+      const methodMatch = /\b(?:public|private|protected)\s+[^;{]*?\s+(\w+)\s*\(/.exec(tail);
       if (methodMatch) {
         references.push({
           fromNodeId: routeNode.id,
-          referenceName: methodMatch[1]!,
+          referenceName: methodMatch[1],
           referenceKind: 'references',
           line,
           column: 0,
@@ -196,11 +206,11 @@ function resolveByNameAndKind(
 
   // Prefer candidates in framework-conventional directories
   const preferred = kindFiltered.filter((n) =>
-    preferredDirPatterns.some((d) => n.filePath.includes(d))
+    preferredDirPatterns.some((d) => n.filePath.includes(d)),
   );
 
-  if (preferred.length > 0) return preferred[0]!.id;
+  if (preferred.length > 0) return preferred[0].id;
 
   // Fall back to any match
-  return kindFiltered[0]!.id;
+  return kindFiltered[0].id;
 }

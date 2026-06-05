@@ -50,29 +50,35 @@ export class TestRunner {
           ...packageJson.devDependencies,
         };
 
-        if (allDeps['vitest']) return 'vitest';
-        if (allDeps['jest']) return 'jest';
+        if (allDeps.vitest) return 'vitest';
+        if (allDeps.jest) return 'jest';
       } catch {
         // 解析失败，继续检查其他方式
       }
     }
 
     // 检查配置文件
-    if (fs.existsSync(path.join(projectDir, 'vitest.config.ts')) ||
-        fs.existsSync(path.join(projectDir, 'vitest.config.js'))) {
+    if (
+      fs.existsSync(path.join(projectDir, 'vitest.config.ts')) ||
+      fs.existsSync(path.join(projectDir, 'vitest.config.js'))
+    ) {
       return 'vitest';
     }
 
-    if (fs.existsSync(path.join(projectDir, 'jest.config.ts')) ||
-        fs.existsSync(path.join(projectDir, 'jest.config.js')) ||
-        fs.existsSync(path.join(projectDir, 'jest.config.cjs'))) {
+    if (
+      fs.existsSync(path.join(projectDir, 'jest.config.ts')) ||
+      fs.existsSync(path.join(projectDir, 'jest.config.js')) ||
+      fs.existsSync(path.join(projectDir, 'jest.config.cjs'))
+    ) {
       return 'jest';
     }
 
     // 检查Python项目
-    if (fs.existsSync(path.join(projectDir, 'pytest.ini')) ||
-        fs.existsSync(path.join(projectDir, 'pyproject.toml')) ||
-        fs.existsSync(path.join(projectDir, 'setup.cfg'))) {
+    if (
+      fs.existsSync(path.join(projectDir, 'pytest.ini')) ||
+      fs.existsSync(path.join(projectDir, 'pyproject.toml')) ||
+      fs.existsSync(path.join(projectDir, 'setup.cfg'))
+    ) {
       // 检查pyproject.toml是否包含pytest配置
       const pyprojectPath = path.join(projectDir, 'pyproject.toml');
       if (fs.existsSync(pyprojectPath)) {
@@ -154,7 +160,11 @@ export class TestRunner {
   /**
    * 执行测试并解析结果
    */
-  async runTests(testFiles: string[], projectDir: string, framework?: TestFramework): Promise<TestResult> {
+  async runTests(
+    testFiles: string[],
+    projectDir: string,
+    framework?: TestFramework,
+  ): Promise<TestResult> {
     const detectedFramework = framework || this.detectTestFramework(projectDir);
     const startTime = Date.now();
 
@@ -182,10 +192,12 @@ export class TestRunner {
         passed: 0,
         failed: 0,
         total: 0,
-        errors: [{
-          testName: 'execution_error',
-          message: error instanceof Error ? error.message : String(error),
-        }],
+        errors: [
+          {
+            testName: 'execution_error',
+            message: error instanceof Error ? error.message : String(error),
+          },
+        ],
         duration: Date.now() - startTime,
       };
     }
@@ -196,7 +208,7 @@ export class TestRunner {
    */
   parseTestOutput(
     output: string,
-    framework: TestFramework
+    framework: TestFramework,
   ): { passed: number; failed: number; total: number; errors: TestError[] } {
     switch (framework) {
       case 'jest':
@@ -217,14 +229,19 @@ export class TestRunner {
   /**
    * 运行Jest测试
    */
-  private async runJestTests(testFiles: string[], projectDir: string, startTime: number): Promise<TestResult> {
+  private async runJestTests(
+    testFiles: string[],
+    projectDir: string,
+    startTime: number,
+  ): Promise<TestResult> {
     const { stdout } = await execFileAsync(
-      'npx', ['jest', '--no-coverage', '--json', ...testFiles],
+      'npx',
+      ['jest', '--no-coverage', '--json', ...testFiles],
       {
         cwd: projectDir,
         encoding: 'utf-8',
         timeout: 60000,
-      }
+      },
     );
 
     const duration = Date.now() - startTime;
@@ -239,14 +256,19 @@ export class TestRunner {
   /**
    * 运行Vitest测试
    */
-  private async runVitestTests(testFiles: string[], projectDir: string, startTime: number): Promise<TestResult> {
+  private async runVitestTests(
+    testFiles: string[],
+    projectDir: string,
+    startTime: number,
+  ): Promise<TestResult> {
     const { stdout } = await execFileAsync(
-      'npx', ['vitest', 'run', '--reporter=json', ...testFiles],
+      'npx',
+      ['vitest', 'run', '--reporter=json', ...testFiles],
       {
         cwd: projectDir,
         encoding: 'utf-8',
         timeout: 60000,
-      }
+      },
     );
 
     const duration = Date.now() - startTime;
@@ -261,15 +283,16 @@ export class TestRunner {
   /**
    * 运行pytest测试
    */
-  private async runPytestTests(testFiles: string[], projectDir: string, startTime: number): Promise<TestResult> {
-    const { stdout } = await execFileAsync(
-      'python', ['-m', 'pytest', '-v', ...testFiles],
-      {
-        cwd: projectDir,
-        encoding: 'utf-8',
-        timeout: 60000,
-      }
-    );
+  private async runPytestTests(
+    testFiles: string[],
+    projectDir: string,
+    startTime: number,
+  ): Promise<TestResult> {
+    const { stdout } = await execFileAsync('python', ['-m', 'pytest', '-v', ...testFiles], {
+      cwd: projectDir,
+      encoding: 'utf-8',
+      timeout: 60000,
+    });
 
     const duration = Date.now() - startTime;
     const parsed = this.parsePytestOutput(stdout);
@@ -283,18 +306,19 @@ export class TestRunner {
   /**
    * 运行Go测试
    */
-  private async runGoTests(testFiles: string[], projectDir: string, startTime: number): Promise<TestResult> {
+  private async runGoTests(
+    testFiles: string[],
+    projectDir: string,
+    startTime: number,
+  ): Promise<TestResult> {
     // Go测试按包运行，提取目录
-    const dirs = [...new Set(testFiles.map(f => path.dirname(f)))];
+    const dirs = [...new Set(testFiles.map((f) => path.dirname(f)))];
 
-    const { stdout } = await execFileAsync(
-      'go', ['test', '-v', ...dirs],
-      {
-        cwd: projectDir,
-        encoding: 'utf-8',
-        timeout: 60000,
-      }
-    );
+    const { stdout } = await execFileAsync('go', ['test', '-v', ...dirs], {
+      cwd: projectDir,
+      encoding: 'utf-8',
+      timeout: 60000,
+    });
 
     const duration = Date.now() - startTime;
     const parsed = this.parseGoTestOutput(stdout);
@@ -308,7 +332,12 @@ export class TestRunner {
   /**
    * 解析Jest JSON输出
    */
-  private parseJestOutput(output: string): { passed: number; failed: number; total: number; errors: TestError[] } {
+  private parseJestOutput(output: string): {
+    passed: number;
+    failed: number;
+    total: number;
+    errors: TestError[];
+  } {
     try {
       const result = JSON.parse(output);
       const errors: TestError[] = [];
@@ -332,14 +361,22 @@ export class TestRunner {
       };
     } catch {
       // JSON解析失败，尝试从文本中提取
-      return this.parseTestOutputFromText(output, /Tests:\s+(\d+) passed.*?(\d+) failed.*?(\d+) total/);
+      return this.parseTestOutputFromText(
+        output,
+        /Tests:\s+(\d+) passed.*?(\d+) failed.*?(\d+) total/,
+      );
     }
   }
 
   /**
    * 解析Vitest JSON输出
    */
-  private parseVitestOutput(output: string): { passed: number; failed: number; total: number; errors: TestError[] } {
+  private parseVitestOutput(output: string): {
+    passed: number;
+    failed: number;
+    total: number;
+    errors: TestError[];
+  } {
     try {
       const result = JSON.parse(output);
       const errors: TestError[] = [];
@@ -364,14 +401,22 @@ export class TestRunner {
         errors,
       };
     } catch {
-      return this.parseTestOutputFromText(output, /Tests\s+(\d+) passed.*?(\d+) failed.*?(\d+) total/);
+      return this.parseTestOutputFromText(
+        output,
+        /Tests\s+(\d+) passed.*?(\d+) failed.*?(\d+) total/,
+      );
     }
   }
 
   /**
    * 解析pytest输出
    */
-  private parsePytestOutput(output: string): { passed: number; failed: number; total: number; errors: TestError[] } {
+  private parsePytestOutput(output: string): {
+    passed: number;
+    failed: number;
+    total: number;
+    errors: TestError[];
+  } {
     const errors: TestError[] = [];
 
     // 提取失败测试信息
@@ -386,7 +431,7 @@ export class TestRunner {
 
     // 提取摘要行
     const summaryRegex = /(\d+) passed(?:,\s+(\d+) failed)?(?:,\s+(\d+) skipped)?/;
-    const summaryMatch = output.match(summaryRegex);
+    const summaryMatch = summaryRegex.exec(output);
 
     if (summaryMatch) {
       const passed = parseInt(summaryMatch[1] || '0', 10);
@@ -405,7 +450,12 @@ export class TestRunner {
   /**
    * 解析Go测试输出
    */
-  private parseGoTestOutput(output: string): { passed: number; failed: number; total: number; errors: TestError[] } {
+  private parseGoTestOutput(output: string): {
+    passed: number;
+    failed: number;
+    total: number;
+    errors: TestError[];
+  } {
     const errors: TestError[] = [];
     let passed = 0;
     let failed = 0;
@@ -435,7 +485,7 @@ export class TestRunner {
    */
   private parseTestOutputFromText(
     output: string,
-    regex: RegExp
+    regex: RegExp,
   ): { passed: number; failed: number; total: number; errors: TestError[] } {
     const match = output.match(regex);
     if (match) {
@@ -454,7 +504,7 @@ export class TestRunner {
   private hasFileInDir(dir: string, suffix: string): boolean {
     try {
       const entries = this.walkDir(dir, 3); // 限制搜索深度
-      return entries.some(e => e.endsWith(suffix));
+      return entries.some((e) => e.endsWith(suffix));
     } catch {
       return false;
     }
@@ -471,7 +521,11 @@ export class TestRunner {
       const entries = fs.readdirSync(dir, { withFileTypes: true });
       for (const entry of entries) {
         // 跳过常见的忽略目录
-        if (['node_modules', '.git', '__pycache__', 'dist', 'build', '.venv', 'venv'].includes(entry.name)) {
+        if (
+          ['node_modules', '.git', '__pycache__', 'dist', 'build', '.venv', 'venv'].includes(
+            entry.name,
+          )
+        ) {
           continue;
         }
 

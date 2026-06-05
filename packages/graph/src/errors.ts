@@ -88,7 +88,7 @@ export class ParseError extends CodeGraphError {
   constructor(
     message: string,
     filePath: string,
-    options?: { line?: number; column?: number; cause?: Error }
+    options?: { line?: number; column?: number; cause?: Error },
   ) {
     super(message, 'PARSE_ERROR', {
       filePath,
@@ -174,8 +174,15 @@ export interface Logger {
 }
 
 /**
- * Default console-based logger
+ * Default console-based logger.
+ *
+ * This is the one place in @aide/graph where direct `console.*` is
+ * intentional — it's the logger sink. Every other module in the
+ * package should call `logDebug` / `logWarn` / `logError` below, not
+ * `console.*` directly, so that test suites can swap in
+ * `silentLogger` and so all output flows through one place.
  */
+/* eslint-disable no-console */
 export const defaultLogger: Logger = {
   debug(message: string, context?: Record<string, unknown>): void {
     if (process.env.CODEGRAPH_DEBUG) {
@@ -189,6 +196,7 @@ export const defaultLogger: Logger = {
     console.error(`[CodeGraph] ${message}`, context ?? '');
   },
 };
+/* eslint-enable no-console */
 
 /**
  * Silent logger (no output) - useful for tests

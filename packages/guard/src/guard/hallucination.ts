@@ -11,153 +11,589 @@ import type { Storage } from '../storage/index.js';
 // ==================== Python标准库（常用模块，约200个） ====================
 const PYTHON_STDLIB = new Set([
   // 核心运行时
-  'os', 'sys', 're', 'json', 'csv', 'math', 'random', 'datetime', 'time',
-  'collections', 'itertools', 'functools', 'operator', 'pathlib', 'shutil',
-  'subprocess', 'threading', 'multiprocessing', 'logging', 'argparse',
-  'unittest', 'typing', 'dataclasses', 'abc', 'io', 'hashlib', 'hmac',
-  'secrets', 'base64', 'struct', 'pickle', 'copy', 'pprint', 'textwrap',
-  'string', 'enum', 'contextlib', 'traceback', 'warnings', 'weakref',
-  'types', 'inspect', 'dis', 'gc', 'site', 'codecs', 'unicodedata',
-  'locale', 'gettext', 'calendar', 'heapq', 'bisect', 'array', 'queue',
-  'socket', 'http', 'urllib', 'xml', 'html', 'email', 'ftplib', 'smtplib',
-  'telnetlib', 'ssl', 'select', 'selectors', 'asyncio', 'concurrent',
-  'xmlrpc', 'ipaddress', 'uuid', 'platform', 'ctypes', 'signal', 'mmap',
-  'tempfile', 'glob', 'fnmatch', 'linecache', 'stat', 'fileinput',
-  'configparser', 'toml', 'zipfile', 'tarfile', 'gzip', 'bz2', 'lzma',
-  'zlib', 'sqlite3', 'dbm', 'token', 'tokenize', 'ast', 'symtable',
-  'compileall', 'pdb', 'profile', 'timeit', 'trace', 'resource',
+  'os',
+  'sys',
+  're',
+  'json',
+  'csv',
+  'math',
+  'random',
+  'datetime',
+  'time',
+  'collections',
+  'itertools',
+  'functools',
+  'operator',
+  'pathlib',
+  'shutil',
+  'subprocess',
+  'threading',
+  'multiprocessing',
+  'logging',
+  'argparse',
+  'unittest',
+  'typing',
+  'dataclasses',
+  'abc',
+  'io',
+  'hashlib',
+  'hmac',
+  'secrets',
+  'base64',
+  'struct',
+  'pickle',
+  'copy',
+  'pprint',
+  'textwrap',
+  'string',
+  'enum',
+  'contextlib',
+  'traceback',
+  'warnings',
+  'weakref',
+  'types',
+  'inspect',
+  'dis',
+  'gc',
+  'site',
+  'codecs',
+  'unicodedata',
+  'locale',
+  'gettext',
+  'calendar',
+  'heapq',
+  'bisect',
+  'array',
+  'queue',
+  'socket',
+  'http',
+  'urllib',
+  'xml',
+  'html',
+  'email',
+  'ftplib',
+  'smtplib',
+  'telnetlib',
+  'ssl',
+  'select',
+  'selectors',
+  'asyncio',
+  'concurrent',
+  'xmlrpc',
+  'ipaddress',
+  'uuid',
+  'platform',
+  'ctypes',
+  'signal',
+  'mmap',
+  'tempfile',
+  'glob',
+  'fnmatch',
+  'linecache',
+  'stat',
+  'fileinput',
+  'configparser',
+  'toml',
+  'zipfile',
+  'tarfile',
+  'gzip',
+  'bz2',
+  'lzma',
+  'zlib',
+  'sqlite3',
+  'dbm',
+  'token',
+  'tokenize',
+  'ast',
+  'symtable',
+  'compileall',
+  'pdb',
+  'profile',
+  'timeit',
+  'trace',
+  'resource',
   // 网络
-  'http.server', 'http.client', 'http.cookies', 'http.cookiejar',
-  'urllib.request', 'urllib.parse', 'urllib.error', 'urllib.robotparser',
-  'xml.etree.ElementTree', 'xml.dom', 'xml.sax', 'xml.parsers',
-  'html.parser', 'html.entities',
-  'socketserver', 'webbrowser', 'xmlrpc.client', 'xmlrpc.server',
-  'poplib', 'imaplib', 'nntplib', 'smtplib',
-  'asyncio', 'asyncio.subprocess', 'asyncio.streams',
+  'http.server',
+  'http.client',
+  'http.cookies',
+  'http.cookiejar',
+  'urllib.request',
+  'urllib.parse',
+  'urllib.error',
+  'urllib.robotparser',
+  'xml.etree.ElementTree',
+  'xml.dom',
+  'xml.sax',
+  'xml.parsers',
+  'html.parser',
+  'html.entities',
+  'socketserver',
+  'webbrowser',
+  'xmlrpc.client',
+  'xmlrpc.server',
+  'poplib',
+  'imaplib',
+  'nntplib',
+  'smtplib',
+  'asyncio',
+  'asyncio.subprocess',
+  'asyncio.streams',
   // 数据与格式
-  'csv', 'json', 'toml', 'configparser', 'plistlib',
-  'email.mime', 'email.mime.text', 'email.mime.base', 'email.mime.multipart',
-  'email.header', 'email.utils', 'email.message',
-  'mailcap', 'mailbox', 'mimetypes',
-  'netrc', 'xdrlib', 'curses', 'curses.textpad',
+  'csv',
+  'json',
+  'toml',
+  'configparser',
+  'plistlib',
+  'email.mime',
+  'email.mime.text',
+  'email.mime.base',
+  'email.mime.multipart',
+  'email.header',
+  'email.utils',
+  'email.message',
+  'mailcap',
+  'mailbox',
+  'mimetypes',
+  'netrc',
+  'xdrlib',
+  'curses',
+  'curses.textpad',
   // 加密与安全
-  'hashlib', 'hmac', 'secrets', 'ssl',
+  'hashlib',
+  'hmac',
+  'secrets',
+  'ssl',
   // 数据库
-  'sqlite3', 'dbm', 'dbm.dumb', 'dbm.gnu', 'dbm.ndbm',
+  'sqlite3',
+  'dbm',
+  'dbm.dumb',
+  'dbm.gnu',
+  'dbm.ndbm',
   // 文件与目录
-  'tempfile', 'glob', 'fnmatch', 'linecache', 'stat', 'fileinput',
-  'shutil', 'pathlib', 'os.path',
+  'tempfile',
+  'glob',
+  'fnmatch',
+  'linecache',
+  'stat',
+  'fileinput',
+  'shutil',
+  'pathlib',
+  'os.path',
   // 系统与进程
-  'atexit', 'signal', 'resource', 'syslog', 'posix', 'nt',
-  'pwd', 'spwd', 'grp', 'nis',
+  'atexit',
+  'signal',
+  'resource',
+  'syslog',
+  'posix',
+  'nt',
+  'pwd',
+  'spwd',
+  'grp',
+  'nis',
   // 调试与测试
-  'unittest.mock', 'unittest.runner', 'unittest.suite', 'unittest.case',
-  'doctest', 'pydoc', 'compileall', 'py_compile',
-  'bdb', 'pdb', 'profile', 'cProfile', 'pstats', 'timeit', 'trace',
-  'faulthandler', 'tracemalloc', 'warnings',
+  'unittest.mock',
+  'unittest.runner',
+  'unittest.suite',
+  'unittest.case',
+  'doctest',
+  'pydoc',
+  'compileall',
+  'py_compile',
+  'bdb',
+  'pdb',
+  'profile',
+  'cProfile',
+  'pstats',
+  'timeit',
+  'trace',
+  'faulthandler',
+  'tracemalloc',
+  'warnings',
   // 国际化
-  'gettext', 'locale', 'codecs', 'encodings',
+  'gettext',
+  'locale',
+  'codecs',
+  'encodings',
   // 数据类型与工具
-  'collections.abc', 'collections.defaultdict', 'collections.OrderedDict',
-  'collections.Counter', 'collections.deque', 'collections.namedtuple',
+  'collections.abc',
+  'collections.defaultdict',
+  'collections.OrderedDict',
+  'collections.Counter',
+  'collections.deque',
+  'collections.namedtuple',
   'collections.ChainMap',
-  'typing', 'dataclasses', 'enum', 'numbers', 'decimal', 'fractions',
-  'statistics', 'cmath', 'math',
-  'array', 'bisect', 'heapq', 'sched',
-  'weakref', 'weakref.WeakKeyDictionary', 'weakref.WeakValueDictionary',
-  'types', 'types.MappingProxyType', 'types.SimpleNamespace',
-  'functools', 'functools.lru_cache', 'functools.partial', 'functools.wraps',
-  'itertools', 'itertools.chain', 'itertools.combinations',
-  'operator', 'operator.attrgetter', 'operator.itemgetter',
-  'copy', 'copy.deepcopy', 'pprint',
-  'textwrap', 'string', 're', 'difflib',
+  'typing',
+  'dataclasses',
+  'enum',
+  'numbers',
+  'decimal',
+  'fractions',
+  'statistics',
+  'cmath',
+  'math',
+  'array',
+  'bisect',
+  'heapq',
+  'sched',
+  'weakref',
+  'weakref.WeakKeyDictionary',
+  'weakref.WeakValueDictionary',
+  'types',
+  'types.MappingProxyType',
+  'types.SimpleNamespace',
+  'functools',
+  'functools.lru_cache',
+  'functools.partial',
+  'functools.wraps',
+  'itertools',
+  'itertools.chain',
+  'itertools.combinations',
+  'operator',
+  'operator.attrgetter',
+  'operator.itemgetter',
+  'copy',
+  'copy.deepcopy',
+  'pprint',
+  'textwrap',
+  'string',
+  're',
+  'difflib',
   // 并发
-  'threading', 'threading.Thread', 'threading.Lock', 'threading.Event',
-  'threading.Condition', 'threading.Semaphore', 'threading.Barrier',
-  'multiprocessing', 'multiprocessing.Pool', 'multiprocessing.Queue',
-  'concurrent.futures', 'concurrent.futures.ThreadPoolExecutor',
+  'threading',
+  'threading.Thread',
+  'threading.Lock',
+  'threading.Event',
+  'threading.Condition',
+  'threading.Semaphore',
+  'threading.Barrier',
+  'multiprocessing',
+  'multiprocessing.Pool',
+  'multiprocessing.Queue',
+  'concurrent.futures',
+  'concurrent.futures.ThreadPoolExecutor',
   'concurrent.futures.ProcessPoolExecutor',
-  'queue', 'queue.Queue', 'queue.LifoQueue', 'queue.PriorityQueue',
-  'subprocess', 'subprocess.run', 'subprocess.Popen',
-  'asyncio', 'asyncio.run', 'asyncio.gather', 'asyncio.create_task',
+  'queue',
+  'queue.Queue',
+  'queue.LifoQueue',
+  'queue.PriorityQueue',
+  'subprocess',
+  'subprocess.run',
+  'subprocess.Popen',
+  'asyncio',
+  'asyncio.run',
+  'asyncio.gather',
+  'asyncio.create_task',
   // 其他
-  'venv', 'zipapp', 'importlib', 'importlib.metadata', 'importlib.resources',
-  'pkgutil', 'modulefinder', 'runpy',
-  'sysconfig', 'site', 'code', 'codeop',
-  'crypt', 'curses', 'curses.ascii',
-  'turtle', 'tkinter', 'colorsys', 'imghdr', 'sndhdr',
-  'wave', 'chunk', 'aifc', 'sunau', 'audioop',
-  'msvcrt', 'winreg', 'winsound',  // Windows
-  'posixpath', 'ntpath', 'genericpath',
-  'optparse', 'getpass', 'cmd', 'shlex',
-  'tty', 'pty', 'termios', 'readline',
+  'venv',
+  'zipapp',
+  'importlib',
+  'importlib.metadata',
+  'importlib.resources',
+  'pkgutil',
+  'modulefinder',
+  'runpy',
+  'sysconfig',
+  'site',
+  'code',
+  'codeop',
+  'crypt',
+  'curses',
+  'curses.ascii',
+  'turtle',
+  'tkinter',
+  'colorsys',
+  'imghdr',
+  'sndhdr',
+  'wave',
+  'chunk',
+  'aifc',
+  'sunau',
+  'audioop',
+  'msvcrt',
+  'winreg',
+  'winsound', // Windows
+  'posixpath',
+  'ntpath',
+  'genericpath',
+  'optparse',
+  'getpass',
+  'cmd',
+  'shlex',
+  'tty',
+  'pty',
+  'termios',
+  'readline',
   'rlcompleter',
 ]);
 
 // ==================== Node.js内置模块 ====================
 const NODE_BUILTINS = new Set([
-  'assert', 'assert/strict', 'async_hooks', 'buffer', 'child_process', 'cluster',
-  'console', 'crypto', 'dgram', 'diagnostics_channel', 'dns', 'dns/promises',
-  'domain', 'events', 'fs', 'fs/promises', 'http', 'http2', 'https',
-  'inspector', 'module', 'net', 'os', 'path', 'perf_hooks', 'process',
-  'punycode', 'querystring', 'readline', 'readline/promises', 'repl',
-  'stream', 'stream/consumers', 'stream/promises', 'stream/web',
-  'string_decoder', 'sys', 'timers', 'timers/promises', 'tls',
-  'trace_events', 'tty', 'url', 'util', 'util/types', 'v8', 'vm',
-  'wasi', 'worker_threads', 'zlib',
+  'assert',
+  'assert/strict',
+  'async_hooks',
+  'buffer',
+  'child_process',
+  'cluster',
+  'console',
+  'crypto',
+  'dgram',
+  'diagnostics_channel',
+  'dns',
+  'dns/promises',
+  'domain',
+  'events',
+  'fs',
+  'fs/promises',
+  'http',
+  'http2',
+  'https',
+  'inspector',
+  'module',
+  'net',
+  'os',
+  'path',
+  'perf_hooks',
+  'process',
+  'punycode',
+  'querystring',
+  'readline',
+  'readline/promises',
+  'repl',
+  'stream',
+  'stream/consumers',
+  'stream/promises',
+  'stream/web',
+  'string_decoder',
+  'sys',
+  'timers',
+  'timers/promises',
+  'tls',
+  'trace_events',
+  'tty',
+  'url',
+  'util',
+  'util/types',
+  'v8',
+  'vm',
+  'wasi',
+  'worker_threads',
+  'zlib',
   // node: 前缀
-  'node:assert', 'node:assert/strict', 'node:async_hooks', 'node:buffer',
-  'node:child_process', 'node:cluster', 'node:console', 'node:crypto',
-  'node:dgram', 'node:diagnostics_channel', 'node:dns', 'node:dns/promises',
-  'node:domain', 'node:events', 'node:fs', 'node:fs/promises',
-  'node:http', 'node:http2', 'node:https', 'node:inspector',
-  'node:module', 'node:net', 'node:os', 'node:path', 'node:perf_hooks',
-  'node:process', 'node:punycode', 'node:querystring', 'node:readline',
-  'node:readline/promises', 'node:repl', 'node:stream', 'node:stream/consumers',
-  'node:stream/promises', 'node:stream/web', 'node:string_decoder',
-  'node:sys', 'node:timers', 'node:timers/promises', 'node:tls',
-  'node:trace_events', 'node:tty', 'node:url', 'node:util', 'node:util/types',
-  'node:v8', 'node:vm', 'node:wasi', 'node:worker_threads', 'node:zlib',
+  'node:assert',
+  'node:assert/strict',
+  'node:async_hooks',
+  'node:buffer',
+  'node:child_process',
+  'node:cluster',
+  'node:console',
+  'node:crypto',
+  'node:dgram',
+  'node:diagnostics_channel',
+  'node:dns',
+  'node:dns/promises',
+  'node:domain',
+  'node:events',
+  'node:fs',
+  'node:fs/promises',
+  'node:http',
+  'node:http2',
+  'node:https',
+  'node:inspector',
+  'node:module',
+  'node:net',
+  'node:os',
+  'node:path',
+  'node:perf_hooks',
+  'node:process',
+  'node:punycode',
+  'node:querystring',
+  'node:readline',
+  'node:readline/promises',
+  'node:repl',
+  'node:stream',
+  'node:stream/consumers',
+  'node:stream/promises',
+  'node:stream/web',
+  'node:string_decoder',
+  'node:sys',
+  'node:timers',
+  'node:timers/promises',
+  'node:tls',
+  'node:trace_events',
+  'node:tty',
+  'node:url',
+  'node:util',
+  'node:util/types',
+  'node:v8',
+  'node:vm',
+  'node:wasi',
+  'node:worker_threads',
+  'node:zlib',
   // 测试模块 (Node 18+)
-  'node:test', 'test',
+  'node:test',
+  'test',
 ]);
 
 // ==================== Go标准库包 ====================
 const GO_STDLIB = new Set([
-  'archive', 'archive/tar', 'archive/zip', 'bufio', 'builtin', 'bytes',
-  'compress', 'compress/bzip2', 'compress/flate', 'compress/gzip',
-  'compress/lzw', 'compress/zlib', 'container', 'container/heap',
-  'container/list', 'container/ring', 'context', 'crypto', 'crypto/aes',
-  'crypto/cipher', 'crypto/des', 'crypto/dsa', 'crypto/ecdsa',
-  'crypto/ed25519', 'crypto/elliptic', 'crypto/hmac', 'crypto/md5',
-  'crypto/rand', 'crypto/rc4', 'crypto/rsa', 'crypto/sha1',
-  'crypto/sha256', 'crypto/sha512', 'crypto/subtle', 'crypto/tls',
-  'crypto/x509', 'database', 'database/sql', 'debug', 'debug/dwarf',
-  'debug/elf', 'debug/gosym', 'debug/macho', 'debug/pe', 'debug/plan9obj',
-  'embed', 'encoding', 'encoding/ascii85', 'encoding/asn1',
-  'encoding/base32', 'encoding/base64', 'encoding/binary',
-  'encoding/csv', 'encoding/gob', 'encoding/hex', 'encoding/json',
-  'encoding/pem', 'encoding/xml', 'errors', 'expvar', 'flag', 'fmt',
-  'go', 'go/ast', 'go/build', 'go/constant', 'go/doc', 'go/format',
-  'go/importer', 'go/parser', 'go/printer', 'go/scanner', 'go/token',
-  'go/types', 'hash', 'hash/adler32', 'hash/crc32', 'hash/crc64',
-  'hash/fnv', 'html', 'html/template', 'image', 'image/color',
-  'image/color/palette', 'image/draw', 'image/gif', 'image/jpeg',
-  'image/png', 'index', 'index/suffixarray', 'io', 'io/fs', 'io/ioutil',
-  'log', 'log/syslog', 'maps', 'math', 'math/big', 'math/bits',
-  'math/cmplx', 'math/rand', 'mime', 'mime/multipart', 'mime/quotedprintable',
-  'net', 'net/http', 'net/http/cgi', 'net/http/cookiejar',
-  'net/http/fcgi', 'net/http/httptest', 'net/http/httptrace',
-  'net/http/httputil', 'net/http/pprof', 'net/mail', 'net/netip',
-  'net/rpc', 'net/rpc/jsonrpc', 'net/smtp', 'net/textproto', 'net/url',
-  'os', 'os/exec', 'os/signal', 'os/user', 'path', 'path/filepath',
-  'plugin', 'reflect', 'regexp', 'regexp/syntax', 'runtime',
-  'runtime/cgo', 'runtime/debug', 'runtime/metrics', 'runtime/pprof',
-  'runtime/race', 'runtime/trace', 'slices', 'sort', 'strconv',
-  'strings', 'sync', 'sync/atomic', 'syscall', 'testing', 'testing/fstest',
-  'testing/iotest', 'testing/quick', 'text', 'text/scanner',
-  'text/tabwriter', 'text/template', 'text/template/parse', 'time',
-  'unicode', 'unicode/utf16', 'unicode/utf8', 'unsafe',
+  'archive',
+  'archive/tar',
+  'archive/zip',
+  'bufio',
+  'builtin',
+  'bytes',
+  'compress',
+  'compress/bzip2',
+  'compress/flate',
+  'compress/gzip',
+  'compress/lzw',
+  'compress/zlib',
+  'container',
+  'container/heap',
+  'container/list',
+  'container/ring',
+  'context',
+  'crypto',
+  'crypto/aes',
+  'crypto/cipher',
+  'crypto/des',
+  'crypto/dsa',
+  'crypto/ecdsa',
+  'crypto/ed25519',
+  'crypto/elliptic',
+  'crypto/hmac',
+  'crypto/md5',
+  'crypto/rand',
+  'crypto/rc4',
+  'crypto/rsa',
+  'crypto/sha1',
+  'crypto/sha256',
+  'crypto/sha512',
+  'crypto/subtle',
+  'crypto/tls',
+  'crypto/x509',
+  'database',
+  'database/sql',
+  'debug',
+  'debug/dwarf',
+  'debug/elf',
+  'debug/gosym',
+  'debug/macho',
+  'debug/pe',
+  'debug/plan9obj',
+  'embed',
+  'encoding',
+  'encoding/ascii85',
+  'encoding/asn1',
+  'encoding/base32',
+  'encoding/base64',
+  'encoding/binary',
+  'encoding/csv',
+  'encoding/gob',
+  'encoding/hex',
+  'encoding/json',
+  'encoding/pem',
+  'encoding/xml',
+  'errors',
+  'expvar',
+  'flag',
+  'fmt',
+  'go',
+  'go/ast',
+  'go/build',
+  'go/constant',
+  'go/doc',
+  'go/format',
+  'go/importer',
+  'go/parser',
+  'go/printer',
+  'go/scanner',
+  'go/token',
+  'go/types',
+  'hash',
+  'hash/adler32',
+  'hash/crc32',
+  'hash/crc64',
+  'hash/fnv',
+  'html',
+  'html/template',
+  'image',
+  'image/color',
+  'image/color/palette',
+  'image/draw',
+  'image/gif',
+  'image/jpeg',
+  'image/png',
+  'index',
+  'index/suffixarray',
+  'io',
+  'io/fs',
+  'io/ioutil',
+  'log',
+  'log/syslog',
+  'maps',
+  'math',
+  'math/big',
+  'math/bits',
+  'math/cmplx',
+  'math/rand',
+  'mime',
+  'mime/multipart',
+  'mime/quotedprintable',
+  'net',
+  'net/http',
+  'net/http/cgi',
+  'net/http/cookiejar',
+  'net/http/fcgi',
+  'net/http/httptest',
+  'net/http/httptrace',
+  'net/http/httputil',
+  'net/http/pprof',
+  'net/mail',
+  'net/netip',
+  'net/rpc',
+  'net/rpc/jsonrpc',
+  'net/smtp',
+  'net/textproto',
+  'net/url',
+  'os',
+  'os/exec',
+  'os/signal',
+  'os/user',
+  'path',
+  'path/filepath',
+  'plugin',
+  'reflect',
+  'regexp',
+  'regexp/syntax',
+  'runtime',
+  'runtime/cgo',
+  'runtime/debug',
+  'runtime/metrics',
+  'runtime/pprof',
+  'runtime/race',
+  'runtime/trace',
+  'slices',
+  'sort',
+  'strconv',
+  'strings',
+  'sync',
+  'sync/atomic',
+  'syscall',
+  'testing',
+  'testing/fstest',
+  'testing/iotest',
+  'testing/quick',
+  'text',
+  'text/scanner',
+  'text/tabwriter',
+  'text/template',
+  'text/template/parse',
+  'time',
+  'unicode',
+  'unicode/utf16',
+  'unicode/utf8',
+  'unsafe',
 ]);
 
 /**
@@ -168,16 +604,18 @@ const GO_STDLIB = new Set([
 export class HallucinationDetector {
   private storage?: Storage;
   /** 缓存的自定义规则（从DB加载） */
-  private customRules: Array<{
-    category: string;
-    pattern: string;
-    language: string;
-    severity: string;
-    message: string;
-    suggestion: string | null;
-  }> | null = null;
+  private customRules:
+    | {
+        category: string;
+        pattern: string;
+        language: string;
+        severity: string;
+        message: string;
+        suggestion: string | null;
+      }[]
+    | null = null;
   /** 缓存的可信包列表（从DB加载） */
-  private trustedPackagesCache: Map<string, Set<string>> = new Map();
+  private trustedPackagesCache = new Map<string, Set<string>>();
 
   constructor(storage?: Storage) {
     this.storage = storage;
@@ -186,14 +624,14 @@ export class HallucinationDetector {
   /**
    * 加载自定义规则（延迟加载，首次调用时从DB读取）
    */
-  private loadCustomRules(language?: string): Array<{
+  private loadCustomRules(language?: string): {
     category: string;
     pattern: string;
     language: string;
     severity: string;
     message: string;
     suggestion: string | null;
-  }> {
+  }[] {
     if (!this.storage) return [];
     if (this.customRules === null) {
       try {
@@ -373,7 +811,11 @@ export class HallucinationDetector {
   /**
    * 检查JavaScript/TypeScript导入
    */
-  private checkJSImports(code: string, language: Language, projectDir: string): HallucinationReport[] {
+  private checkJSImports(
+    code: string,
+    language: Language,
+    projectDir: string,
+  ): HallucinationReport[] {
     const reports: HallucinationReport[] = [];
     // 匹配 import ... from 'xxx' 和 require('xxx')
     const importRegex = /(?:import\s+.*?\s+from\s+|require\s*\(\s*)['"`]([^'"`]+)['"`]/g;
@@ -439,7 +881,14 @@ export class HallucinationDetector {
       const pkgRegex = /"([^"]+)"/g;
       let pkgMatch;
       while ((pkgMatch = pkgRegex.exec(blockContent)) !== null) {
-        this.checkSingleGoImport(pkgMatch[1], code, match.index + pkgMatch.index, projectDir, goModInfo, reports);
+        this.checkSingleGoImport(
+          pkgMatch[1],
+          code,
+          match.index + pkgMatch.index,
+          projectDir,
+          goModInfo,
+          reports,
+        );
       }
     }
 
@@ -460,7 +909,7 @@ export class HallucinationDetector {
     index: number,
     projectDir: string,
     goModInfo: { moduleName: string; dependencies: Set<string> } | null,
-    reports: HallucinationReport[]
+    reports: HallucinationReport[],
   ): void {
     const line = this.getLineNumber(code, index);
 
@@ -519,18 +968,18 @@ export class HallucinationDetector {
   /**
    * 获取各语言常见的AI幻觉API
    */
-  private getCommonHallucinatedAPIs(language: Language): Array<{
+  private getCommonHallucinatedAPIs(language: Language): {
     pattern: string;
     message: string;
     severity: Severity;
     suggestion: string;
-  }> {
-    const apis: Array<{
+  }[] {
+    const apis: {
       pattern: string;
       message: string;
       severity: Severity;
       suggestion: string;
-    }> = [];
+    }[] = [];
 
     if (language === 'python') {
       apis.push(
@@ -567,14 +1016,12 @@ export class HallucinationDetector {
     }
 
     if (language === 'go') {
-      apis.push(
-        {
-          pattern: 'os\\.ReadFile',
-          message: 'os.ReadFile 需要 Go 1.16+',
-          severity: 'medium',
-          suggestion: '请确认Go版本 >= 1.16，或使用 ioutil.ReadFile',
-        },
-      );
+      apis.push({
+        pattern: 'os\\.ReadFile',
+        message: 'os.ReadFile 需要 Go 1.16+',
+        severity: 'medium',
+        suggestion: '请确认Go版本 >= 1.16，或使用 ioutil.ReadFile',
+      });
     }
 
     return apis;
@@ -617,8 +1064,16 @@ export class HallucinationDetector {
       const domain = match[1];
       // 常见的真实API域名
       const knownAPIs = new Set([
-        'github', 'openai', 'anthropic', 'google', 'stripe',
-        'cloudflare', 'aws', 'azure', 'firebase', 'vercel',
+        'github',
+        'openai',
+        'anthropic',
+        'google',
+        'stripe',
+        'cloudflare',
+        'aws',
+        'azure',
+        'firebase',
+        'vercel',
       ]);
 
       if (!knownAPIs.has(domain)) {
@@ -638,8 +1093,12 @@ export class HallucinationDetector {
   /**
    * 检测通用配置键访问模式
    */
-  private checkGenericConfigAccess(code: string, language: Language, reports: HallucinationReport[]): void {
-    const patterns: Array<{ regex: RegExp; message: string }> = [];
+  private checkGenericConfigAccess(
+    code: string,
+    language: Language,
+    reports: HallucinationReport[],
+  ): void {
+    const patterns: { regex: RegExp; message: string }[] = [];
 
     if (language === 'python') {
       patterns.push({
@@ -682,7 +1141,11 @@ export class HallucinationDetector {
   /**
    * 检测空catch块
    */
-  private checkEmptyCatchBlocks(code: string, language: Language, reports: HallucinationReport[]): void {
+  private checkEmptyCatchBlocks(
+    code: string,
+    language: Language,
+    reports: HallucinationReport[],
+  ): void {
     let catchRegex: RegExp;
 
     if (language === 'python') {
@@ -713,7 +1176,11 @@ export class HallucinationDetector {
   /**
    * 检测过于通用的变量名
    */
-  private checkGenericVariableNames(code: string, language: Language, reports: HallucinationReport[]): void {
+  private checkGenericVariableNames(
+    code: string,
+    language: Language,
+    reports: HallucinationReport[],
+  ): void {
     const genericNames = ['data', 'result', 'item', 'info', 'obj', 'temp', 'val', 'res', 'ret'];
     const lines = code.split('\n');
 
@@ -735,7 +1202,8 @@ export class HallucinationDetector {
         if (varName && genericNames.includes(varName.toLowerCase())) {
           // 检查变量是否在后续代码中被有意义地使用
           const remainingCode = lines.slice(i + 1).join('\n');
-          const usageCount = (remainingCode.match(new RegExp(`\\b${varName}\\b`, 'g')) || []).length;
+          const usageCount = (remainingCode.match(new RegExp(`\\b${varName}\\b`, 'g')) || [])
+            .length;
 
           // 如果通用变量名只使用1-2次，可能缺乏上下文
           if (usageCount <= 2) {
@@ -760,7 +1228,7 @@ export class HallucinationDetector {
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       // 匹配行内注释
-      const commentMatch = line.match(/^(.*?)\/\/\s*(.+)$/);
+      const commentMatch = /^(.*?)\/\/\s*(.+)$/.exec(line);
       if (!commentMatch) continue;
 
       const codePart = commentMatch[1].trim();
@@ -771,16 +1239,16 @@ export class HallucinationDetector {
         const codeWords = codePart
           .replace(/[(){}[\];,.<>=+\-*/!@#$%^&|?:]/g, ' ')
           .split(/\s+/)
-          .filter(w => w.length > 2)
-          .map(w => w.toLowerCase());
+          .filter((w) => w.length > 2)
+          .map((w) => w.toLowerCase());
 
         const commentWords = commentPart
           .split(/\s+/)
-          .filter(w => w.length > 2)
-          .map(w => w.toLowerCase());
+          .filter((w) => w.length > 2)
+          .map((w) => w.toLowerCase());
 
         // 计算重叠词数
-        const overlap = commentWords.filter(w => codeWords.includes(w)).length;
+        const overlap = commentWords.filter((w) => codeWords.includes(w)).length;
         const similarity = overlap / Math.max(commentWords.length, 1);
 
         if (similarity > 0.6 && commentWords.length >= 2) {
@@ -818,7 +1286,11 @@ export class HallucinationDetector {
   /**
    * 检测不可达代码
    */
-  private checkUnreachableCode(code: string, language: Language, reports: HallucinationReport[]): void {
+  private checkUnreachableCode(
+    code: string,
+    language: Language,
+    reports: HallucinationReport[],
+  ): void {
     const lines = code.split('\n');
     let foundReturn = false;
     let returnLine = -1;
@@ -840,7 +1312,12 @@ export class HallucinationDetector {
       }
 
       // 如果return后有可执行代码
-      if (foundReturn && trimmed.length > 0 && !trimmed.startsWith('//') && !trimmed.startsWith('#')) {
+      if (
+        foundReturn &&
+        trimmed.length > 0 &&
+        !trimmed.startsWith('//') &&
+        !trimmed.startsWith('#')
+      ) {
         reports.push({
           category: 'logic_issue',
           severity: 'high',
@@ -857,17 +1334,21 @@ export class HallucinationDetector {
   /**
    * 检测永远为真/假的条件
    */
-  private checkAlwaysTrueFalseConditions(code: string, language: Language, reports: HallucinationReport[]): void {
+  private checkAlwaysTrueFalseConditions(
+    code: string,
+    language: Language,
+    reports: HallucinationReport[],
+  ): void {
     // 检测简单的恒真/恒假条件
     const alwaysTruePatterns = [
       /\bif\s*\(\s*true\s*\)/,
-      /\bif\s+True\b/,       // Python
+      /\bif\s+True\b/, // Python
       /\bif\s*\(\s*1\s*\)/,
     ];
 
     const alwaysFalsePatterns = [
       /\bif\s*\(\s*false\s*\)/,
-      /\bif\s+False\b/,      // Python
+      /\bif\s+False\b/, // Python
       /\bif\s*\(\s*0\s*\)/,
     ];
 
@@ -921,7 +1402,11 @@ export class HallucinationDetector {
   /**
    * 检测未使用的变量/导入
    */
-  private checkUnusedDeclarations(code: string, language: Language, reports: HallucinationReport[]): void {
+  private checkUnusedDeclarations(
+    code: string,
+    language: Language,
+    reports: HallucinationReport[],
+  ): void {
     const lines = code.split('\n');
     const declarations = new Map<string, { line: number; type: 'variable' | 'import' }>();
 
@@ -930,30 +1415,35 @@ export class HallucinationDetector {
 
       // 检测导入
       if (language === 'python') {
-        const importMatch = line.match(/^import\s+(\w+)/);
+        const importMatch = /^import\s+(\w+)/.exec(line);
         if (importMatch) {
           declarations.set(importMatch[1], { line: i + 1, type: 'import' });
         }
-        const fromImportMatch = line.match(/^from\s+\S+\s+import\s+(.+)/);
+        const fromImportMatch = /^from\s+\S+\s+import\s+(.+)/.exec(line);
         if (fromImportMatch) {
-          const names = fromImportMatch[1].split(',').map(n => n.trim());
+          const names = fromImportMatch[1].split(',').map((n) => n.trim());
           for (const name of names) {
             declarations.set(name, { line: i + 1, type: 'import' });
           }
         }
       } else if (language === 'typescript' || language === 'javascript') {
-        const importMatch = line.match(/import\s+(?:\{([^}]+)\}|\*\s+as\s+(\w+)|(\w+))/);
+        const importMatch = /import\s+(?:\{([^}]+)\}|\*\s+as\s+(\w+)|(\w+))/.exec(line);
         if (importMatch) {
           const names = (importMatch[1] || importMatch[2] || importMatch[3] || '')
             .split(',')
-            .map(n => n.trim().replace(/\s+as\s+\w+/, '').trim())
-            .filter(n => n.length > 0);
+            .map((n) =>
+              n
+                .trim()
+                .replace(/\s+as\s+\w+/, '')
+                .trim(),
+            )
+            .filter((n) => n.length > 0);
           for (const name of names) {
             declarations.set(name, { line: i + 1, type: 'import' });
           }
         }
       } else if (language === 'go') {
-        const importMatch = line.match(/"([^"]+)"/);
+        const importMatch = /"([^"]+)"/.exec(line);
         if (importMatch && (line.includes('import') || lines[i - 1]?.trim() === 'import (')) {
           const pkgName = importMatch[1].split('/').pop() || '';
           if (pkgName) {
@@ -980,9 +1470,10 @@ export class HallucinationDetector {
           severity: 'low',
           message: `未使用的${info.type === 'import' ? '导入' : '变量'}: "${name}"`,
           line: info.line,
-          suggestion: info.type === 'import'
-            ? `请删除未使用的导入 "${name}"`
-            : `请删除未使用的变量 "${name}"，或检查是否遗漏了使用`,
+          suggestion:
+            info.type === 'import'
+              ? `请删除未使用的导入 "${name}"`
+              : `请删除未使用的变量 "${name}"，或检查是否遗漏了使用`,
         });
       }
     }
@@ -1005,7 +1496,10 @@ export class HallucinationDetector {
     const pyFile = path.join(projectDir, `${moduleName}.py`);
     const pkgDir = path.join(projectDir, moduleName);
 
-    return fs.existsSync(pyFile) || (fs.existsSync(pkgDir) && fs.existsSync(path.join(pkgDir, '__init__.py')));
+    return (
+      fs.existsSync(pyFile) ||
+      (fs.existsSync(pkgDir) && fs.existsSync(path.join(pkgDir, '__init__.py')))
+    );
   }
 
   /**
@@ -1020,7 +1514,7 @@ export class HallucinationDetector {
       path.join(projectDir, 'venv', 'lib', 'python3', 'site-packages', moduleName),
     ];
 
-    return possiblePaths.some(p => fs.existsSync(p));
+    return possiblePaths.some((p) => fs.existsSync(p));
   }
 
   /**
@@ -1086,7 +1580,7 @@ export class HallucinationDetector {
         const trimmed = line.trim();
 
         // 提取模块名
-        const moduleMatch = trimmed.match(/^module\s+(\S+)/);
+        const moduleMatch = /^module\s+(\S+)/.exec(trimmed);
         if (moduleMatch) {
           moduleName = moduleMatch[1];
         }
@@ -1105,14 +1599,14 @@ export class HallucinationDetector {
 
         // 收集依赖
         if (inRequire) {
-          const depMatch = trimmed.match(/^(\S+)\s+/);
+          const depMatch = /^(\S+)\s+/.exec(trimmed);
           if (depMatch) {
             dependencies.add(depMatch[1]);
           }
         }
 
         // 单行require
-        const singleReqMatch = trimmed.match(/^require\s+(\S+)\s+/);
+        const singleReqMatch = /^require\s+(\S+)\s+/.exec(trimmed);
         if (singleReqMatch) {
           dependencies.add(singleReqMatch[1]);
         }

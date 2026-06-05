@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Cargo Workspace Resolver Helper
  *
  * Parses a project's root Cargo.toml and member crate manifests to
@@ -8,7 +8,7 @@
  */
 
 import picomatch from 'picomatch';
-import { ResolutionContext } from '../types.js';
+import { type ResolutionContext } from '../types.js';
 
 const GLOB_CHARS = /[*?[\]{}!]/;
 const SKIP_DIRS = new Set(['target', 'node_modules', '.git', 'dist', 'build']);
@@ -150,7 +150,7 @@ function parseWorkspaceMembers(cargoToml: string): string[] {
 function parsePackageName(cargoToml: string): string | null {
   const packageSection = getSection(cargoToml, 'package');
   if (!packageSection) return null;
-  const packageNameMatch = packageSection.match(/name\s*=\s*["']([^"'\n]+)["']/);
+  const packageNameMatch = /name\s*=\s*["']([^"'\n]+)["']/.exec(packageSection);
   return packageNameMatch?.[1]?.trim() ?? null;
 }
 
@@ -201,9 +201,7 @@ function expandMembers(members: string[], context: ResolutionContext): string[] 
   const expanded: string[] = [];
   const seen = new Set<string>();
   for (const member of members) {
-    const candidates = GLOB_CHARS.test(member)
-      ? expandGlobMember(member, context)
-      : [member];
+    const candidates = GLOB_CHARS.test(member) ? expandGlobMember(member, context) : [member];
     for (const candidate of candidates) {
       const cleaned = cleanPath(candidate);
       if (seen.has(cleaned)) continue;

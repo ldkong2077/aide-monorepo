@@ -12,14 +12,14 @@
  * installer to the same surface.
  */
 
-export type Location = 'global' | 'local';
+export type Location = "global" | "local";
 
 /**
  * Stable string id used in the `--target` CLI flag and the registry
  * lookup. New targets add a value here when they're added to the
  * registry. Keep these short and lowercase.
  */
-export type TargetId = 'claude' | 'cursor' | 'codex' | 'opencode' | 'hermes';
+export type TargetId = "claude" | "cursor" | "codex" | "opencode" | "hermes";
 
 /**
  * Result of `target.detect(location)`.
@@ -49,10 +49,16 @@ export interface DetectionResult {
  * what we'd write — used for byte-identical idempotent re-runs.
  */
 export interface WriteResult {
-  files: Array<{
+  files: {
     path: string;
-    action: 'created' | 'updated' | 'unchanged' | 'removed' | 'not-found' | 'kept';
-  }>;
+    action:
+      | "created"
+      | "updated"
+      | "unchanged"
+      | "removed"
+      | "not-found"
+      | "kept";
+  }[];
   /**
    * Optional one-line notes the orchestrator surfaces verbatim — e.g.
    * "Restart Cursor to apply." Keep these short; multi-line goes in
@@ -97,7 +103,7 @@ export interface AgentTarget {
   uninstall(loc: Location): WriteResult;
   /**
    * Print the MCP-server snippet a user would paste manually for this
-   * target. Used by `codegraph install --print-config <id>` and by
+   * target. Used by `aide install --print-config <id>` and by
    * the README. Must NOT touch the filesystem.
    */
   printConfig(loc: Location): string;
@@ -106,13 +112,13 @@ export interface AgentTarget {
   /**
    * Optional. Write any project-local surfaces this target needs in
    * order to work fully when its MCP config is configured globally.
-   * Called by `codegraph init` to bootstrap new projects without
-   * forcing the user to re-run `codegraph install` per project.
+   * Called by `aide graph init` to bootstrap new projects without
+   * forcing the user to re-run `aide install` per project.
    *
    * Most targets need nothing here — their global config is complete.
    * Cursor is the notable exception: its rules system
    * (`.cursor/rules/*.mdc`) is project-scoped only, and is what makes
-   * Cursor's agent prefer codegraph over its built-in grep.
+   * Cursor's agent prefer AIDE over its built-in grep.
    *
    * Must be idempotent. Targets that have nothing project-local omit
    * the method entirely.

@@ -1,4 +1,4 @@
-﻿import { parentPort, workerData } from 'worker_threads';
+import { parentPort, workerData } from 'worker_threads';
 import { writeSync } from 'fs';
 import { getGlyphs } from './glyphs.js';
 import type { ShimmerWorkerMessage } from './types.js';
@@ -37,7 +37,7 @@ function lerp(a: number, b: number, t: number): number {
 }
 
 function shimmerColor(frame: number): string {
-  const t = (Math.sin(frame * 2 * Math.PI / 13) + 1) / 2;
+  const t = (Math.sin((frame * 2 * Math.PI) / 13) + 1) / 2;
   const r = lerp(160, 251, t);
   const g = lerp(100, 191, t);
   const b = lerp(9, 36, t);
@@ -81,7 +81,7 @@ function render(): void {
   let line: string;
   if (currentPercent >= 0) {
     const barWidth = 25;
-    const filled = Math.round(barWidth * currentPercent / 100);
+    const filled = Math.round((barWidth * currentPercent) / 100);
     const empty = barWidth - filled;
     line = `${DM}${G.rail}${RST}  ${color}${glyph}${RST} ${currentMessage}  ${renderBar(frame, filled, empty)}  ${currentPercent}%`;
   } else if (currentCount > 0) {

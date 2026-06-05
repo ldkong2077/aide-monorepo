@@ -42,6 +42,12 @@ export interface ProviderConfig {
   models: string[];
   enabled: boolean;
   pricing?: Record<string, { input: number; output: number }>; // 自定义模型定价: modelId -> {input: $/1k tokens, output: $/1k tokens}
+  /**
+   * Per-attempt wall-clock timeout in ms. Each retry attempt is
+   * independently timed, so a 60s budget with 3 retries caps the
+   * total wait at ~4 minutes worst case. Default: 60 000.
+   */
+  requestTimeoutMs?: number;
 }
 
 /** 模型配置 */
@@ -51,9 +57,9 @@ export interface ModelConfig {
   provider: string;
   cost_per_1k_input: number;
   cost_per_1k_output: number;
-  quality_score: number;   // 0-10
-  speed_score: number;     // 0-10
-  max_context: number;     // 最大上下文token数
+  quality_score: number; // 0-10
+  speed_score: number; // 0-10
+  max_context: number; // 最大上下文token数
 }
 
 // ==================== 路由策略 ====================
@@ -185,7 +191,7 @@ export interface DiffChange {
 export interface DiffResult {
   filePath: string;
   changes: DiffChange[];
-  riskScore: number;      // 0-100
+  riskScore: number; // 0-100
   summary?: string;
 }
 
@@ -201,10 +207,10 @@ export interface ScoreDimensions {
 
 /** 置信度评分 */
 export interface ConfidenceScore {
-  overall: number;                    // 0-100
+  overall: number; // 0-100
   verdict: Verdict;
   dimensions: ScoreDimensions;
-  riskFactors: string[];              // 风险因素列表
+  riskFactors: string[]; // 风险因素列表
 }
 
 // ==================== CodeGuard - 测试 ====================
@@ -252,19 +258,112 @@ export interface VerificationReport {
 
 // ==================== 应用配置 ====================
 
+/** Per-token rate-limit policy. When set, the proxy caps the request
+ *  volume per Bearer token using a continuous token-bucket. */
+export interface RateLimitConfig {
+  /** Maximum tokens in a full bucket. Default: 60. */
+  limit?: number;
+  /** Time (ms) to fully refill an empty bucket. Default: 60 000 (1 min). */
+  windowMs?: number;
+}
+
+/** Log line format. `json` is required for log aggregation
+ *  (Loki / Splunk / ES); `pretty` is for local development. */
+export type LogFormat = 'json' | 'pretty';
+
 /** 服务器配置 */
 export interface ServerConfig {
   port: number;
   dashboard_port: number;
-  token?: string;        // Bearer Token 认证密钥
-  bodyLimit?: number;    // 请求体大小限制（字节），默认 1MB
+  token?: string; // Bearer Token 认证密钥
+  bodyLimit?: number; // 请求体大小限制（字节），默认 1MB
+  /** When set, the proxy enforces per-Bearer-token rate limits. */
+  rateLimit?: RateLimitConfig;
+  /** When `'json'`, the proxy logs one JSON object per line
+   *  (the default pino behaviour). When `'pretty'`, it routes
+   *  through `pino-pretty` for coloured, human-readable output.
+   *  Defaults to `'pretty'` for dev, but the CLI also honours the
+   *  `LOG_FORMAT=json` environment variable. */
+  logFormat?: LogFormat;
+  /** CORS policy. When omitted, no CORS plugin is registered and
+   *  the proxy only answers same-origin requests. */
+  cors?: CorsConfig;
+  /**
+   * Token budget. Optional — when omitted, the proxy does not
+   * pre-flight the prompt token count or track per-tenant daily
+   * token usage (the per-USD cost circuit still applies).
+   */
+  tokenBudget?: {
+    /** Max prompt tokens per single request. 0 disables. */
+    maxPromptTokensPerRequest?: number;
+    /** Max tokens per tenant per day (prompt + completion). 0 disables. */
+    maxTokensPerTenantPerDay?: number;
+    /** Circuit-open window after a daily overflow, in ms. */
+    circuitResetMs?: number;
+  };
+  /**
+   * Redis configuration. When set, rate-limit, tenant-circuit, and
+   * cache state are stored in Redis instead of process-local memory,
+   * enabling multi-replica deployments behind a load balancer.
+   */
+  redis?: {
+    /** Redis connection URL, e.g. `redis://localhost:6379`.
+     *  Supports all ioredis connection formats including TLS
+     *  (`rediss://`) and Unix sockets. */
+    url: string;
+    /**
+     * Optional connection options passed directly to ioredis.
+     * Useful for `enableReadyCheck`, `maxRetriesPerRequest`,
+     * `enableOfflineQueue`, etc.
+     */
+    connectOptions?: Record<string, unknown>;
+    /**
+     * Cache backend: `'sqlite'` (default, persistent, single-replica)
+     * or `'redis'` (shared, multi-replica). When `'redis'`, the
+     * LLM response cache uses Redis TTL instead of SQLite.
+     */
+    cacheType?: 'sqlite' | 'redis';
+    /**
+     * Optional key prefix for all AIDE Redis keys. Default: `'aide:'`.
+     * Change when sharing a Redis instance with other applications.
+     */
+    keyPrefix?: string;
+  };
+}
+
+/** CORS configuration for the proxy.
+ *
+ *  - `enabled: false`         → CORS plugin is not registered. Use
+ *    this when the proxy sits behind a reverse proxy that already
+ *    adds CORS headers, or when only server-to-server callers
+ *    reach it.
+ *  - `enabled: true, origins`  → CORS plugin is registered with
+ *    the given allow-list. `origins` is forwarded verbatim to
+ *    `@fastify/cors`; pass full origins (`https://app.example.com`)
+ *    or `['*']` for a public read-only API. */
+export interface CorsConfig {
+  enabled: boolean;
+  /** Allow-list of origins. Use full origins
+   *  (`scheme://host[:port]`). Set to `['*']` to allow any origin
+   *  (disables credentialed requests). */
+  origins: string[];
+  /** Optional list of allowed methods; default
+   *  = `['GET', 'POST', 'OPTIONS']`. */
+  methods?: string[];
+  /** Optional list of allowed headers; default
+   *  = `['Content-Type', 'Authorization', 'X-Request-Id']`. */
+  allowedHeaders?: string[];
+  /** Whether the `Access-Control-Allow-Credentials` header is set.
+   *  Defaults to `false`. Cannot be `true` when `origins` is
+   *  `['*']`. */
+  credentials?: boolean;
 }
 
 /** 成本配置 */
 export interface CostConfig {
   budgetDaily: number;
   budget_monthly: number;
-  alertThreshold: number;  // 0-1, 触发告警的预算使用比例
+  alertThreshold: number; // 0-1, 触发告警的预算使用比例
 }
 
 /** Guard配置 */
@@ -272,7 +371,7 @@ export interface GuardConfig {
   enabled: boolean;
   hallucinationCheck: boolean;
   diffAnalysis: boolean;
-  autoRejectThreshold: number;  // 置信度低于此值自动拒绝
+  autoRejectThreshold: number; // 置信度低于此值自动拒绝
   trusted_packages: string[];
 }
 
@@ -403,10 +502,10 @@ export interface MCPPropertySchema {
 
 /** MCP工具执行结果 */
 export interface MCPToolResult {
-  content: Array<{
+  content: {
     type: 'text';
     text: string;
-  }>;
+  }[];
   isError?: boolean;
 }
 
@@ -427,10 +526,10 @@ export interface TargetDetectionResult {
 
 /** 写入结果 */
 export interface TargetWriteResult {
-  files: Array<{
+  files: {
     path: string;
     action: 'created' | 'updated' | 'unchanged' | 'removed' | 'not-found';
-  }>;
+  }[];
   notes?: string[];
 }
 

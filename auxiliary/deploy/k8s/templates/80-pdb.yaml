@@ -1,0 +1,21 @@
+# 80-pdb.yaml
+# WHY: maxUnavailable: 1 lets the HPA drain a node during cluster
+# autoscaler scale-down or node upgrade without taking the whole
+# service down. With 2 replicas we always have at least 1 ready.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: aide
+  namespace: aide
+  labels:
+    app.kubernetes.io/name: aide
+    app.kubernetes.io/instance: aide
+    app.kubernetes.io/component: pdb
+    app.kubernetes.io/part-of: aide
+    app.kubernetes.io/managed-by: kustomize
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: aide
+      app.kubernetes.io/instance: aide

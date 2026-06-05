@@ -1,4 +1,4 @@
-﻿import type { Node as SyntaxNode } from 'web-tree-sitter';
+import type { Node as SyntaxNode } from 'web-tree-sitter';
 import { getNodeText } from '../tree-sitter-helpers.js';
 import type { LanguageExtractor } from '../tree-sitter-types.js';
 
@@ -12,7 +12,7 @@ export const dartExtractor: LanguageExtractor = {
   enumMemberTypes: ['enum_constant'],
   typeAliasTypes: ['type_alias'],
   importTypes: ['import_or_export'],
-  callTypes: [],  // Dart calls use identifier+selector, handled via extractBareCall
+  callTypes: [], // Dart calls use identifier+selector, handled via extractBareCall
   variableTypes: [],
   extraClassNodeTypes: ['mixin_declaration', 'extension_declaration'],
   resolveBody: (node, bodyField) => {
@@ -25,9 +25,11 @@ export const dartExtractor: LanguageExtractor = {
     // For class/mixin/extension: try standard field, then class_body/extension_body
     const standard = node.childForFieldName(bodyField);
     if (standard) return standard;
-    return node.namedChildren.find((c: SyntaxNode) =>
-      c.type === 'class_body' || c.type === 'extension_body'
-    ) || null;
+    return (
+      node.namedChildren.find(
+        (c: SyntaxNode) => c.type === 'class_body' || c.type === 'extension_body',
+      ) || null
+    );
   },
   nameField: 'name',
   bodyField: 'body', // class_definition uses 'body' field
@@ -38,14 +40,17 @@ export const dartExtractor: LanguageExtractor = {
     // For method_signature: delegate to inner function_signature
     let sig = node;
     if (node.type === 'method_signature') {
-      const inner = node.namedChildren.find((c: SyntaxNode) =>
-        c.type === 'function_signature' || c.type === 'getter_signature' || c.type === 'setter_signature'
+      const inner = node.namedChildren.find(
+        (c: SyntaxNode) =>
+          c.type === 'function_signature' ||
+          c.type === 'getter_signature' ||
+          c.type === 'setter_signature',
       );
       if (inner) sig = inner;
     }
     const params = sig.namedChildren.find((c: SyntaxNode) => c.type === 'formal_parameter_list');
-    const retType = sig.namedChildren.find((c: SyntaxNode) =>
-      c.type === 'type_identifier' || c.type === 'void_type'
+    const retType = sig.namedChildren.find(
+      (c: SyntaxNode) => c.type === 'type_identifier' || c.type === 'void_type',
     );
     if (!params && !retType) return undefined;
     let result = '';
@@ -57,10 +62,14 @@ export const dartExtractor: LanguageExtractor = {
     // Dart convention: _ prefix means private, otherwise public
     let nameNode: SyntaxNode | null = null;
     if (node.type === 'method_signature') {
-      const inner = node.namedChildren.find((c: SyntaxNode) =>
-        c.type === 'function_signature' || c.type === 'getter_signature' || c.type === 'setter_signature'
+      const inner = node.namedChildren.find(
+        (c: SyntaxNode) =>
+          c.type === 'function_signature' ||
+          c.type === 'getter_signature' ||
+          c.type === 'setter_signature',
       );
-      if (inner) nameNode = inner.namedChildren.find((c: SyntaxNode) => c.type === 'identifier') || null;
+      if (inner)
+        nameNode = inner.namedChildren.find((c: SyntaxNode) => c.type === 'identifier') || null;
     } else {
       nameNode = node.childForFieldName('name');
     }
@@ -95,13 +104,19 @@ export const dartExtractor: LanguageExtractor = {
     // Dart imports: import 'dart:async'; import 'package:foo/bar.dart' as bar;
     const libraryImport = node.namedChildren.find((c: SyntaxNode) => c.type === 'library_import');
     if (libraryImport) {
-      const importSpec = libraryImport.namedChildren.find((c: SyntaxNode) => c.type === 'import_specification');
+      const importSpec = libraryImport.namedChildren.find(
+        (c: SyntaxNode) => c.type === 'import_specification',
+      );
       if (importSpec) {
-        const configurableUri = importSpec.namedChildren.find((c: SyntaxNode) => c.type === 'configurable_uri');
+        const configurableUri = importSpec.namedChildren.find(
+          (c: SyntaxNode) => c.type === 'configurable_uri',
+        );
         if (configurableUri) {
           const uri = configurableUri.namedChildren.find((c: SyntaxNode) => c.type === 'uri');
           if (uri) {
-            const stringLiteral = uri.namedChildren.find((c: SyntaxNode) => c.type === 'string_literal');
+            const stringLiteral = uri.namedChildren.find(
+              (c: SyntaxNode) => c.type === 'string_literal',
+            );
             if (stringLiteral) {
               moduleName = getNodeText(stringLiteral, source).replace(/['"]/g, '');
             }
@@ -114,11 +129,15 @@ export const dartExtractor: LanguageExtractor = {
     if (!moduleName) {
       const libraryExport = node.namedChildren.find((c: SyntaxNode) => c.type === 'library_export');
       if (libraryExport) {
-        const configurableUri = libraryExport.namedChildren.find((c: SyntaxNode) => c.type === 'configurable_uri');
+        const configurableUri = libraryExport.namedChildren.find(
+          (c: SyntaxNode) => c.type === 'configurable_uri',
+        );
         if (configurableUri) {
           const uri = configurableUri.namedChildren.find((c: SyntaxNode) => c.type === 'uri');
           if (uri) {
-            const stringLiteral = uri.namedChildren.find((c: SyntaxNode) => c.type === 'string_literal');
+            const stringLiteral = uri.namedChildren.find(
+              (c: SyntaxNode) => c.type === 'string_literal',
+            );
             if (stringLiteral) {
               moduleName = getNodeText(stringLiteral, source).replace(/['"]/g, '');
             }
@@ -149,8 +168,10 @@ export const dartExtractor: LanguageExtractor = {
 
       // Method call: prev is selector with accessor (e.g., obj.method(...), Navigator.push(...))
       if (prev.type === 'selector') {
-        const accessor = prev.namedChildren.find((c: SyntaxNode) =>
-          c.type === 'unconditional_assignable_selector' || c.type === 'conditional_assignable_selector'
+        const accessor = prev.namedChildren.find(
+          (c: SyntaxNode) =>
+            c.type === 'unconditional_assignable_selector' ||
+            c.type === 'conditional_assignable_selector',
         );
         if (accessor) {
           const methodId = accessor.namedChildren.find((c: SyntaxNode) => c.type === 'identifier');
@@ -166,7 +187,10 @@ export const dartExtractor: LanguageExtractor = {
       }
 
       // super.method() / this.method(): prev is bare unconditional_assignable_selector
-      if (prev.type === 'unconditional_assignable_selector' || prev.type === 'conditional_assignable_selector') {
+      if (
+        prev.type === 'unconditional_assignable_selector' ||
+        prev.type === 'conditional_assignable_selector'
+      ) {
         const methodId = prev.namedChildren.find((c: SyntaxNode) => c.type === 'identifier');
         if (methodId) return methodId.text;
       }

@@ -30,6 +30,7 @@
  */
 
 import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
 
 // ============================================================
@@ -41,9 +42,24 @@ import * as path from 'path';
  * Checked on all platforms; non-applicable paths are harmlessly skipped.
  */
 const SENSITIVE_PATHS = new Set([
-  '/', '/etc', '/usr', '/bin', '/sbin', '/var', '/tmp', '/dev', '/proc', '/sys',
-  '/root', '/boot', '/lib', '/lib64', '/opt',
-  'C:\\', 'C:\\Windows', 'C:\\Windows\\System32',
+  '/',
+  '/etc',
+  '/usr',
+  '/bin',
+  '/sbin',
+  '/var',
+  '/tmp',
+  '/dev',
+  '/proc',
+  '/sys',
+  '/root',
+  '/boot',
+  '/lib',
+  '/lib64',
+  '/opt',
+  'C:\\',
+  'C:\\Windows',
+  'C:\\Windows\\System32',
 ]);
 
 /**
@@ -83,7 +99,7 @@ export function validateProjectPath(dirPath: string): string | null {
   }
 
   // Also block common sensitive home subdirectories
-  const homeDir = require('os').homedir();
+  const homeDir = os.homedir();
   const sensitiveHomeDirs = ['.ssh', '.gnupg', '.aws', '.config'];
   for (const dir of sensitiveHomeDirs) {
     const sensitivePath = path.join(homeDir, dir);
@@ -207,7 +223,7 @@ export class FileLock {
         if (lockAge < FileLock.STALE_TIMEOUT_MS && !isNaN(pid) && this.isProcessAlive(pid)) {
           throw new Error(
             `CodeGraph database is locked by another process (PID ${pid}). ` +
-            `If this is stale, run 'codegraph unlock' or delete ${this.lockPath}`
+              `If this is stale, run 'codegraph unlock' or delete ${this.lockPath}`,
           );
         }
 
@@ -218,7 +234,11 @@ export class FileLock {
           throw err;
         }
         // Other errors reading lock file - try to remove it
-        try { fs.unlinkSync(this.lockPath); } catch { /* ignore */ }
+        try {
+          fs.unlinkSync(this.lockPath);
+        } catch {
+          /* ignore */
+        }
       }
     }
 
@@ -226,12 +246,12 @@ export class FileLock {
     try {
       fs.writeFileSync(this.lockPath, String(process.pid), { flag: 'wx' });
       this.held = true;
-    } catch (err: any) {
-      if (err.code === 'EEXIST') {
+    } catch (err) {
+      if (err instanceof Error && (err as NodeJS.ErrnoException).code === 'EEXIST') {
         // Race condition: another process grabbed the lock between our check and write
         throw new Error(
           'CodeGraph database is locked by another process. ' +
-          `If this is stale, run 'codegraph unlock' or delete ${this.lockPath}`
+            `If this is stale, run 'codegraph unlock' or delete ${this.lockPath}`,
         );
       }
       throw err;
@@ -305,15 +325,13 @@ export async function processInBatches<T, R>(
   items: T[],
   batchSize: number,
   processor: (item: T, index: number) => Promise<R>,
-  onBatchComplete?: (completed: number, total: number) => void
+  onBatchComplete?: (completed: number, total: number) => void,
 ): Promise<R[]> {
   const results: R[] = [];
 
   for (let i = 0; i < items.length; i += batchSize) {
     const batch = items.slice(i, Math.min(i + batchSize, items.length));
-    const batchResults = await Promise.all(
-      batch.map((item, idx) => processor(item, i + idx))
-    );
+    const batchResults = await Promise.all(batch.map((item, idx) => processor(item, i + idx)));
     results.push(...batchResults);
 
     if (onBatchComplete) {
@@ -334,7 +352,7 @@ export async function processInBatches<T, R>(
  */
 export class Mutex {
   private locked = false;
-  private waitQueue: Array<() => void> = [];
+  private waitQueue: (() => void)[] = [];
 
   /**
    * Acquire the lock
@@ -386,7 +404,7 @@ export class Mutex {
  */
 export async function* readFileInChunks(
   filePath: string,
-  chunkSize: number = 64 * 1024
+  chunkSize: number = 64 * 1024,
 ): AsyncGenerator<string, void, undefined> {
   const fs = await import('fs');
 
@@ -412,7 +430,7 @@ export async function* readFileInChunks(
  */
 export function debounce<T extends (...args: unknown[]) => unknown>(
   fn: T,
-  delay: number
+  delay: number,
 ): (...args: Parameters<T>) => void {
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
@@ -436,7 +454,7 @@ export function debounce<T extends (...args: unknown[]) => unknown>(
  */
 export function throttle<T extends (...args: unknown[]) => unknown>(
   fn: T,
-  limit: number
+  limit: number,
 ): (...args: Parameters<T>) => void {
   let lastCall = 0;
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -482,20 +500,20 @@ export function estimateSize(obj: unknown): number {
       case 'number':
         return 8;
       case 'string':
-        return 2 * (value as string).length;
+        return 2 * value.length;
       case 'object':
-        if (seen.has(value as object)) {
+        if (seen.has(value)) {
           return 0;
         }
-        seen.add(value as object);
+        seen.add(value);
 
         if (Array.isArray(value)) {
           return value.reduce((acc: number, item) => acc + sizeOf(item), 0);
         }
 
-        return Object.entries(value as object).reduce(
+        return Object.entries(value).reduce(
           (acc, [key, val]) => acc + sizeOf(key) + sizeOf(val),
-          0
+          0,
         );
       default:
         return 0;
@@ -514,10 +532,7 @@ export class MemoryMonitor {
   private threshold: number;
   private onThresholdExceeded?: (usage: number) => void;
 
-  constructor(
-    thresholdMB: number = 500,
-    onThresholdExceeded?: (usage: number) => void
-  ) {
+  constructor(thresholdMB = 500, onThresholdExceeded?: (usage: number) => void) {
     this.threshold = thresholdMB * 1024 * 1024;
     this.onThresholdExceeded = onThresholdExceeded;
   }
@@ -525,7 +540,7 @@ export class MemoryMonitor {
   /**
    * Start monitoring memory usage
    */
-  start(intervalMs: number = 1000): void {
+  start(intervalMs = 1000): void {
     this.stop();
     this.peakUsage = 0;
 

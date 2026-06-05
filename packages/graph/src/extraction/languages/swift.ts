@@ -1,4 +1,4 @@
-﻿import type { Node as SyntaxNode } from 'web-tree-sitter';
+import type { Node as SyntaxNode } from 'web-tree-sitter';
 import { getNodeText, getChildByField } from '../tree-sitter-helpers.js';
 import type { LanguageExtractor } from '../tree-sitter-types.js';
 
@@ -76,7 +76,10 @@ export const swiftExtractor: LanguageExtractor = {
     const importText = source.substring(node.startIndex, node.endIndex).trim();
     const identifier = node.namedChildren.find((c: SyntaxNode) => c.type === 'identifier');
     if (identifier) {
-      return { moduleName: source.substring(identifier.startIndex, identifier.endIndex), signature: importText };
+      return {
+        moduleName: source.substring(identifier.startIndex, identifier.endIndex),
+        signature: importText,
+      };
     }
     return null;
   },

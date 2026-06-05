@@ -1,2 +1,32 @@
-﻿{"name":"@aide/mind","version":"1.0.0","description":"Project understanding engine","type":"module","main":"./dist/index.js","types":"./dist/index.d.ts","exports":{".":{"types":"./dist/index.d.ts","import":"./dist/index.js"}},"scripts":{"build":"tsc -b","dev":"tsc -b --watch","test":"vitest run","test:watch":"vitest"},"devDependencies":{"typescript":"^5.7.0","vitest":"^3.0.0"}}
-
+{
+  "name": "@aide/mind",
+  "version": "1.0.0",
+  "description": "AIDE Mind - Project design and planning from ideas",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist",
+    "lint": "eslint src --ext .ts",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@aide/core": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "license": "MIT"
+}

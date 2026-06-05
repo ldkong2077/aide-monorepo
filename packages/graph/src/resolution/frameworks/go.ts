@@ -1,11 +1,11 @@
-﻿/**
+/**
  * Go Framework Resolver
  *
  * Handles Gin, Echo, Fiber, Chi, and standard library patterns.
  */
 
-import { Node } from '../../types.js';
-import { FrameworkResolver, UnresolvedRef, ResolvedRef, ResolutionContext } from '../types.js';
+import { type Node } from '../../types.js';
+import { type FrameworkResolver, type UnresolvedRef, type ResolvedRef, type ResolutionContext } from '../types.js';
 import { stripCommentsForRegex } from '../strip-comments.js';
 
 export const goResolver: FrameworkResolver = {
@@ -39,8 +39,18 @@ export const goResolver: FrameworkResolver = {
     }
 
     // Pattern 2: Service/Repository references
-    if (ref.referenceName.endsWith('Service') || ref.referenceName.endsWith('Repository') || ref.referenceName.endsWith('Store')) {
-      const result = resolveByNameAndKind(ref.referenceName, null, SERVICE_DIRS, context, SERVICE_KINDS);
+    if (
+      ref.referenceName.endsWith('Service') ||
+      ref.referenceName.endsWith('Repository') ||
+      ref.referenceName.endsWith('Store')
+    ) {
+      const result = resolveByNameAndKind(
+        ref.referenceName,
+        null,
+        SERVICE_DIRS,
+        context,
+        SERVICE_KINDS,
+      );
       if (result) {
         return {
           original: ref,
@@ -52,7 +62,11 @@ export const goResolver: FrameworkResolver = {
     }
 
     // Pattern 3: Middleware references
-    if (ref.referenceName.endsWith('Middleware') || ref.referenceName.startsWith('Auth') || ref.referenceName.startsWith('Log')) {
+    if (
+      ref.referenceName.endsWith('Middleware') ||
+      ref.referenceName.startsWith('Auth') ||
+      ref.referenceName.startsWith('Log')
+    ) {
       const result = resolveByNameAndKind(ref.referenceName, 'function', MIDDLEWARE_DIRS, context);
       if (result) {
         return {
@@ -89,15 +103,14 @@ export const goResolver: FrameworkResolver = {
 
     // (router|r|mux|app).METHOD("/path", handler)
     // Handles Gin (GET/POST/...), Chi (Get/Post/...), net/http (HandleFunc/Handle).
-    const routeRegex = /\b(?:router|r|mux|app|e)\.(GET|POST|PUT|PATCH|DELETE|OPTIONS|HEAD|Get|Post|Put|Patch|Delete|Handle|HandleFunc)\s*\(\s*"([^"]+)"\s*,\s*([^)]+)\)/g;
+    const routeRegex =
+      /\b(?:router|r|mux|app|e)\.(GET|POST|PUT|PATCH|DELETE|OPTIONS|HEAD|Get|Post|Put|Patch|Delete|Handle|HandleFunc)\s*\(\s*"([^"]+)"\s*,\s*([^)]+)\)/g;
     let match: RegExpExecArray | null;
     while ((match = routeRegex.exec(safe)) !== null) {
       const [, rawMethod, routePath, handlerExpr] = match;
       const line = safe.slice(0, match.index).split('\n').length;
       const method =
-        rawMethod === 'Handle' || rawMethod === 'HandleFunc'
-          ? 'ANY'
-          : rawMethod!.toUpperCase();
+        rawMethod === 'Handle' || rawMethod === 'HandleFunc' ? 'ANY' : rawMethod.toUpperCase();
 
       const routeNode: Node = {
         id: `route:${filePath}:${line}:${method}:${routePath}`,
@@ -114,7 +127,7 @@ export const goResolver: FrameworkResolver = {
       };
       nodes.push(routeNode);
 
-      const handlerName = extractGoTailIdent(handlerExpr!);
+      const handlerName = extractGoTailIdent(handlerExpr);
       if (handlerName) {
         references.push({
           fromNodeId: routeNode.id,
@@ -135,8 +148,8 @@ export const goResolver: FrameworkResolver = {
 /** Extract the last identifier from an expression like `pkg.Sub.handler` or `handler`. */
 function extractGoTailIdent(expr: string): string | null {
   const cleaned = expr.trim().replace(/\s+/g, '').replace(/\(\)$/, '');
-  const m = cleaned.match(/(?:\.|^)([A-Za-z_][A-Za-z0-9_]*)$/);
-  return m ? m[1]! : null;
+  const m = /(?:\.|^)([A-Za-z_][A-Za-z0-9_]*)$/.exec(cleaned);
+  return m ? m[1] : null;
 }
 
 // Directory patterns for framework resolution
@@ -155,7 +168,7 @@ function resolveByNameAndKind(
   kind: string | null,
   preferredDirs: string[],
   context: ResolutionContext,
-  kinds?: Set<string>
+  kinds?: Set<string>,
 ): string | null {
   const candidates = context.getNodesByName(name);
   if (candidates.length === 0) return null;
@@ -171,11 +184,11 @@ function resolveByNameAndKind(
 
   // Prefer candidates in framework-conventional directories
   const preferred = kindFiltered.filter((n) =>
-    preferredDirs.some((d) => n.filePath.includes(`/${d}/`))
+    preferredDirs.some((d) => n.filePath.includes(`/${d}/`)),
   );
 
-  if (preferred.length > 0) return preferred[0]!.id;
+  if (preferred.length > 0) return preferred[0].id;
 
   // Fall back to any match
-  return kindFiltered[0]!.id;
+  return kindFiltered[0].id;
 }

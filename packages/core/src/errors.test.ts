@@ -2,14 +2,7 @@
  * AIDE Core - Error Hierarchy Tests
  */
 import { describe, it, expect } from 'vitest';
-import {
-  AideError,
-  ConfigError,
-  GuardError,
-  RouteError,
-  GraphError,
-  MindError,
-} from './errors.js';
+import { AideError, ConfigError, GuardError, RouteError, GraphError, MindError } from './errors.js';
 
 describe('AideError', () => {
   it('has correct properties', () => {

@@ -280,12 +280,65 @@ export interface VerificationReport {
 
 // ==================== Server & Config Types ====================
 
+/** CORS configuration.
+ *
+ * - `enabled: false`         → CORS plugin is not registered. Use this
+ *   when the proxy sits behind a reverse proxy that already adds
+ *   CORS headers, or when only server-to-server callers reach it.
+ * - `enabled: true, origins` → CORS plugin is registered with the
+ *   given allow-list. `origins` is forwarded verbatim to
+ *   `@fastify/cors`; pass full origins (`https://app.example.com`)
+ *   or `"*"` for a public read-only API. */
+export interface CorsConfig {
+  enabled: boolean;
+  /** Allow-list of origins. Use full origins (`scheme://host[:port]`).
+   *  Set to `['*']` to allow any origin (not recommended in
+   *  production — it disables credentialed requests). */
+  origins: string[];
+  /** Optional list of allowed methods; default = GET, POST, OPTIONS. */
+  methods?: string[];
+  /** Optional list of allowed headers; default = common JSON headers
+   *  + Authorization (the proxy requires Bearer auth on most routes). */
+  allowedHeaders?: string[];
+  /** Whether the Access-Control-Allow-Credentials header is set.
+   *  Defaults to false. Cannot be true when origins is `['*']`. */
+  credentials?: boolean;
+}
+
 /** Server config */
 export interface ServerConfig {
   port: number;
   dashboard_port: number;
   token?: string;
   bodyLimit?: number;
+  /** CORS policy. Defaults to a localhost-only allow-list so the
+   *  bundled AIDE dashboard works out of the box; production
+   *  deployments MUST set this to their public origin. */
+  cors?: CorsConfig;
+  /**
+   * Per-Bearer-token rate limit. Optional — when omitted, requests
+   * are not throttled by the limiter (other gates like the tenant
+   * cost circuit still apply).
+   */
+  rateLimit?: {
+    /** Max requests per `windowMs` per token. */
+    limit?: number;
+    /** Window length in ms. */
+    windowMs?: number;
+  };
+  /**
+   * Token budget. Optional — when omitted, the proxy does not
+   * pre-flight the prompt token count or track per-tenant daily
+   * token usage (the per-USD cost circuit still applies).
+   */
+  tokenBudget?: {
+    /** Max prompt tokens per single request. 0 disables. */
+    maxPromptTokensPerRequest?: number;
+    /** Max tokens per tenant per day (prompt + completion). 0 disables. */
+    maxTokensPerTenantPerDay?: number;
+    /** Circuit-open window after a daily overflow, in ms. */
+    circuitResetMs?: number;
+  };
 }
 
 /** Cost config */
@@ -384,7 +437,7 @@ export interface MCPPropertySchema {
 
 /** MCP tool result */
 export interface MCPToolResult {
-  content: Array<{ type: 'text'; text: string }>;
+  content: { type: 'text'; text: string }[];
   isError?: boolean;
 }
 
@@ -405,10 +458,10 @@ export interface TargetDetectionResult {
 
 /** Target write result */
 export interface TargetWriteResult {
-  files: Array<{
+  files: {
     path: string;
     action: 'created' | 'updated' | 'unchanged' | 'removed' | 'not-found';
-  }>;
+  }[];
   notes?: string[];
 }
 

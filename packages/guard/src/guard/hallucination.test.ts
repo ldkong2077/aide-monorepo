@@ -18,16 +18,19 @@ from pathlib import Path
 from datetime import datetime
 `;
       const result = detector.detect(code, 'python', projectDir);
-      const packageIssues = result.filter(h => h.category === 'package_import');
+      const packageIssues = result.filter((h) => h.category === 'package_import');
       expect(packageIssues).toHaveLength(0);
     });
 
     it('flags non-existent package imports', () => {
       const code = `import fake_nonexistent_package_xyz`;
       const result = detector.detect(code, 'python', projectDir);
-      expect(result.some(h =>
-        h.category === 'package_import' && h.message.includes('fake_nonexistent_package_xyz')
-      )).toBe(true);
+      expect(
+        result.some(
+          (h) =>
+            h.category === 'package_import' && h.message.includes('fake_nonexistent_package_xyz'),
+        ),
+      ).toBe(true);
     });
 
     it('does not flag well-known third-party packages when trusted', () => {
@@ -40,7 +43,7 @@ import sys
 import json
 `;
       const result = detector.detect(code, 'python', projectDir);
-      const packageIssues = result.filter(h => h.category === 'package_import');
+      const packageIssues = result.filter((h) => h.category === 'package_import');
       expect(packageIssues).toHaveLength(0);
     });
   });
@@ -53,7 +56,7 @@ import path from 'path';
 import { exec } from 'child_process';
 `;
       const result = detector.detect(code, 'typescript', projectDir);
-      const packageIssues = result.filter(h => h.category === 'package_import');
+      const packageIssues = result.filter((h) => h.category === 'package_import');
       expect(packageIssues).toHaveLength(0);
     });
   });
@@ -67,7 +70,7 @@ try {
 }
 `;
       const result = detector.detect(code, 'typescript', projectDir);
-      expect(result.some(h => h.category === 'ai_pattern')).toBe(true);
+      expect(result.some((h) => h.category === 'ai_pattern')).toBe(true);
     });
 
     it('detects fabricated URLs', () => {
@@ -88,7 +91,7 @@ function foo() {
 }
 `;
       const result = detector.detect(code, 'typescript', projectDir);
-      expect(result.some(h => h.category === 'logic_issue')).toBe(true);
+      expect(result.some((h) => h.category === 'logic_issue')).toBe(true);
     });
 
     it('detects always-true conditions', () => {
@@ -98,7 +101,7 @@ if (true) {
 }
 `;
       const result = detector.detect(code, 'typescript', projectDir);
-      expect(result.some(h => h.category === 'logic_issue')).toBe(true);
+      expect(result.some((h) => h.category === 'logic_issue')).toBe(true);
     });
   });
 

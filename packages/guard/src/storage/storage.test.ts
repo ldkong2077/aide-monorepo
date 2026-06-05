@@ -159,13 +159,7 @@ describe('SQLiteStorage', () => {
 
   describe('模型性能', () => {
     it('记录和获取模型性能', () => {
-      storage.recordModelPerformance(
-        'openai',
-        'gpt-4o',
-        'code_generation' as const,
-        true,
-        200,
-      );
+      storage.recordModelPerformance('openai', 'gpt-4o', 'code_generation' as const, true, 200);
 
       const performance = storage.getModelPerformance();
       expect(performance.length).toBeGreaterThan(0);

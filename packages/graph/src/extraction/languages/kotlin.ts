@@ -1,4 +1,4 @@
-﻿import type { Node as SyntaxNode } from 'web-tree-sitter';
+import type { Node as SyntaxNode } from 'web-tree-sitter';
 import { getNodeText, getChildByField } from '../tree-sitter-helpers.js';
 import type { LanguageExtractor } from '../tree-sitter-types.js';
 
@@ -12,15 +12,15 @@ function isFunInterfaceNode(node: SyntaxNode): boolean {
     if (child.type === 'fun' && !child.isNamed) hasFun = true;
     if (child.type === 'user_type') {
       const typeId = child.namedChildren.find((c: SyntaxNode) => c.type === 'type_identifier');
-      if (typeId && typeId.text === 'interface') hasInterfaceType = true;
+      if (typeId?.text === 'interface') hasInterfaceType = true;
     }
     // Pattern 2b: user_type("interface") is inside an ERROR child
     if (child.type === 'ERROR') {
       for (let j = 0; j < child.childCount; j++) {
         const gc = child.child(j);
-        if (gc && gc.type === 'user_type') {
+        if (gc?.type === 'user_type') {
           const typeId = gc.namedChildren.find((c: SyntaxNode) => c.type === 'type_identifier');
-          if (typeId && typeId.text === 'interface') hasInterfaceType = true;
+          if (typeId?.text === 'interface') hasInterfaceType = true;
         }
       }
     }
@@ -53,7 +53,7 @@ export const kotlinExtractor: LanguageExtractor = {
     // Skip lambda_literal bodies that were already consumed by a fun interface ERROR node
     if (node.type === 'lambda_literal') {
       const prev = node.previousSibling;
-      if (prev && prev.type === 'ERROR' && isFunInterfaceNode(prev)) return true;
+      if (prev?.type === 'ERROR' && isFunInterfaceNode(prev)) return true;
       return false;
     }
 
@@ -64,7 +64,7 @@ export const kotlinExtractor: LanguageExtractor = {
     // resolveBody; handling the ERROR here would consume the whole body.
     if (node.type === 'ERROR') {
       const firstChild = node.child(0);
-      if (firstChild && firstChild.type === '{') return false;
+      if (firstChild?.type === '{') return false;
     }
 
     if (!isFunInterfaceNode(node)) return false;
@@ -76,10 +76,10 @@ export const kotlinExtractor: LanguageExtractor = {
     if (node.type === 'function_declaration') {
       for (let i = 0; i < node.childCount; i++) {
         const child = node.child(i);
-        if (child && child.type === 'ERROR') {
+        if (child?.type === 'ERROR') {
           for (let j = 0; j < child.childCount; j++) {
             const gc = child.child(j);
-            if (gc && gc.type === 'simple_identifier') {
+            if (gc?.type === 'simple_identifier') {
               nameText = gc.text;
               break;
             }
@@ -92,7 +92,7 @@ export const kotlinExtractor: LanguageExtractor = {
     if (!nameText) {
       for (let i = 0; i < node.childCount; i++) {
         const child = node.child(i);
-        if (child && child.type === 'simple_identifier') {
+        if (child?.type === 'simple_identifier') {
           nameText = child.text;
           break;
         }
@@ -109,10 +109,10 @@ export const kotlinExtractor: LanguageExtractor = {
     if (node.type === 'ERROR') {
       // Pattern 1: body is in the next sibling lambda_literal
       const nextSibling = node.nextSibling;
-      if (nextSibling && nextSibling.type === 'lambda_literal') {
+      if (nextSibling?.type === 'lambda_literal') {
         for (let i = 0; i < nextSibling.namedChildCount; i++) {
           const child = nextSibling.namedChild(i);
-          if (child && child.type === 'statements') {
+          if (child?.type === 'statements') {
             for (let j = 0; j < child.namedChildCount; j++) {
               const stmt = child.namedChild(j);
               if (stmt) ctx.visitNode(stmt);
@@ -141,13 +141,18 @@ export const kotlinExtractor: LanguageExtractor = {
     // so the parent's methods are extracted.
     for (let i = 0; i < node.namedChildCount; i++) {
       const child = node.namedChild(i);
-      if (child && child.type === 'ERROR') {
+      if (child?.type === 'ERROR') {
         const firstChild = child.child(0);
-        if (firstChild && firstChild.type === '{') {
+        if (firstChild?.type === '{') {
           return child;
         }
       }
-      if (child && (child.type === 'function_body' || child.type === 'class_body' || child.type === 'enum_class_body')) {
+      if (
+        child &&
+        (child.type === 'function_body' ||
+          child.type === 'class_body' ||
+          child.type === 'enum_class_body')
+      ) {
         return child;
       }
     }
@@ -179,7 +184,9 @@ export const kotlinExtractor: LanguageExtractor = {
         foundUserType = child;
       } else if (child.type === '.' && foundUserType) {
         // The user_type before the dot is the receiver type
-        const typeId = foundUserType.namedChildren.find((c: SyntaxNode) => c.type === 'type_identifier');
+        const typeId = foundUserType.namedChildren.find(
+          (c: SyntaxNode) => c.type === 'type_identifier',
+        );
         return typeId ? getNodeText(typeId, source) : getNodeText(foundUserType, source);
       } else if (child.type === 'simple_identifier' || child.type === 'function_value_parameters') {
         // Past the function name — no receiver
@@ -231,7 +238,10 @@ export const kotlinExtractor: LanguageExtractor = {
     const importText = source.substring(node.startIndex, node.endIndex).trim();
     const identifier = node.namedChildren.find((c: SyntaxNode) => c.type === 'identifier');
     if (identifier) {
-      return { moduleName: source.substring(identifier.startIndex, identifier.endIndex), signature: importText };
+      return {
+        moduleName: source.substring(identifier.startIndex, identifier.endIndex),
+        signature: importText,
+      };
     }
     return null;
   },

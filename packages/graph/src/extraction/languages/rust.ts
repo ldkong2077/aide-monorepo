@@ -1,4 +1,4 @@
-﻿import type { Node as SyntaxNode } from 'web-tree-sitter';
+import type { Node as SyntaxNode } from 'web-tree-sitter';
 import { getNodeText, getChildByField } from '../tree-sitter-helpers.js';
 import type { LanguageExtractor } from '../tree-sitter-types.js';
 
@@ -55,21 +55,17 @@ export const rustExtractor: LanguageExtractor = {
         // (the first is part of the trait path)
         const children = parent.namedChildren;
         // Find all direct type_identifier children (not nested in scoped paths)
-        const typeIdents = children.filter(
-          (c: SyntaxNode) => c.type === 'type_identifier'
-        );
+        const typeIdents = children.filter((c: SyntaxNode) => c.type === 'type_identifier');
         if (typeIdents.length > 0) {
           // Last type_identifier is always the implementing type
-          const typeNode = typeIdents[typeIdents.length - 1]!;
+          const typeNode = typeIdents[typeIdents.length - 1];
           return source.substring(typeNode.startIndex, typeNode.endIndex);
         }
         // Handle generic types: impl<T> MyStruct<T> { ... }
-        const genericType = children.find(
-          (c: SyntaxNode) => c.type === 'generic_type'
-        );
+        const genericType = children.find((c: SyntaxNode) => c.type === 'generic_type');
         if (genericType) {
           const innerType = genericType.namedChildren.find(
-            (c: SyntaxNode) => c.type === 'type_identifier'
+            (c: SyntaxNode) => c.type === 'type_identifier',
           );
           if (innerType) {
             return source.substring(innerType.startIndex, innerType.endIndex);
@@ -89,10 +85,12 @@ export const rustExtractor: LanguageExtractor = {
     const getRootModule = (scopedNode: SyntaxNode): string => {
       const firstChild = scopedNode.namedChild(0);
       if (!firstChild) return source.substring(scopedNode.startIndex, scopedNode.endIndex);
-      if (firstChild.type === 'identifier' ||
-          firstChild.type === 'crate' ||
-          firstChild.type === 'super' ||
-          firstChild.type === 'self') {
+      if (
+        firstChild.type === 'identifier' ||
+        firstChild.type === 'crate' ||
+        firstChild.type === 'super' ||
+        firstChild.type === 'self'
+      ) {
         return source.substring(firstChild.startIndex, firstChild.endIndex);
       } else if (firstChild.type === 'scoped_identifier') {
         return getRootModule(firstChild);
@@ -101,11 +99,12 @@ export const rustExtractor: LanguageExtractor = {
     };
 
     // Find the use argument (scoped_use_list or scoped_identifier)
-    const useArg = node.namedChildren.find((c: SyntaxNode) =>
-      c.type === 'scoped_use_list' ||
-      c.type === 'scoped_identifier' ||
-      c.type === 'use_list' ||
-      c.type === 'identifier'
+    const useArg = node.namedChildren.find(
+      (c: SyntaxNode) =>
+        c.type === 'scoped_use_list' ||
+        c.type === 'scoped_identifier' ||
+        c.type === 'use_list' ||
+        c.type === 'identifier',
     );
 
     if (useArg) {

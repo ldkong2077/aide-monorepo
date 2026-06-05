@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Context Builder
  *
  * Builds rich context for tasks by combining FTS search with graph traversal.
@@ -8,24 +8,29 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import {
-  Node,
-  Edge,
-  NodeKind,
-  EdgeKind,
-  Subgraph,
-  CodeBlock,
-  TaskContext,
-  TaskInput,
-  BuildContextOptions,
-  FindRelevantContextOptions,
-  SearchResult,
+  type Node,
+  type Edge,
+  type NodeKind,
+  type EdgeKind,
+  type Subgraph,
+  type CodeBlock,
+  type TaskContext,
+  type TaskInput,
+  type BuildContextOptions,
+  type FindRelevantContextOptions,
+  type SearchResult,
 } from '../types.js';
-import { QueryBuilder } from '../db/queries.js';
-import { GraphTraverser } from '../graph/index.js';
+import { type QueryBuilder } from '../db/queries.js';
+import { type GraphTraverser } from '../graph/index.js';
 import { formatContextAsMarkdown, formatContextAsJson } from './formatter.js';
 import { logDebug } from '../errors.js';
 import { validatePathWithinRoot } from '../utils.js';
-import { isTestFile, extractSearchTerms, scorePathRelevance, getStemVariants } from '../search/query-utils.js';
+import {
+  isTestFile,
+  extractSearchTerms,
+  scorePathRelevance,
+  getStemVariants,
+} from '../search/query-utils.js';
 
 /**
  * Extract likely symbol names from a natural language query
@@ -102,33 +107,163 @@ function extractSymbolsFromQuery(query: string): string[] {
 
   // Filter out common English words that aren't likely symbol names
   const commonWords = new Set([
-    'the', 'and', 'for', 'with', 'from', 'this', 'that', 'have', 'been',
-    'will', 'would', 'could', 'should', 'does', 'done', 'make', 'made',
-    'use', 'used', 'using', 'work', 'works', 'find', 'found', 'show',
-    'call', 'called', 'calling', 'get', 'set', 'add', 'all', 'any',
-    'how', 'what', 'when', 'where', 'which', 'who', 'why',
-    'not', 'but', 'are', 'was', 'were', 'has', 'had', 'its',
-    'can', 'did', 'may', 'also', 'into', 'than', 'then', 'them',
-    'each', 'other', 'some', 'such', 'only', 'same', 'about',
-    'after', 'before', 'between', 'through', 'during', 'without',
-    'again', 'further', 'once', 'here', 'there', 'both', 'just',
-    'more', 'most', 'very', 'being', 'having', 'doing',
-    'system', 'need', 'needs', 'want', 'wants', 'like', 'look',
-    'change', 'changes', 'changed', 'changing',
+    'the',
+    'and',
+    'for',
+    'with',
+    'from',
+    'this',
+    'that',
+    'have',
+    'been',
+    'will',
+    'would',
+    'could',
+    'should',
+    'does',
+    'done',
+    'make',
+    'made',
+    'use',
+    'used',
+    'using',
+    'work',
+    'works',
+    'find',
+    'found',
+    'show',
+    'call',
+    'called',
+    'calling',
+    'get',
+    'set',
+    'add',
+    'all',
+    'any',
+    'how',
+    'what',
+    'when',
+    'where',
+    'which',
+    'who',
+    'why',
+    'not',
+    'but',
+    'are',
+    'was',
+    'were',
+    'has',
+    'had',
+    'its',
+    'can',
+    'did',
+    'may',
+    'also',
+    'into',
+    'than',
+    'then',
+    'them',
+    'each',
+    'other',
+    'some',
+    'such',
+    'only',
+    'same',
+    'about',
+    'after',
+    'before',
+    'between',
+    'through',
+    'during',
+    'without',
+    'again',
+    'further',
+    'once',
+    'here',
+    'there',
+    'both',
+    'just',
+    'more',
+    'most',
+    'very',
+    'being',
+    'having',
+    'doing',
+    'system',
+    'need',
+    'needs',
+    'want',
+    'wants',
+    'like',
+    'look',
+    'change',
+    'changes',
+    'changed',
+    'changing',
     // Common English nouns/verbs that match thousands of unrelated code symbols
-    'layer', 'handle', 'handles', 'handling', 'incoming', 'outgoing',
-    'data', 'flow', 'flows', 'level', 'levels', 'request', 'requests',
-    'response', 'responses', 'implement', 'implements', 'implementation',
-    'interface', 'interfaces', 'class', 'classes', 'method', 'methods',
-    'trigger', 'triggers', 'affected', 'affect', 'affects',
-    'else', 'code', 'failing', 'failed', 'silently', 'decide', 'decides',
-    'return', 'returns', 'returned', 'take', 'takes', 'taken',
-    'check', 'checks', 'checked', 'create', 'creates', 'created',
-    'read', 'reads', 'write', 'writes', 'written',
-    'start', 'starts', 'stop', 'stops', 'run', 'runs', 'running',
+    'layer',
+    'handle',
+    'handles',
+    'handling',
+    'incoming',
+    'outgoing',
+    'data',
+    'flow',
+    'flows',
+    'level',
+    'levels',
+    'request',
+    'requests',
+    'response',
+    'responses',
+    'implement',
+    'implements',
+    'implementation',
+    'interface',
+    'interfaces',
+    'class',
+    'classes',
+    'method',
+    'methods',
+    'trigger',
+    'triggers',
+    'affected',
+    'affect',
+    'affects',
+    'else',
+    'code',
+    'failing',
+    'failed',
+    'silently',
+    'decide',
+    'decides',
+    'return',
+    'returns',
+    'returned',
+    'take',
+    'takes',
+    'taken',
+    'check',
+    'checks',
+    'checked',
+    'create',
+    'creates',
+    'created',
+    'read',
+    'reads',
+    'write',
+    'writes',
+    'written',
+    'start',
+    'starts',
+    'stop',
+    'stops',
+    'run',
+    'runs',
+    'running',
   ]);
 
-  return Array.from(symbols).filter(s => !commonWords.has(s.toLowerCase()));
+  return Array.from(symbols).filter((s) => !commonWords.has(s.toLowerCase()));
 }
 
 /**
@@ -140,13 +275,13 @@ function extractSymbolsFromQuery(query: string): string[] {
  * - Shallower traversal
  */
 const DEFAULT_BUILD_OPTIONS: Required<BuildContextOptions> = {
-  maxNodes: 20,           // Reduced from 50 - most tasks don't need 50 symbols
-  maxCodeBlocks: 5,       // Reduced from 10 - only show most relevant code
+  maxNodes: 20, // Reduced from 50 - most tasks don't need 50 symbols
+  maxCodeBlocks: 5, // Reduced from 10 - only show most relevant code
   maxCodeBlockSize: 1500, // Reduced from 2000
   includeCode: true,
   format: 'markdown',
-  searchLimit: 3,         // Reduced from 5 - fewer entry points
-  traversalDepth: 1,      // Reduced from 2 - shallower graph expansion
+  searchLimit: 3, // Reduced from 5 - fewer entry points
+  traversalDepth: 1, // Reduced from 2 - shallower graph expansion
   minScore: 0.3,
 };
 
@@ -156,17 +291,29 @@ const DEFAULT_BUILD_OPTIONS: Required<BuildContextOptions> = {
  * they tell you something exists, not how it works.
  */
 const HIGH_VALUE_NODE_KINDS: NodeKind[] = [
-  'function', 'method', 'class', 'interface', 'type_alias', 'struct', 'trait',
-  'component', 'route', 'variable', 'constant', 'enum', 'module', 'namespace',
+  'function',
+  'method',
+  'class',
+  'interface',
+  'type_alias',
+  'struct',
+  'trait',
+  'component',
+  'route',
+  'variable',
+  'constant',
+  'enum',
+  'module',
+  'namespace',
 ];
 
 /**
  * Default options for finding relevant context
  */
 const DEFAULT_FIND_OPTIONS: Required<FindRelevantContextOptions> = {
-  searchLimit: 3,        // Reduced from 5
-  traversalDepth: 1,     // Reduced from 2
-  maxNodes: 20,          // Reduced from 50
+  searchLimit: 3, // Reduced from 5
+  traversalDepth: 1, // Reduced from 2
+  maxNodes: 20, // Reduced from 50
   minScore: 0.3,
   edgeKinds: [],
   nodeKinds: HIGH_VALUE_NODE_KINDS, // Filter out imports/exports by default
@@ -183,11 +330,7 @@ export class ContextBuilder {
   private queries: QueryBuilder;
   private traverser: GraphTraverser;
 
-  constructor(
-    projectRoot: string,
-    queries: QueryBuilder,
-    traverser: GraphTraverser
-  ) {
+  constructor(projectRoot: string, queries: QueryBuilder, traverser: GraphTraverser) {
     this.projectRoot = projectRoot;
     this.queries = queries;
     this.traverser = traverser;
@@ -209,12 +352,15 @@ export class ContextBuilder {
    */
   async buildContext(
     input: TaskInput,
-    options: BuildContextOptions = {}
+    options: BuildContextOptions = {},
   ): Promise<TaskContext | string> {
     const opts = { ...DEFAULT_BUILD_OPTIONS, ...options };
 
     // Parse input
-    const query = typeof input === 'string' ? input : `${input.title}${input.description ? `: ${input.description}` : ''}`;
+    const query =
+      typeof input === 'string'
+        ? input
+        : `${input.title}${input.description ? `: ${input.description}` : ''}`;
 
     // Find relevant context (semantic search + graph expansion)
     const subgraph = await this.findRelevantContext(query, {
@@ -283,7 +429,7 @@ export class ContextBuilder {
    */
   async findRelevantContext(
     query: string,
-    options: FindRelevantContextOptions = {}
+    options: FindRelevantContextOptions = {},
   ): Promise<Subgraph> {
     const opts = { ...DEFAULT_FIND_OPTIONS, ...options };
 
@@ -325,7 +471,7 @@ export class ContextBuilder {
             fileSymbolCounts.set(r.node.filePath, names);
           }
           // Boost results in files where multiple query symbols co-occur
-          exactMatches = exactMatches.map(r => {
+          exactMatches = exactMatches.map((r) => {
             const symbolCount = fileSymbolCounts.get(r.node.filePath)?.size || 1;
             return {
               ...r,
@@ -348,8 +494,15 @@ export class ContextBuilder {
     // like RestController, BulkRequest, AllocationService — not nodes named exactly that.
     // Also tries stem variants: "caching" → "cache" finds Cache, CacheBuilder.
     if (symbolsFromQuery.length > 0) {
-      const definitionKinds: NodeKind[] = ['class', 'interface', 'struct', 'trait',
-        'protocol', 'enum', 'type_alias'];
+      const definitionKinds: NodeKind[] = [
+        'class',
+        'interface',
+        'struct',
+        'trait',
+        'protocol',
+        'enum',
+        'type_alias',
+      ];
       // Expand symbols with stem variants for broader definition matching
       const expandedSymbols = new Set(symbolsFromQuery);
       for (const sym of symbolsFromQuery) {
@@ -378,7 +531,7 @@ export class ContextBuilder {
         }
         matched.sort((a, b) => b.score - a.score);
         for (const r of matched.slice(0, Math.ceil(opts.searchLimit))) {
-          const existing = exactMatches.find(e => e.node.id === r.node.id);
+          const existing = exactMatches.find((e) => e.node.id === r.node.id);
           if (!existing) {
             exactMatches.push(r);
           }
@@ -402,12 +555,31 @@ export class ContextBuilder {
         // When no explicit kind filter is set, exclude imports — they flood FTS
         // results with qualified name matches (e.g., "REST" matches 445K import paths)
         // but are almost never what exploration queries want.
-        const searchKinds = opts.nodeKinds && opts.nodeKinds.length > 0
-          ? opts.nodeKinds
-          : ['file', 'module', 'class', 'struct', 'interface', 'trait', 'protocol',
-             'function', 'method', 'property', 'field', 'variable', 'constant',
-             'enum', 'enum_member', 'type_alias', 'namespace', 'export',
-             'route', 'component'] as NodeKind[];
+        const searchKinds =
+          opts.nodeKinds && opts.nodeKinds.length > 0
+            ? opts.nodeKinds
+            : ([
+                'file',
+                'module',
+                'class',
+                'struct',
+                'interface',
+                'trait',
+                'protocol',
+                'function',
+                'method',
+                'property',
+                'field',
+                'variable',
+                'constant',
+                'enum',
+                'enum_member',
+                'type_alias',
+                'namespace',
+                'export',
+                'route',
+                'component',
+              ] as NodeKind[]);
         for (const term of searchTerms) {
           const termResults = this.queries.searchNodes(term, {
             limit: opts.searchLimit * 2,
@@ -510,7 +682,7 @@ export class ContextBuilder {
       // When the query is "LiveEditMode DevServerPreview", these are specific
       // symbols the user asked for — dampening them because they only match 1
       // term group is counter-productive.
-      const exactMatchIds = new Set(exactMatches.map(r => r.node.id));
+      const exactMatchIds = new Set(exactMatches.map((r) => r.node.id));
 
       for (const result of searchResults) {
         // Check term matches in name (substring) and path DIRECTORIES (exact).
@@ -521,9 +693,9 @@ export class ContextBuilder {
         const dirSegments = path.dirname(result.node.filePath).toLowerCase().split('/');
         let matchCount = 0;
         for (const group of termGroups) {
-          const groupMatches = group.some(term => {
+          const groupMatches = group.some((term) => {
             const inName = nameLower.includes(term);
-            const inDir = dirSegments.some(seg => seg === term);
+            const inDir = dirSegments.some((seg) => seg === term);
             return inName || inDir;
           });
           if (groupMatches) matchCount++;
@@ -546,10 +718,17 @@ export class ContextBuilder {
     // LIKE reliably finds these substring matches. Results are appended with
     // guaranteed slots so they don't compete with higher-scoring prefix matches.
     if (symbolsFromQuery.length > 0) {
-      const camelDefinitionKinds: NodeKind[] = ['class', 'interface', 'struct', 'trait',
-        'protocol', 'enum', 'type_alias'];
+      const camelDefinitionKinds: NodeKind[] = [
+        'class',
+        'interface',
+        'struct',
+        'trait',
+        'protocol',
+        'enum',
+        'type_alias',
+      ];
       const camelSearchedTerms = new Set<string>();
-      const searchIdSet = new Set(searchResults.map(r => r.node.id));
+      const searchIdSet = new Set(searchResults.map((r) => r.node.id));
       // Track per-node term hits for multi-term boosting
       const camelNodeTerms = new Map<string, { result: SearchResult; termCount: number }>();
       const maxCamelPerTerm = Math.ceil(opts.searchLimit / 2);
@@ -711,7 +890,13 @@ export class ContextBuilder {
     // before reaching extends/implements neighbors. This dedicated step
     // ensures subclasses and superclasses always appear in results.
     // Budget: up to maxNodes/4 hierarchy nodes to avoid flooding.
-    const typeHierarchyKinds = new Set<string>(['class', 'interface', 'struct', 'trait', 'protocol']);
+    const typeHierarchyKinds = new Set<string>([
+      'class',
+      'interface',
+      'struct',
+      'trait',
+      'protocol',
+    ]);
     const maxHierarchyNodes = Math.ceil(opts.maxNodes / 4);
     let hierarchyNodesAdded = 0;
     for (const result of filteredResults) {
@@ -726,7 +911,7 @@ export class ContextBuilder {
         }
         for (const edge of hierarchy.edges) {
           const exists = edges.some(
-            (e) => e.source === edge.source && e.target === edge.target && e.kind === edge.kind
+            (e) => e.source === edge.source && e.target === edge.target && e.kind === edge.kind,
           );
           if (!exists) {
             edges.push(edge);
@@ -739,7 +924,7 @@ export class ContextBuilder {
     // E.g., InternalEngine → Engine (parent, from pass 1) → ReadOnlyEngine (sibling).
     if (hierarchyNodesAdded > 0) {
       const pass2Candidates = [...nodes.values()].filter(
-        n => typeHierarchyKinds.has(n.kind) && !roots.includes(n.id)
+        (n) => typeHierarchyKinds.has(n.kind) && !roots.includes(n.id),
       );
       for (const candidate of pass2Candidates) {
         if (hierarchyNodesAdded >= maxHierarchyNodes) break;
@@ -753,7 +938,7 @@ export class ContextBuilder {
         for (const edge of siblingHierarchy.edges) {
           if (nodes.has(edge.source) && nodes.has(edge.target)) {
             const exists = edges.some(
-              (e) => e.source === edge.source && e.target === edge.target && e.kind === edge.kind
+              (e) => e.source === edge.source && e.target === edge.target && e.kind === edge.kind,
             );
             if (!exists) {
               edges.push(edge);
@@ -783,7 +968,7 @@ export class ContextBuilder {
       // Merge edges (avoid duplicates)
       for (const edge of traversalResult.edges) {
         const exists = edges.some(
-          (e) => e.source === edge.source && e.target === edge.target && e.kind === edge.kind
+          (e) => e.source === edge.source && e.target === edge.target && e.kind === edge.kind,
         );
         if (!exists) {
           edges.push(edge);
@@ -824,9 +1009,7 @@ export class ContextBuilder {
       }
 
       // Filter edges to only include kept nodes
-      finalEdges = edges.filter(
-        (e) => finalNodes.has(e.source) && finalNodes.has(e.target)
-      );
+      finalEdges = edges.filter((e) => finalNodes.has(e.source) && finalNodes.has(e.target));
     }
 
     // Per-file diversity cap: prevent any single file from monopolizing the
@@ -846,15 +1029,24 @@ export class ContextBuilder {
       if (nodeIds.length <= maxPerFile) continue;
       // Sort: entry points first, then classes/interfaces, then others
       const kindPriority: Record<string, number> = {
-        class: 3, interface: 3, struct: 3, trait: 3, protocol: 3, enum: 3,
-        method: 1, function: 1, property: 0, field: 0, variable: 0,
+        class: 3,
+        interface: 3,
+        struct: 3,
+        trait: 3,
+        protocol: 3,
+        enum: 3,
+        method: 1,
+        function: 1,
+        property: 0,
+        field: 0,
+        variable: 0,
       };
       nodeIds.sort((a, b) => {
         const aRoot = rootSet.has(a) ? 10 : 0;
         const bRoot = rootSet.has(b) ? 10 : 0;
         const aKind = kindPriority[finalNodes.get(a)!.kind] ?? 0;
         const bKind = kindPriority[finalNodes.get(b)!.kind] ?? 0;
-        return (bRoot + bKind) - (aRoot + aKind);
+        return bRoot + bKind - (aRoot + aKind);
       });
       // Remove excess nodes (keep the highest-priority ones)
       for (const id of nodeIds.slice(maxPerFile)) {
@@ -885,9 +1077,7 @@ export class ContextBuilder {
     }
 
     // Re-filter edges after per-file and non-production caps
-    finalEdges = finalEdges.filter(
-      (e) => finalNodes.has(e.source) && finalNodes.has(e.target)
-    );
+    finalEdges = finalEdges.filter((e) => finalNodes.has(e.source) && finalNodes.has(e.target));
 
     // Edge recovery: BFS with many entry points leaves most nodes disconnected.
     // Discover edges between already-selected nodes to recover connectivity.
@@ -896,9 +1086,7 @@ export class ContextBuilder {
       [...finalNodes.keys()],
       recoveryKinds,
     );
-    const existingEdgeKeys = new Set(
-      finalEdges.map((e) => `${e.source}:${e.target}:${e.kind}`)
-    );
+    const existingEdgeKeys = new Set(finalEdges.map((e) => `${e.source}:${e.target}:${e.kind}`));
     for (const edge of recoveredEdges) {
       const key = `${edge.source}:${edge.target}:${edge.kind}`;
       if (!existingEdgeKeys.has(key)) {
@@ -947,7 +1135,11 @@ export class ContextBuilder {
 
       return lines.slice(startIdx, endIdx).join('\n');
     } catch (error) {
-      logDebug('Failed to extract code from node', { nodeId: node.id, filePath: node.filePath, error: String(error) });
+      logDebug('Failed to extract code from node', {
+        nodeId: node.id,
+        filePath: node.filePath,
+        error: String(error),
+      });
       return null;
     }
   }
@@ -967,7 +1159,7 @@ export class ContextBuilder {
   private async extractCodeBlocks(
     subgraph: Subgraph,
     maxBlocks: number,
-    maxBlockSize: number
+    maxBlockSize: number,
   ): Promise<CodeBlock[]> {
     const blocks: CodeBlock[] = [];
 
@@ -1009,9 +1201,8 @@ export class ContextBuilder {
         // Truncate if too long. Language-neutral marker (no `//` — not a
         // comment in Python, Ruby, etc.); this renders inside a fenced
         // source block whose language varies.
-        const truncated = code.length > maxBlockSize
-          ? code.slice(0, maxBlockSize) + '\n... (truncated) ...'
-          : code;
+        const truncated =
+          code.length > maxBlockSize ? code.slice(0, maxBlockSize) + '\n... (truncated) ...' : code;
 
         blocks.push({
           content: truncated,
@@ -1053,9 +1244,11 @@ export class ContextBuilder {
 
     const remaining = entryPoints.length > 3 ? ` and ${entryPoints.length - 3} more` : '';
 
-    return `Found ${nodeCount} relevant code symbols across ${files.length} files. ` +
+    return (
+      `Found ${nodeCount} relevant code symbols across ${files.length} files. ` +
       `Key entry points: ${entryPointNames}${remaining}. ` +
-      `${edgeCount} relationships identified.`;
+      `${edgeCount} relationships identified.`
+    );
   }
 
   /**
@@ -1088,7 +1281,7 @@ export class ContextBuilder {
       // Imports have outgoing 'imports' edges to the definition
       // Exports have outgoing 'exports' edges to the definition
       const edgeKind = node.kind === 'import' ? 'imports' : 'exports';
-      const outgoingEdges = this.queries.getOutgoingEdges(node.id, [edgeKind as EdgeKind]);
+      const outgoingEdges = this.queries.getOutgoingEdges(node.id, [edgeKind]);
 
       let foundDefinition = false;
       for (const edge of outgoingEdges) {
@@ -1125,7 +1318,7 @@ export class ContextBuilder {
 export function createContextBuilder(
   projectRoot: string,
   queries: QueryBuilder,
-  traverser: GraphTraverser
+  traverser: GraphTraverser,
 ): ContextBuilder {
   return new ContextBuilder(projectRoot, queries, traverser);
 }

@@ -6,16 +6,39 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
+  ListPromptsRequestSchema,
+  GetPromptRequestSchema,
+  ListResourcesRequestSchema,
+  ReadResourceRequestSchema,
+  type Tool,
 } from '@modelcontextprotocol/sdk/types.js';
-
+import { resolveSafePath, resolveSafePaths } from './safe-path.js';
+import { PROMPTS, renderPrompt } from './prompts.js';
+import { RESOURCES, readResource } from './resources.js';
+import { installShutdownHandlers } from './shutdown.js';
+import {
+  codegraphIndexArgsSchema,
+  codegraphQueryArgsSchema,
+  guardVerifyArgsSchema,
+  guardCheckArgsSchema,
+  mindProcessArgsSchema,
+  type CodegraphIndexArgs,
+  type CodegraphQueryArgs,
+  type GuardVerifyArgs,
+  type GuardCheckArgs,
+  type MindProcessArgs,
+} from './schemas.js';
+import { z } from 'zod';
+import { promises as fsp } from 'node:fs';
+import { extname, resolve as pathResolve } from 'node:path';
+import type { Language } from '@aide/guard';
 
 export interface AideMCPConfig {
   enableGraph?: boolean;
   enableGuard?: boolean;
-  enableMind?: boolean;
 }
 
-const TOOLS: any[] = [
+const TOOLS: Tool[] = [
   {
     name: 'codegraph_index',
     description: 'Build or update the code graph for the current project',
@@ -33,7 +56,11 @@ const TOOLS: any[] = [
       type: 'object',
       properties: {
         query: { type: 'string', description: 'Search query' },
-        kind: { type: 'string', enum: ['symbol', 'reference', 'definition'], description: 'Query type' },
+        kind: {
+          type: 'string',
+          enum: ['symbol', 'reference', 'definition'],
+          description: 'Query type',
+        },
         path: { type: 'string', description: 'Project root path' },
       },
       required: ['query'],
@@ -45,10 +72,15 @@ const TOOLS: any[] = [
     inputSchema: {
       type: 'object',
       properties: {
-        files: { type: 'array', items: { type: 'string' }, description: 'File paths to verify' },
+        file: { type: 'string', description: 'Single file path to verify' },
+        files: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Multiple file paths to verify',
+        },
         noTest: { type: 'boolean', description: 'Skip test execution' },
       },
-      required: ['files'],
+      anyOf: [{ required: ['file'] }, { required: ['files'] }],
     },
   },
   {
@@ -64,142 +96,281 @@ const TOOLS: any[] = [
   },
   {
     name: 'mind_process',
-    description: 'Process an idea into structured project files',
+    description: 'Scaffolding a new project from a description - transforms ideas into structured designs and implementation plans',
     inputSchema: {
       type: 'object',
       properties: {
-        idea: { type: 'string', description: 'Raw idea text' },
-        outputDir: { type: 'string', description: 'Output directory' },
+        idea: { type: 'string', description: 'Project idea or description' },
+        outputDir: { type: 'string', description: 'Output directory for specs/plans (default: docs/aide)' },
+        mode: { 
+          type: 'string', 
+          enum: ['brainstorm', 'plan', 'full'],
+          description: 'Processing mode: brainstorm (Q&A only), plan (generate plan from design), full (complete flow)'
+        },
+        sessionId: { type: 'string', description: 'Continue an existing brainstorming session' },
       },
       required: ['idea'],
     },
   },
 ];
 
-export async function startMCPServer(config: AideMCPConfig = {}): Promise<void> {
+/**
+ * Reusable error shape returned to the MCP client. ZodError is broken down
+ * into a structured `code: 'ZOD_ERROR'` payload so the client knows it's a
+ * validation failure rather than a runtime error.
+ */
+function formatToolError(err: unknown): {
+  content: { type: 'text'; text: string }[];
+  isError: true;
+} {
+  if (err instanceof z.ZodError) {
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify({ code: 'ZOD_ERROR', issues: err.issues }, null, 2),
+        },
+      ],
+      isError: true,
+    };
+  }
+  const message = err instanceof Error ? err.message : String(err);
+  return {
+    content: [{ type: 'text', text: `Error: ${message}` }],
+    isError: true,
+  };
+}
+
+export async function startMCPServer(_config: AideMCPConfig = {}): Promise<void> {
   const server = new Server(
     { name: 'aide-mcp-server', version: '1.0.0' },
-    { capabilities: { tools: {} } },
+    // Declare every capability the server actually implements. Clients
+    // inspect this map during `initialize` to decide which methods they
+    // are allowed to call (e.g. `prompts/list` is only valid when the
+    // server advertises `prompts: {}`).
+    { capabilities: { tools: {}, prompts: {}, resources: {} } },
   );
 
   server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: TOOLS }));
 
-  server.setRequestHandler(CallToolRequestSchema, async (request) => {
+  // ── Prompts ───────────────────────────────────────────────────────────
+  server.setRequestHandler(ListPromptsRequestSchema, async () => ({ prompts: PROMPTS }));
+
+  server.setRequestHandler(GetPromptRequestSchema, async (request) => {
     const { name, arguments: args } = request.params;
+    const result = renderPrompt(name, (args ?? {}) as Record<string, string>);
+    if (!result) {
+      throw new Error(`Unknown prompt: ${name}`);
+    }
+    return result;
+  });
+
+  // ── Resources ────────────────────────────────────────────────────────
+  server.setRequestHandler(ListResourcesRequestSchema, async () => ({ resources: RESOURCES }));
+
+  server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
+    const { uri } = request.params;
+    const result = await readResource(uri);
+    if (!result) {
+      throw new Error(`Unknown resource: ${uri}`);
+    }
+    return result;
+  });
+
+  server.setRequestHandler(CallToolRequestSchema, async (request) => {
+    const { name, arguments: rawArgs } = request.params;
 
     try {
       switch (name) {
-        case 'codegraph_index': {
-          const { CodeGraph } = await import('@aide/graph');
-          const cg = await CodeGraph.init((args as any).path || '.');
-          await cg.indexAll();
-          return { content: [{ type: 'text', text: 'Indexing complete.' }] };
-        }
-
-        case 'codegraph_query': {
-          const { CodeGraph } = await import('@aide/graph');
-          const cg = await CodeGraph.open((args as any).path || '.');
-          const query = (args as any).query;
-          const kind = (args as any).kind || 'symbol';
-          let results: any;
-          switch (kind) {
-            case 'symbol':
-              results = cg.searchNodes(query);
-              break;
-            case 'reference':
-              results = cg.findUsages(query);
-              break;
-            case 'definition':
-              results = cg.getContext(query);
-              break;
-            default:
-              results = cg.searchNodes(query);
-          }
-          return { content: [{ type: 'text', text: JSON.stringify(results, null, 2) }] };
-        }
-
-        case 'guard_verify': {
-          const { Verifier } = await import('@aide/guard');
-          const verifier = new Verifier();
-          const report = await verifier.verify({
-            path: (args as any).files?.join(','),
-            noTest: (args as any).noTest,
-          });
-          return { content: [{ type: 'text', text: JSON.stringify(report, null, 2) }] };
-        }
-
-        case 'guard_check': {
-          const { HallucinationDetector } = await import('@aide/guard');
-          const fs = await import('fs');
-          const pathMod = await import('path');
-          const filePath = (args as any).file;
-          const content = fs.readFileSync(filePath, 'utf-8');
-          const ext = pathMod.extname(filePath).toLowerCase();
-          const langMap: Record<string, string> = {
-            '.py': 'python', '.ts': 'typescript', '.tsx': 'typescript',
-            '.js': 'javascript', '.jsx': 'javascript', '.go': 'go',
-          };
-          const language = (langMap[ext] || 'unknown') as import('@aide/guard').Language;
-          const projectDir = pathMod.dirname(pathMod.resolve(filePath));
-          const detector = new HallucinationDetector();
-          const result = detector.detect(content, language, projectDir);
-          return {
-            content: [{
-              type: 'text',
-              text: JSON.stringify({ file: filePath, hallucinations: result }, null, 2),
-            }],
-          };
-        }
-
-        case 'mind_process': {
-          const { ProjectMind } = await import('@aide/mind');
-          const { ProviderRegistry } = await import('@aide/guard');
-          const { loadConfig } = await import('@aide/core');
-          const appConfig = loadConfig();
-          // Register enabled providers
-          const registry = new ProviderRegistry();
-          for (const [provName, provConfig] of Object.entries(appConfig.providers)) {
-            if (provConfig.enabled && provConfig.apiKey) {
-              registry.registerProvider(provName, provConfig);
-            }
-          }
-          const provider = registry.getProvider(appConfig.mind.defaultModel);
-          if (!provider) {
-            return {
-              content: [{ type: 'text', text: `Provider "${appConfig.mind.defaultModel}" not available` }],
-              isError: true,
-            };
-          }
-          // Wrap as LLMAdapter interface
-          const adapter = {
-            chat: async (messages: import('@aide/core').ChatMessage[]) => {
-              const resp = await provider.chatCompletion({
-                model: appConfig.mind.defaultModel,
-                messages,
-              });
-              return resp.choices[0]?.message?.content || '';
-            },
-          };
-          const mindEngine = new ProjectMind(appConfig.mind, adapter);
-          const result = await mindEngine.processIdea(
-            (args as any).idea,
-            (args as any).outputDir,
-          );
-          return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
-        }
-
+        case 'codegraph_index':
+          return await handleCodegraphIndex(rawArgs);
+        case 'codegraph_query':
+          return await handleCodegraphQuery(rawArgs);
+        case 'guard_verify':
+          return await handleGuardVerify(rawArgs);
+        case 'guard_check':
+          return await handleGuardCheck(rawArgs);
+        case 'mind_process':
+          return await handleMindProcess(rawArgs);
         default:
           return { content: [{ type: 'text', text: `Unknown tool: ${name}` }], isError: true };
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      return { content: [{ type: 'text', text: `Error: ${message}` }], isError: true };
+      return formatToolError(err);
     }
   });
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
+  // The MCP transport runs on stdio. Anything written to stdout (including
+  // most loggers, which default to stdout) corrupts the protocol — so we
+  // intentionally use console.error (stderr) here. Do not "fix" this to a
+  // structured logger without verifying its transport target.
+   
   console.error('AIDE MCP server started on stdio');
+
+  // Install signal handlers for graceful shutdown. The MCP SDK's `Server`
+  // exposes `close()` which drains in-flight requests before resolving;
+  // a 5-second watchdog (configurable in `installShutdownHandlers`) ensures
+  // we never block forever on a stuck connection.
+  installShutdownHandlers(server);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tool handlers
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function handleCodegraphIndex(rawArgs: unknown) {
+  const args: CodegraphIndexArgs = codegraphIndexArgsSchema.parse(rawArgs ?? {});
+  const { CodeGraph } = await import('@aide/graph');
+  const requestedPath = args.path ?? '.';
+  const safePath = await resolveSafePath(requestedPath, { mustExist: true });
+  const cg = await CodeGraph.init(safePath);
+  await cg.indexAll();
+  return { content: [{ type: 'text', text: 'Indexing complete.' }] };
+}
+
+async function handleCodegraphQuery(rawArgs: unknown) {
+  const args: CodegraphQueryArgs = codegraphQueryArgsSchema.parse(rawArgs ?? {});
+  const { CodeGraph } = await import('@aide/graph');
+  const requestedPath = args.path ?? '.';
+  const safePath = await resolveSafePath(requestedPath, { mustExist: true });
+  const cg = await CodeGraph.open(safePath);
+  switch (args.kind) {
+    case 'symbol':
+      return {
+        content: [{ type: 'text', text: JSON.stringify(cg.searchNodes(args.query), null, 2) }],
+      };
+    case 'reference':
+      return {
+        content: [{ type: 'text', text: JSON.stringify(cg.findUsages(args.query), null, 2) }],
+      };
+    case 'definition':
+      return {
+        content: [{ type: 'text', text: JSON.stringify(cg.getContext(args.query), null, 2) }],
+      };
+  }
+}
+
+async function handleGuardVerify(rawArgs: unknown) {
+  // Zod transforms `{ file }` into `{ files: [file] }` after validation.
+  const args: GuardVerifyArgs = guardVerifyArgsSchema.parse(rawArgs ?? {});
+  const { Verifier } = await import('@aide/guard');
+  // Every file must resolve to a real path under the project root.
+  // `args.files` is guaranteed non-empty by the schema.
+  const safeFiles = await resolveSafePaths(args.files, { mustExist: true });
+  const verifier = new Verifier();
+
+  // Per-file verification: the upstream `Verifier.verify({ file })` is the
+  // canonical entry point for a single file. The previous implementation
+  // incorrectly joined file paths with commas and passed the result as a
+  // directory `path`, which was both wrong and a security smell.
+  const reports: { file: string; report: unknown; error?: string }[] = [];
+  for (const safeFile of safeFiles) {
+    try {
+      const report = await verifier.verify({ file: safeFile, noTest: args.noTest });
+      reports.push({ file: safeFile, report });
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      reports.push({ file: safeFile, report: null, error: message });
+    }
+  }
+  return { content: [{ type: 'text', text: JSON.stringify(reports, null, 2) }] };
+}
+
+async function handleGuardCheck(rawArgs: unknown) {
+  const args: GuardCheckArgs = guardCheckArgsSchema.parse(rawArgs ?? {});
+  const { HallucinationDetector } = await import('@aide/guard');
+  // Validate path is within project root BEFORE reading (defense in depth).
+  const safeFilePath = await resolveSafePath(args.file, { mustExist: true });
+  // Async I/O — non-blocking.
+  const content = await fsp.readFile(safeFilePath, 'utf-8');
+  const ext = extname(safeFilePath).toLowerCase();
+  const langMap: Record<string, Language> = {
+    '.py': 'python',
+    '.ts': 'typescript',
+    '.tsx': 'typescript',
+    '.js': 'javascript',
+    '.jsx': 'javascript',
+    '.go': 'go',
+  };
+  const language: Language = langMap[ext] ?? 'unknown';
+  const projectDir = pathResolve(safeFilePath, '..');
+  const detector = new HallucinationDetector();
+  const result = detector.detect(content, language, projectDir);
+  return {
+    content: [
+      {
+        type: 'text',
+        text: JSON.stringify({ file: safeFilePath, hallucinations: result }, null, 2),
+      },
+    ],
+  };
+}
+
+async function handleMindProcess(rawArgs: unknown) {
+  const args: MindProcessArgs = mindProcessArgsSchema.parse(rawArgs ?? {});
+  const {
+    createSession,
+    processStep,
+    generatePlan,
+    generateDesign,
+    exploreProjectContext,
+    generateApproaches,
+    writeDocuments,
+  } = await import('@aide/mind');
+
+  // Create or resume session
+  const session = args.sessionId
+    ? { id: args.sessionId, idea: args.idea, currentStep: 'ask_questions' as const, questions: [], answers: {}, approaches: [], startedAt: new Date().toISOString() }
+    : createSession(args.idea);
+
+  // Process based on mode
+  switch (args.mode) {
+    case 'brainstorm': {
+      const result = await processStep(session);
+      return {
+        content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+      };
+    }
+    case 'plan': {
+      // Generate plan from idea
+      const context = await exploreProjectContext(process.cwd());
+      const approaches = generateApproaches(args.idea, context, {});
+      const design = generateDesign(args.idea, context, {}, approaches[0]);
+      const plan = generatePlan(design);
+      return {
+        content: [{ type: 'text', text: JSON.stringify({ plan, session }, null, 2) }],
+      };
+    }
+    case 'full':
+    default: {
+      // Full flow: explore -> questions -> approaches -> design -> plan
+      const context = await exploreProjectContext(process.cwd());
+      const approaches = generateApproaches(args.idea, context, {});
+      const design = generateDesign(args.idea, context, {}, approaches[0]);
+      const plan = generatePlan(design);
+
+      // Write documents
+      const { resolveSafePath } = await import('./safe-path.js');
+      const outputDir = await resolveSafePath(args.outputDir, { mustExist: false });
+      const { designPath, planPath } = await writeDocuments(design, plan, outputDir);
+
+      return {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            success: true,
+            message: `项目设计完成！\n\n设计文档: ${designPath}\n实施计划: ${planPath}`,
+            designPath,
+            planPath,
+            tasksCount: plan.tasks.length,
+            estimatedTime: plan.metadata.totalEstimatedTime,
+          }, null, 2),
+        }],
+      };
+    }
+  }
 }
 
 export const MCP_VERSION = '1.0.0';

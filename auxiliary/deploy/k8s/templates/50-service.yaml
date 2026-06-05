@@ -1,0 +1,26 @@
+# 50-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: aide
+  namespace: aide
+  labels:
+    app.kubernetes.io/name: aide
+    app.kubernetes.io/instance: aide
+    app.kubernetes.io/component: service
+    app.kubernetes.io/part-of: aide
+    app.kubernetes.io/managed-by: kustomize
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 9900
+      targetPort: http
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: aide
+    app.kubernetes.io/instance: aide
+  # PublishNotReadyAddresses: false — we want to be removed from the
+  # Service when readinessProbe fails so traffic shifts to a healthy
+  # pod before the HPA scales.
+  publishNotReadyAddresses: false

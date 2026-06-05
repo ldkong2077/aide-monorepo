@@ -1,0 +1,33 @@
+# CODEOWNERS — code review assignment
+# When someone opens a PR, GitHub will automatically request reviews
+# from the owners listed for any files in the PR.
+
+# Default owners for everything not matched below
+* @aide-dev/maintainers
+
+# Core infrastructure
+/packages/core/         @aide-dev/maintainers
+/root tsconfig.json     @aide-dev/maintainers
+/vitest.config.ts       @aide-dev/maintainers
+
+# Code graph engine
+/packages/graph/        @aide-dev/graph-team
+
+# Verification pipeline
+/packages/guard/        @aide-dev/guard-team
+
+# Project scaffolding
+/packages/mind/         @aide-dev/mind-team
+
+# CLI / Router
+/packages/cli/          @aide-dev/cli-team
+/packages/router/       @aide-dev/router-team
+
+# MCP server
+/packages/mcp-server/   @aide-dev/mcp-team
+
+# CI / Tooling
+/.github/               @aide-dev/devops-team
+/package.json           @aide-dev/maintainers
+/package-lock.json      @aide-dev/maintainers
+/.gitignore             @aide-dev/maintainers

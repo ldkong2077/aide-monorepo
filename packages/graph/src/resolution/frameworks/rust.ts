@@ -1,11 +1,11 @@
-﻿/**
+/**
  * Rust Framework Resolver
  *
  * Handles Actix-web, Rocket, Axum, and common Rust patterns.
  */
 
-import { Node } from '../../types.js';
-import { FrameworkResolver, UnresolvedRef, ResolvedRef, ResolutionContext } from '../types.js';
+import { type Node } from '../../types.js';
+import { type FrameworkResolver, type UnresolvedRef, type ResolvedRef, type ResolutionContext } from '../types.js';
 import { stripCommentsForRegex } from '../strip-comments.js';
 import { getCargoWorkspaceCrateMap } from './cargo-workspace.js';
 
@@ -98,12 +98,13 @@ export const rustResolver: FrameworkResolver = {
 
     // Actix-web / Rocket attribute: #[get("/path")] fn handler(..)
     // Capture the method, path, and the fn identifier that follows.
-    const attrRegex = /#\[(get|post|put|patch|delete|head|options)\s*\(\s*["']([^"']+)["'][^\]]*\)\]/g;
+    const attrRegex =
+      /#\[(get|post|put|patch|delete|head|options)\s*\(\s*["']([^"']+)["'][^\]]*\)\]/g;
     let match: RegExpExecArray | null;
     while ((match = attrRegex.exec(safe)) !== null) {
       const [, method, routePath] = match;
       const line = safe.slice(0, match.index).split('\n').length;
-      const upper = method!.toUpperCase();
+      const upper = method.toUpperCase();
 
       const routeNode: Node = {
         id: `route:${filePath}:${line}:${upper}:${routePath}`,
@@ -121,11 +122,11 @@ export const rustResolver: FrameworkResolver = {
       nodes.push(routeNode);
 
       const tail = safe.slice(match.index + match[0].length);
-      const fnMatch = tail.match(/\n\s*(?:pub\s+)?(?:async\s+)?fn\s+(\w+)/);
+      const fnMatch = /\n\s*(?:pub\s+)?(?:async\s+)?fn\s+(\w+)/.exec(tail);
       if (fnMatch) {
         references.push({
           fromNodeId: routeNode.id,
-          referenceName: fnMatch[1]!,
+          referenceName: fnMatch[1],
           referenceKind: 'references',
           line,
           column: 0,
@@ -140,7 +141,7 @@ export const rustResolver: FrameworkResolver = {
     while ((match = axumRegex.exec(safe)) !== null) {
       const [, routePath, method, handler] = match;
       const line = safe.slice(0, match.index).split('\n').length;
-      const upper = method!.toUpperCase();
+      const upper = method.toUpperCase();
 
       const routeNode: Node = {
         id: `route:${filePath}:${line}:${upper}:${routePath}`,
@@ -159,7 +160,7 @@ export const rustResolver: FrameworkResolver = {
 
       references.push({
         fromNodeId: routeNode.id,
-        referenceName: handler!,
+        referenceName: handler,
         referenceKind: 'references',
         line,
         column: 0,
@@ -198,13 +199,13 @@ function resolveByNameAndKind(
 
   // Prefer candidates in framework-conventional directories
   const preferred = kindFiltered.filter((n) =>
-    preferredDirPatterns.some((d) => n.filePath.includes(d))
+    preferredDirPatterns.some((d) => n.filePath.includes(d)),
   );
 
-  if (preferred.length > 0) return preferred[0]!.id;
+  if (preferred.length > 0) return preferred[0].id;
 
   // Fall back to any match
-  return kindFiltered[0]!.id;
+  return kindFiltered[0].id;
 }
 
 interface ModuleResolution {
@@ -218,11 +219,9 @@ function resolveModule(name: string, context: ResolutionContext): ModuleResoluti
 
   const workspaceCrates = getCachedCargoWorkspaceCrateMap(context);
   const cratePath = workspaceCrates.get(name);
-  const workspacePaths = cratePath
-    ? [`${cratePath}/src/lib.rs`, `${cratePath}/src/main.rs`]
-    : [];
+  const workspacePaths = cratePath ? [`${cratePath}/src/lib.rs`, `${cratePath}/src/main.rs`] : [];
 
-  const candidates: Array<{ path: string; fromWorkspace: boolean }> = [
+  const candidates: { path: string; fromWorkspace: boolean }[] = [
     ...localPaths.map((path) => ({ path, fromWorkspace: false })),
     ...workspacePaths.map((path) => ({ path, fromWorkspace: true })),
   ];
@@ -232,7 +231,7 @@ function resolveModule(name: string, context: ResolutionContext): ModuleResoluti
     const nodes = context.getNodesInFile(modPath);
     const modNode = nodes.find((n) => n.kind === 'module');
     if (modNode) return { targetId: modNode.id, fromWorkspace };
-    if (nodes.length > 0) return { targetId: nodes[0]!.id, fromWorkspace };
+    if (nodes.length > 0) return { targetId: nodes[0].id, fromWorkspace };
   }
 
   return null;

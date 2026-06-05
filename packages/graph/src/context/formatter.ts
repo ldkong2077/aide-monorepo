@@ -1,10 +1,10 @@
-﻿/**
+/**
  * Context Formatter
  *
  * Formats TaskContext as markdown or JSON for consumption by Claude.
  */
 
-import { Node, Edge, TaskContext, Subgraph } from '../types.js';
+import { type Node, type Edge, type TaskContext, type Subgraph } from '../types.js';
 
 /**
  * Format context as markdown
@@ -36,7 +36,7 @@ export function formatContextAsMarkdown(context: TaskContext): string {
 
   // Related symbols - compact list (skip verbose structure tree)
   const otherSymbols = Array.from(context.subgraph.nodes.values())
-    .filter(n => !context.entryPoints.some(e => e.id === n.id))
+    .filter((n) => !context.entryPoints.some((e) => e.id === n.id))
     .slice(0, 10); // Limit to 10 related symbols
 
   if (otherSymbols.length > 0) {
@@ -49,7 +49,7 @@ export function formatContextAsMarkdown(context: TaskContext): string {
     }
 
     for (const [file, nodes] of byFile) {
-      const nodeList = nodes.map(n => `${n.name}:${n.startLine}`).join(', ');
+      const nodeList = nodes.map((n) => `${n.name}:${n.startLine}`).join(', ');
       lines.push(`- ${file}: ${nodeList}`);
     }
     lines.push('');
@@ -151,7 +151,7 @@ function formatNodeTree(
   printed: Set<string>,
   lines: string[],
   depth: number,
-  prefix: string
+  prefix: string,
 ): void {
   if (printed.has(node.id)) {
     return;
@@ -166,7 +166,7 @@ function formatNodeTree(
   // Outgoing edges
   const edges = outgoing.get(node.id) ?? [];
   const significantEdges = edges.filter((e) =>
-    ['calls', 'extends', 'implements', 'imports', 'references'].includes(e.kind)
+    ['calls', 'extends', 'implements', 'imports', 'references'].includes(e.kind),
   );
 
   // Group by kind
@@ -192,7 +192,7 @@ function formatNodeTree(
       lines.push(`${newPrefix}├── ${kind}: ${names} and ${kindEdges.length - 3} more`);
     } else {
       for (let i = 0; i < kindEdges.length; i++) {
-        const edge = kindEdges[i]!;
+        const edge = kindEdges[i];
         const target = subgraph.nodes.get(edge.target);
         const targetName = target?.name ?? 'unknown';
         const connector = i === kindEdges.length - 1 ? '└──' : '├──';

@@ -1,0 +1,129 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: aide-alerts
+  labels:
+    app.kubernetes.io/name: aide
+    app.kubernetes.io/component: proxy
+spec:
+  groups:
+    - name: aide.rules
+      rules:
+        # ─── Pod health ─────────────────────────────────────────────────────
+        - alert: AIDEProxyDown
+          expr: aide_ready_state == 0
+          for: 30s
+          labels:
+            severity: critical
+          annotations:
+            summary: "AIDE proxy is not ready (instance {{ $labels.instance }})"
+            description: |
+              The AIDE proxy readiness probe has been failing for 30+ seconds.
+              The instance is either still starting up, shutting down, or has
+              entered a broken state. Check the pod logs with:
+                kubectl logs -l app.kubernetes.io/name=aide
+
+        # ─── Rate limiting ──────────────────────────────────────────────────
+        - alert: AIDERateLimitSpike
+          expr: |
+            rate(aide_rate_limit_rejections_total[5m]) > 10
+          for: 2m
+          labels:
+            severity: warning
+          annotations:
+            summary: "AIDE rate-limit rejections spiking ({{ $value }}/s over 5m)"
+            description: |
+              More than 10 requests/second are being rate-limited over a 5-minute
+              window. This may indicate a misconfigured client, a DDoS attempt,
+              or an actual capacity crunch. Check the rate-limit configuration:
+                aide config get server.rateLimit
+
+        # ─── Upstream provider errors ──────────────────────────────────────
+        - alert: AIDEUpstreamErrorRateHigh
+          expr: |
+            rate(aide_upstream_requests_total{outcome="error"}[5m])
+            /
+            rate(aide_upstream_requests_total{outcome!=""}[5m])
+            > 0.1
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "AIDE upstream error rate > 10% ({{ $labels.provider }}/{{ $labels.model }})"
+            description: |
+              The upstream provider {{ $labels.provider }} for model
+              {{ $labels.model }} has an error rate of {{ $value | humanizePercentage }}
+              over the last 5 minutes. Common causes:
+                - Provider API outage / rate limit
+                - Expired API key
+                - Network connectivity issue between AIDE and the provider
+              Check the upstream provider status and the AIDE logs:
+                kubectl logs -l app.kubernetes.io/name=aide
+
+        - alert: AIDEUpstreamTimeoutRateHigh
+          expr: |
+            rate(aide_upstream_requests_total{outcome="timeout"}[5m])
+            /
+            rate(aide_upstream_requests_total{outcome!=""}[5m])
+            > 0.05
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "AIDE upstream timeout rate > 5% ({{ $labels.provider }}/{{ $labels.model }})"
+            description: |
+              More than 5% of requests to {{ $labels.provider }}/{{
+              $labels.model }} are timing out. Check network latency,
+              provider status, and the `timeoutMs` setting in the provider config.
+
+        # ─── Auth failures ──────────────────────────────────────────────────
+        - alert: AIDEAuthFailureBurst
+          expr: |
+            rate(aide_auth_failures_total[5m]) > 5
+          for: 2m
+          labels:
+            severity: warning
+          annotations:
+            summary: "AIDE auth failure burst ({{ $value }}/s)"
+            description: |
+              More than 5 authentication failures/second over 5 minutes.
+              This is likely a credential rotation in progress or an
+              automated attack. Check the Authorization header format
+              and `server.token` in the AIDE config.
+
+        # ─── Tenant cost circuit ────────────────────────────────────────────
+        - alert: AIDETenantCircuitOpen
+          expr: |
+            aide_tenant_daily_cost > on (tenant) (
+              aide_tenant_circuit_threshold
+            )
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Tenant {{ $labels.tenant }} cost circuit is open"
+            description: |
+              Tenant {{ $labels.tenant }} has exceeded its daily budget
+              threshold (${% raw %}${{ $value | humanize }}{% endraw %} USD).
+              The circuit breaker has opened — all requests from this
+              tenant are being rejected with 429. Reset the circuit via:
+                POST /v1/tenants/{{ $labels.tenant }}/reset-circuit
+              or increase the daily budget in `aide.config.yaml` under
+              `cost.budgetDaily`.
+
+        # ─── Cache hit rate (informational) ─────────────────────────────────
+        - alert: AIDECacheHitRateLow
+          expr: |
+            rate(aide_cache_hits_total[30m])
+            /
+            (rate(aide_cache_hits_total[30m]) + rate(aide_cache_misses_total[30m]))
+            < 0.1
+          for: 30m
+          labels:
+            severity: info
+          annotations:
+            summary: "AIDE cache hit rate < 10% over 30m"
+            description: |
+              The LLM response cache hit rate is below 10%. This may be
+              expected for workloads with diverse prompts. If you expected
+              higher reuse, check the cache TTL and max-entries settings.

@@ -1,4 +1,4 @@
-﻿import { Node, Edge, ExtractionResult, ExtractionError, UnresolvedReference } from '../types.js';
+import { type Node, type Edge, type ExtractionResult, type ExtractionError, type UnresolvedReference } from '../types.js';
 import { generateNodeId } from './tree-sitter-helpers.js';
 
 /**
@@ -89,7 +89,7 @@ export class DfmExtractor {
     let multiLineEndChar = ')';
 
     for (let i = 0; i < lines.length; i++) {
-      const line = lines[i]!;
+      const line = lines[i];
       const lineNum = i + 1;
 
       // Skip multi-line properties
@@ -109,14 +109,14 @@ export class DfmExtractor {
       }
 
       // Component declaration
-      const objMatch = line.match(objectPattern);
+      const objMatch = objectPattern.exec(line);
       if (objMatch) {
         const [, , name, typeName] = objMatch;
-        const nodeId = generateNodeId(this.filePath, 'component', name!, lineNum);
+        const nodeId = generateNodeId(this.filePath, 'component', name, lineNum);
         this.nodes.push({
           id: nodeId,
           kind: 'component',
-          name: name!,
+          name: name,
           qualifiedName: `${this.filePath}#${name}`,
           filePath: this.filePath,
           language: 'pascal',
@@ -128,7 +128,7 @@ export class DfmExtractor {
           updatedAt: Date.now(),
         });
         this.edges.push({
-          source: stack[stack.length - 1]!,
+          source: stack[stack.length - 1],
           target: nodeId,
           kind: 'contains',
         });
@@ -137,12 +137,12 @@ export class DfmExtractor {
       }
 
       // Event handler
-      const eventMatch = line.match(eventPattern);
+      const eventMatch = eventPattern.exec(line);
       if (eventMatch) {
         const [, , methodName] = eventMatch;
         this.unresolvedReferences.push({
-          fromNodeId: stack[stack.length - 1]!,
-          referenceName: methodName!,
+          fromNodeId: stack[stack.length - 1],
+          referenceName: methodName,
           referenceKind: 'references',
           line: lineNum,
           column: 0,

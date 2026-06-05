@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Extraction Orchestrator
  *
  * Coordinates file scanning, parsing, and database storage.
@@ -7,22 +7,29 @@
 import * as fs from 'fs';
 import * as fsp from 'fs/promises';
 import * as path from 'path';
+import { fileURLToPath } from 'node:url';
 import * as crypto from 'crypto';
 import { execFileSync } from 'child_process';
-import {
-  Language,
-  FileRecord,
-  ExtractionResult,
-  ExtractionError,
-} from '../types.js';
-import { QueryBuilder } from '../db/queries.js';
+import type { Worker as WtWorker } from 'worker_threads';
+import { type Language, type FileRecord, type ExtractionResult, type ExtractionError } from '../types.js';
+import { type QueryBuilder } from '../db/queries.js';
 import { extractFromSource } from './tree-sitter.js';
-import { detectLanguage, isSourceFile, isLanguageSupported, initGrammars, loadGrammarsForLanguages } from './grammars.js';
+import {
+  detectLanguage,
+  isSourceFile,
+  isLanguageSupported,
+  initGrammars,
+  loadGrammarsForLanguages,
+} from './grammars.js';
 import { logDebug, logWarn } from '../errors.js';
 import { validatePathWithinRoot, normalizePath } from '../utils.js';
-import ignore from 'ignore';
-import type { Ignore } from 'ignore';
+import { default as createIgnore, type Ignore } from 'ignore';
 import { detectFrameworks } from '../resolution/frameworks/index.js';
+
+// Local typed alias to disambiguate the `ignore` default export's
+// merged function+namespace declaration.
+const createIgnoreInstance: (options?: { ignorecase?: boolean }) => Ignore =
+  createIgnore as unknown as (options?: { ignorecase?: boolean }) => Ignore;
 import type { ResolutionContext } from '../resolution/types.js';
 
 /**
@@ -114,7 +121,13 @@ const MAX_FILE_SIZE = 1024 * 1024;
  * (See issue #193.)
  */
 function collectGitFiles(repoDir: string, prefix: string, files: Set<string>): void {
-  const gitOpts = { cwd: repoDir, encoding: 'utf-8' as const, timeout: 30000, maxBuffer: 50 * 1024 * 1024, stdio: ['pipe', 'pipe', 'pipe'] as ['pipe', 'pipe', 'pipe'] };
+  const gitOpts = {
+    cwd: repoDir,
+    encoding: 'utf-8' as const,
+    timeout: 30000,
+    maxBuffer: 50 * 1024 * 1024,
+    stdio: ['pipe', 'pipe', 'pipe'] as ['pipe', 'pipe', 'pipe'],
+  };
 
   // Tracked files. --recurse-submodules pulls in files from active submodules,
   // which the index would otherwise represent only as a commit pointer.
@@ -161,20 +174,22 @@ function getGitVisibleFiles(rootDir: string): Set<string> | null {
     // Check if the project directory is gitignored by a parent repo.
     // When rootDir lives inside a parent git repo that ignores it,
     // `git ls-files` returns nothing — fall back to filesystem walk.
-    const gitRoot = execFileSync(
-      'git',
-      ['rev-parse', '--show-toplevel'],
-      { cwd: rootDir, encoding: 'utf-8', timeout: 5000, stdio: ['pipe', 'pipe', 'pipe'] }
-    ).trim();
+    const gitRoot = execFileSync('git', ['rev-parse', '--show-toplevel'], {
+      cwd: rootDir,
+      encoding: 'utf-8',
+      timeout: 5000,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    }).trim();
 
     if (path.resolve(gitRoot) !== path.resolve(rootDir)) {
       try {
         // git check-ignore exits 0 if the path IS ignored, 1 if not
-        execFileSync(
-          'git',
-          ['check-ignore', '-q', path.resolve(rootDir)],
-          { cwd: rootDir, encoding: 'utf-8', timeout: 5000, stdio: ['pipe', 'pipe', 'pipe'] }
-        );
+        execFileSync('git', ['check-ignore', '-q', path.resolve(rootDir)], {
+          cwd: rootDir,
+          encoding: 'utf-8',
+          timeout: 5000,
+          stdio: ['pipe', 'pipe', 'pipe'],
+        });
         // Directory is gitignored by parent repo — fall back to filesystem walk
         return null;
       } catch {
@@ -196,9 +211,9 @@ function getGitVisibleFiles(rootDir: string): Set<string> | null {
  * signaling the caller to fall back to full filesystem scan.
  */
 interface GitChanges {
-  modified: string[];  // M, MM, AM — files to re-hash + re-index
-  added: string[];     // ?? — new untracked files to index
-  deleted: string[];   // D — files to remove from DB
+  modified: string[]; // M, MM, AM — files to re-hash + re-index
+  added: string[]; // ?? — new untracked files to index
+  deleted: string[]; // D — files to remove from DB
 }
 
 /**
@@ -207,11 +222,12 @@ interface GitChanges {
  */
 function getGitChangedFiles(rootDir: string): GitChanges | null {
   try {
-    const output = execFileSync(
-      'git',
-      ['status', '--porcelain', '--no-renames'],
-      { cwd: rootDir, encoding: 'utf-8', timeout: 10000, stdio: ['pipe', 'pipe', 'pipe'] }
-    );
+    const output = execFileSync('git', ['status', '--porcelain', '--no-renames'], {
+      cwd: rootDir,
+      encoding: 'utf-8',
+      timeout: 10000,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
 
     const modified: string[] = [];
     const added: string[] = [];
@@ -251,7 +267,7 @@ function getGitChangedFiles(rootDir: string): GitChanges | null {
  */
 export function scanDirectory(
   rootDir: string,
-  onProgress?: (current: number, file: string) => void
+  onProgress?: (current: number, file: string) => void,
 ): string[] {
   // Fast path: use git to get all visible files (respects .gitignore everywhere)
   const gitFiles = getGitVisibleFiles(rootDir);
@@ -278,7 +294,7 @@ export function scanDirectory(
  */
 export async function scanDirectoryAsync(
   rootDir: string,
-  onProgress?: (current: number, file: string) => void
+  onProgress?: (current: number, file: string) => void,
 ): Promise<string[]> {
   const gitFiles = getGitVisibleFiles(rootDir);
   if (gitFiles) {
@@ -291,7 +307,7 @@ export async function scanDirectoryAsync(
         onProgress?.(count, filePath);
         // Yield every 100 files so worker threads can render progress
         if (count % 100 === 0) {
-          await new Promise<void>(r => setImmediate(r));
+          await new Promise<void>((r) => setImmediate(r));
         }
       }
     }
@@ -306,7 +322,7 @@ export async function scanDirectoryAsync(
  */
 function scanDirectoryWalk(
   rootDir: string,
-  onProgress?: (current: number, file: string) => void
+  onProgress?: (current: number, file: string) => void,
 ): string[] {
   const files: string[] = [];
   let count = 0;
@@ -325,7 +341,8 @@ function scanDirectoryWalk(
     try {
       const giPath = path.join(dir, '.gitignore');
       if (fs.existsSync(giPath)) {
-        return { dir, ig: (ignore as any)().add(fs.readFileSync(giPath, 'utf-8')) };
+        const ig: Ignore = createIgnoreInstance().add(fs.readFileSync(giPath, 'utf-8'));
+        return { dir, ig };
       }
     } catch {
       // Unreadable .gitignore — treat as absent.
@@ -492,7 +509,7 @@ export class ExtractionOrchestrator {
   async indexAll(
     onProgress?: (progress: IndexProgress) => void,
     signal?: AbortSignal,
-    verbose?: boolean
+    verbose?: boolean,
   ): Promise<IndexResult> {
     await initGrammars();
     const startTime = Date.now();
@@ -504,7 +521,9 @@ export class ExtractionOrchestrator {
     let totalEdges = 0;
 
     const log = verbose
-      ? (msg: string) => { console.log(`[worker] ${msg}`); }
+      ? (msg: string) => {
+          logDebug(`[worker] ${msg}`);
+        }
       : (_msg: string) => {};
 
     // Phase 1: Scan for files
@@ -556,7 +575,7 @@ export class ExtractionOrchestrator {
       current: 0,
       total,
     });
-    await new Promise(resolve => setImmediate(resolve));
+    await new Promise((resolve) => setImmediate(resolve));
 
     // Detect needed languages and load grammars in the parse worker
     const neededLanguages = [...new Set(files.map((f) => detectLanguage(f)))];
@@ -567,9 +586,12 @@ export class ExtractionOrchestrator {
 
     // Try to use a worker thread for parsing (keeps main thread unblocked for UI).
     // Falls back to in-process parsing if the compiled worker is unavailable (e.g. tests).
+    // `__dirname` is not defined in ESM; derive it from import.meta.url.
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
     const parseWorkerPath = path.join(__dirname, 'parse-worker.js');
     const useWorker = fs.existsSync(parseWorkerPath);
-    let WorkerClass: typeof import('worker_threads').Worker | null = null;
+    let WorkerClass: typeof WtWorker | null = null;
 
     if (useWorker) {
       const { Worker } = await import('worker_threads');
@@ -584,14 +606,17 @@ export class ExtractionOrchestrator {
     // We track pending parse promises and handle both cases:
     //   - Timeout: terminate + restart the worker, reject the timed-out request
     //   - Crash: reject all pending promises, restart for remaining files
-    let parseWorker: import('worker_threads').Worker | null = null;
+    let parseWorker: WtWorker | null = null;
     let nextId = 0;
     let workerParseCount = 0;
-    const pendingParses = new Map<number, {
-      resolve: (result: ExtractionResult) => void;
-      reject: (err: Error) => void;
-      timer: ReturnType<typeof setTimeout>;
-    }>();
+    const pendingParses = new Map<
+      number,
+      {
+        resolve: (result: ExtractionResult) => void;
+        reject: (err: Error) => void;
+        timer: ReturnType<typeof setTimeout>;
+      }
+    >();
 
     function rejectAllPending(reason: string): void {
       for (const [id, pending] of pendingParses) {
@@ -601,7 +626,7 @@ export class ExtractionOrchestrator {
       }
     }
 
-    function attachWorkerHandlers(w: import('worker_threads').Worker): void {
+    function attachWorkerHandlers(w: WtWorker): void {
       w.on('message', (msg: { type: string; id?: number; result?: ExtractionResult }) => {
         if (msg.type === 'parse-result' && msg.id !== undefined) {
           const pending = pendingParses.get(msg.id);
@@ -632,7 +657,7 @@ export class ExtractionOrchestrator {
       });
     }
 
-    async function ensureWorker(): Promise<import('worker_threads').Worker> {
+    async function ensureWorker(): Promise<WtWorker> {
       if (parseWorker) return parseWorker;
       log('Spawning new parse worker...');
       parseWorker = new WorkerClass!(parseWorkerPath);
@@ -661,7 +686,9 @@ export class ExtractionOrchestrator {
      */
     function recycleWorker(): void {
       if (!parseWorker) return;
-      log(`Recycling worker after ${workerParseCount} parses (heap: ${Math.round(process.memoryUsage().rss / 1024 / 1024)}MB RSS)`);
+      log(
+        `Recycling worker after ${workerParseCount} parses (heap: ${Math.round(process.memoryUsage().rss / 1024 / 1024)}MB RSS)`,
+      );
       const w = parseWorker;
       parseWorker = null;
       workerParseCount = 0;
@@ -676,7 +703,7 @@ export class ExtractionOrchestrator {
           filePath,
           content,
           detectLanguage(filePath, content),
-          frameworkNames
+          frameworkNames,
         );
       }
 
@@ -713,7 +740,8 @@ export class ExtractionOrchestrator {
 
     for (let i = 0; i < files.length; i += FILE_IO_BATCH_SIZE) {
       if (signal?.aborted) {
-        if (parseWorker) (parseWorker as import('worker_threads').Worker).terminate().catch(() => {});
+        if (parseWorker)
+          (parseWorker as WtWorker).terminate().catch(() => {});
         return {
           success: false,
           filesIndexed,
@@ -735,22 +763,33 @@ export class ExtractionOrchestrator {
             const fullPath = validatePathWithinRoot(this.rootDir, fp);
             if (!fullPath) {
               logWarn('Path traversal blocked in batch reader', { filePath: fp });
-              return { filePath: fp, content: null as string | null, stats: null as fs.Stats | null, error: new Error('Path traversal blocked') };
+              return {
+                filePath: fp,
+                content: null as string | null,
+                stats: null as fs.Stats | null,
+                error: new Error('Path traversal blocked'),
+              };
             }
             const content = await fsp.readFile(fullPath, 'utf-8');
             const stats = await fsp.stat(fullPath);
             return { filePath: fp, content, stats, error: null as Error | null };
           } catch (err) {
-            return { filePath: fp, content: null as string | null, stats: null as fs.Stats | null, error: err as Error };
+            return {
+              filePath: fp,
+              content: null as string | null,
+              stats: null as fs.Stats | null,
+              error: err as Error,
+            };
           }
-        })
+        }),
       );
 
       // Send to worker for parsing, store results on main thread
       for (const { filePath, content, stats, error } of fileContents) {
         if (signal?.aborted) {
-          if (parseWorker) (parseWorker as import('worker_threads').Worker).terminate().catch(() => {});
-          return {
+          if (parseWorker)
+          (parseWorker as WtWorker).terminate().catch(() => {});
+        return {
             success: false,
             filesIndexed,
             filesSkipped,
@@ -854,14 +893,16 @@ export class ExtractionOrchestrator {
     // Yield so the shimmer worker's buffered stdout writes can flush.
     // Worker thread stdout is proxied through the main thread's event loop,
     // so synchronous work here blocks the animation from rendering.
-    await new Promise(resolve => setImmediate(resolve));
+    await new Promise((resolve) => setImmediate(resolve));
 
     // Retry pass: files that failed due to WASM memory corruption may succeed
     // on a fresh worker with a clean heap. Recycle before each attempt so
     // every file gets the absolute cleanest WASM state possible.
     const retryableErrors = errors.filter(
-      (e) => e.code === 'parse_error' && e.filePath &&
-        (e.message.includes('Worker exited') || e.message.includes('memory access out of bounds'))
+      (e) =>
+        e.code === 'parse_error' &&
+        e.filePath &&
+        (e.message.includes('Worker exited') || e.message.includes('memory access out of bounds')),
     );
 
     if (retryableErrors.length > 0 && WorkerClass) {
@@ -934,7 +975,7 @@ export class ExtractionOrchestrator {
           // by replacing with empty lines so node positions stay correct)
           const stripped = fullContent
             .split('\n')
-            .map(line => /^\s*\/\//.test(line) ? '' : line)
+            .map((line) => (/^\s*\/\//.test(line) ? '' : line))
             .join('\n');
 
           let result: ExtractionResult;
@@ -964,7 +1005,7 @@ export class ExtractionOrchestrator {
     // Shut down parse worker and clear any pending timers
     rejectAllPending('Indexing complete');
     if (parseWorker) {
-      (parseWorker as import('worker_threads').Worker).terminate().catch(() => {});
+      (parseWorker as WtWorker).terminate().catch(() => {});
     }
 
     return {
@@ -1032,7 +1073,14 @@ export class ExtractionOrchestrator {
         nodes: [],
         edges: [],
         unresolvedReferences: [],
-        errors: [{ message: `Path traversal blocked: ${relativePath}`, filePath: relativePath, severity: 'error', code: 'path_traversal' }],
+        errors: [
+          {
+            message: `Path traversal blocked: ${relativePath}`,
+            filePath: relativePath,
+            severity: 'error',
+            code: 'path_traversal',
+          },
+        ],
         durationMs: 0,
       };
     }
@@ -1070,7 +1118,7 @@ export class ExtractionOrchestrator {
   async indexFileWithContent(
     relativePath: string,
     content: string,
-    stats: fs.Stats
+    stats: fs.Stats,
   ): Promise<ExtractionResult> {
     // Prevent path traversal
     const fullPath = validatePathWithinRoot(this.rootDir, relativePath);
@@ -1080,7 +1128,14 @@ export class ExtractionOrchestrator {
         nodes: [],
         edges: [],
         unresolvedReferences: [],
-        errors: [{ message: 'Path traversal blocked', filePath: relativePath, severity: 'error', code: 'path_traversal' }],
+        errors: [
+          {
+            message: 'Path traversal blocked',
+            filePath: relativePath,
+            severity: 'error',
+            code: 'path_traversal',
+          },
+        ],
         durationMs: 0,
       };
     }
@@ -1137,13 +1192,13 @@ export class ExtractionOrchestrator {
     content: string,
     language: Language,
     stats: fs.Stats,
-    result: ExtractionResult
+    result: ExtractionResult,
   ): void {
     const contentHash = hashContent(content);
 
     // Check if file already exists and hasn't changed
     const existingFile = this.queries.getFileByPath(filePath);
-    if (existingFile && existingFile.contentHash === contentHash) {
+    if (existingFile?.contentHash === contentHash) {
       return; // No changes
     }
 
@@ -1155,7 +1210,9 @@ export class ExtractionOrchestrator {
     // Filter out nodes with missing required fields before insertion.
     // This prevents FK violations when edges reference nodes that would
     // be silently skipped by insertNode() (see issue #42).
-    const validNodes = result.nodes.filter((n) => n.id && n.kind && n.name && n.filePath && n.language);
+    const validNodes = result.nodes.filter(
+      (n) => n.id && n.kind && n.name && n.filePath && n.language,
+    );
 
     // Insert nodes
     if (validNodes.length > 0) {
@@ -1166,7 +1223,7 @@ export class ExtractionOrchestrator {
     if (result.edges.length > 0) {
       const insertedIds = new Set(validNodes.map((n) => n.id));
       const validEdges = result.edges.filter(
-        (e) => insertedIds.has(e.source) && insertedIds.has(e.target)
+        (e) => insertedIds.has(e.source) && insertedIds.has(e.target),
       );
       if (validEdges.length > 0) {
         this.queries.insertEdges(validEdges);
@@ -1228,7 +1285,8 @@ export class ExtractionOrchestrator {
     if (gitChanges) {
       // === Git fast path ===
       // Only inspect the files git reports as changed instead of scanning everything.
-      filesChecked = gitChanges.modified.length + gitChanges.added.length + gitChanges.deleted.length;
+      filesChecked =
+        gitChanges.modified.length + gitChanges.added.length + gitChanges.deleted.length;
 
       // Handle deleted files
       for (const filePath of gitChanges.deleted) {
@@ -1326,7 +1384,7 @@ export class ExtractionOrchestrator {
     // Index changed files
     const total = filesToIndex.length;
     for (let i = 0; i < filesToIndex.length; i++) {
-      const filePath = filesToIndex[i]!;
+      const filePath = filesToIndex[i];
       onProgress?.({
         phase: 'parsing',
         current: i + 1,
@@ -1380,7 +1438,10 @@ export class ExtractionOrchestrator {
         try {
           content = fs.readFileSync(fullPath, 'utf-8');
         } catch (error) {
-          logDebug('Skipping unreadable file while detecting changes', { filePath, error: String(error) });
+          logDebug('Skipping unreadable file while detecting changes', {
+            filePath,
+            error: String(error),
+          });
           continue;
         }
 
@@ -1425,7 +1486,10 @@ export class ExtractionOrchestrator {
       try {
         content = fs.readFileSync(fullPath, 'utf-8');
       } catch (error) {
-        logDebug('Skipping unreadable file while detecting changes', { filePath, error: String(error) });
+        logDebug('Skipping unreadable file while detecting changes', {
+          filePath,
+          error: String(error),
+        });
         continue;
       }
 
@@ -1445,4 +1509,13 @@ export class ExtractionOrchestrator {
 
 // Re-export useful types and functions
 export { extractFromSource } from './tree-sitter.js';
-export { detectLanguage, isSourceFile, isLanguageSupported, isGrammarLoaded, getSupportedLanguages, initGrammars, loadGrammarsForLanguages, loadAllGrammars } from './grammars.js';
+export {
+  detectLanguage,
+  isSourceFile,
+  isLanguageSupported,
+  isGrammarLoaded,
+  getSupportedLanguages,
+  initGrammars,
+  loadGrammarsForLanguages,
+  loadAllGrammars,
+} from './grammars.js';

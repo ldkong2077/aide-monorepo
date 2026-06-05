@@ -1,0 +1,4 @@
+aide-commit-msg-validate
+# husky v9 commit-msg hook
+# Validate commit message follows Conventional Commits via commitlint
+npx --no-install commitlint --config config/commitlint.config.cjs --edit "$1"

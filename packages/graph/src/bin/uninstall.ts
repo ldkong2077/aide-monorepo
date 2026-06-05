@@ -11,13 +11,15 @@
  * This script must never throw — a failed cleanup must not block
  * uninstall.
  */
+import type * as InstallerTargets from '../installer/targets/registry.js';
 
 try {
   // Lazy require so any module-level error in the registry can't
   // bubble out and abort the npm uninstall.
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { ALL_TARGETS } = require('../installer/targets/registry') as
-    typeof import('../installer/targets/registry.js');
+  /* eslint-disable @typescript-eslint/no-require-imports */
+  const { ALL_TARGETS } =
+    require('../installer/targets/registry') as typeof InstallerTargets;
+  /* eslint-enable @typescript-eslint/no-require-imports */
 
   for (const target of ALL_TARGETS) {
     if (!target.supportsLocation('global')) continue;

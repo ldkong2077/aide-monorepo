@@ -1,4 +1,4 @@
-﻿/**
+/**
  * NestJS Framework Resolver
  *
  * Handles NestJS decorator-based routing across its transport layers:
@@ -22,13 +22,8 @@
  *      `@Resolver` class, which is what disambiguates the two.
  */
 
-import { Node } from '../../types.js';
-import {
-  FrameworkResolver,
-  UnresolvedRef,
-  ResolvedRef,
-  ResolutionContext,
-} from '../types.js';
+import { type Node } from '../../types.js';
+import { type FrameworkResolver, type UnresolvedRef, type ResolvedRef, type ResolutionContext } from '../types.js';
 import { stripCommentsForRegex } from '../strip-comments.js';
 
 type JsLang = 'typescript' | 'javascript';
@@ -93,7 +88,7 @@ export const nestjsResolver: FrameworkResolver = {
         .filter((n) => n.kind === 'class');
       if (candidates.length === 0) return null;
       const preferred = candidates.find((n) => n.filePath.includes(convention));
-      const target = preferred ?? candidates[0]!;
+      const target = preferred ?? candidates[0];
       return {
         original: ref,
         targetNodeId: target.id,
@@ -117,7 +112,7 @@ export const nestjsResolver: FrameworkResolver = {
       method: string,
       path: string,
       length: number,
-      handler: string | null
+      handler: string | null,
     ): void => {
       const line = lineAt(safe, index);
       const node: Node = {
@@ -152,7 +147,7 @@ export const nestjsResolver: FrameworkResolver = {
     // HTTP routes: method decorator path joined onto the enclosing controller's prefix.
     for (const hit of findDecorators(safe, HTTP_METHODS)) {
       const scope = scopeFor(scopes, hit.index);
-      const prefix = scope && scope.kind === 'controller' ? scope.prefix : '';
+      const prefix = scope?.kind === 'controller' ? scope.prefix : '';
       const path = joinHttpPath(prefix, parseStringArg(hit.args));
       addRoute(hit.index, hit.name.toUpperCase(), path, hit.length, methodNameAfter(safe, hit.end));
     }
@@ -161,7 +156,7 @@ export const nestjsResolver: FrameworkResolver = {
     // REST `@Query()` parameter decorator, which lives inside @Controller classes).
     for (const hit of findDecorators(safe, GQL_OPS)) {
       const scope = scopeFor(scopes, hit.index);
-      if (!scope || scope.kind !== 'resolver') continue;
+      if (scope?.kind !== 'resolver') continue;
       const handler = methodNameAfter(safe, hit.end);
       const name = parseGraphqlName(hit.args, handler);
       addRoute(hit.index, hit.name.toUpperCase(), name, hit.length, handler);
@@ -177,7 +172,7 @@ export const nestjsResolver: FrameworkResolver = {
     // WebSocket message handlers, prefixed with the gateway namespace when present.
     for (const hit of findDecorators(safe, ['SubscribeMessage'])) {
       const scope = scopeFor(scopes, hit.index);
-      const namespace = scope && scope.kind === 'gateway' ? scope.prefix : '';
+      const namespace = scope?.kind === 'gateway' ? scope.prefix : '';
       const handler = methodNameAfter(safe, hit.end);
       const event = parseStringArg(hit.args) || handler || '';
       addRoute(hit.index, 'WS', namespace ? `${namespace}:${event}` : event, hit.length, handler);
@@ -191,7 +186,7 @@ export const nestjsResolver: FrameworkResolver = {
 // Provider resolution conventions
 // ---------------------------------------------------------------------------
 
-const PROVIDER_CONVENTIONS: Array<[RegExp, string]> = [
+const PROVIDER_CONVENTIONS: [RegExp, string][] = [
   [/Service$/, '.service.'],
   [/Controller$/, '.controller.'],
   [/Resolver$/, '.resolver.'],
@@ -235,7 +230,7 @@ function findDecorators(safe: string, names: string[]): DecoratorHit[] {
     const parsed = readArgs(safe, openIndex);
     if (!parsed) continue;
     hits.push({
-      name: m[1]!,
+      name: m[1],
       args: parsed.args,
       index: m.index,
       end: parsed.end,
@@ -256,7 +251,7 @@ function readArgs(s: string, openIndex: number): { args: string; end: number } |
   let depth = 0;
   let inStr: string | null = null;
   for (let i = openIndex; i < s.length; i++) {
-    const ch = s[i]!;
+    const ch = s[i];
     if (inStr) {
       if (ch === '\\') {
         i++;
@@ -324,7 +319,7 @@ function methodNameAfter(safe: string, start: number): string | null {
   eatWs();
   ident.lastIndex = i;
   const m = ident.exec(safe);
-  return m ? m[1]! : null;
+  return m ? m[1] : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -348,7 +343,7 @@ interface ClassScope {
  * many classes share a file.
  */
 function buildClassScopes(safe: string): ClassScope[] {
-  const defs: Array<{ kind: ClassKind; name: string; prefixOf: (a: string) => string }> = [
+  const defs: { kind: ClassKind; name: string; prefixOf: (a: string) => string }[] = [
     { kind: 'controller', name: 'Controller', prefixOf: parseControllerPrefix },
     { kind: 'resolver', name: 'Resolver', prefixOf: () => '' },
     { kind: 'gateway', name: 'WebSocketGateway', prefixOf: parseGatewayNamespace },
@@ -357,7 +352,7 @@ function buildClassScopes(safe: string): ClassScope[] {
     { kind: 'other', name: 'Catch', prefixOf: () => '' },
   ];
 
-  const raw: Array<{ kind: ClassKind; prefix: string; index: number }> = [];
+  const raw: { kind: ClassKind; prefix: string; index: number }[] = [];
   for (const def of defs) {
     for (const hit of findDecorators(safe, [def.name])) {
       raw.push({ kind: def.kind, prefix: def.prefixOf(hit.args), index: hit.index });
@@ -369,7 +364,7 @@ function buildClassScopes(safe: string): ClassScope[] {
     kind: r.kind,
     prefix: r.prefix,
     start: r.index,
-    end: i + 1 < raw.length ? raw[i + 1]!.index : safe.length,
+    end: i + 1 < raw.length ? raw[i + 1].index : safe.length,
   }));
 }
 
@@ -386,21 +381,21 @@ function scopeFor(scopes: ClassScope[], index: number): ClassScope | null {
 
 /** First string literal anywhere in the args, or '' (covers `'x'`, `{ k: 'x' }`). */
 function parseStringArg(args: string): string {
-  const m = args.match(/['"`]([^'"`]*)['"`]/);
-  return m ? m[1]! : '';
+  const m = /['"`]([^'"`]*)['"`]/.exec(args);
+  return m ? m[1] : '';
 }
 
 /** `@Controller('users')` | `@Controller({ path: 'users', host })` | `@Controller(['a','b'])` | `@Controller()`. */
 function parseControllerPrefix(args: string): string {
-  const obj = args.match(/path\s*:\s*['"`]([^'"`]*)['"`]/);
-  if (obj) return obj[1]!;
+  const obj = /path\s*:\s*['"`]([^'"`]*)['"`]/.exec(args);
+  if (obj) return obj[1];
   return parseStringArg(args);
 }
 
 /** `@WebSocketGateway({ namespace: 'chat' })` | `@WebSocketGateway(81, { namespace: '/chat' })` | `@WebSocketGateway()`. */
 function parseGatewayNamespace(args: string): string {
-  const m = args.match(/namespace\s*:\s*['"`]([^'"`]*)['"`]/);
-  return m ? m[1]! : '';
+  const m = /namespace\s*:\s*['"`]([^'"`]*)['"`]/.exec(args);
+  return m ? m[1] : '';
 }
 
 /**
@@ -409,10 +404,10 @@ function parseGatewayNamespace(args: string): string {
  * handler method name. Avoids mistaking a `description` string for the name.
  */
 function parseGraphqlName(args: string, handler: string | null): string {
-  const named = args.match(/name\s*:\s*['"`]([^'"`]*)['"`]/);
-  if (named) return named[1]!;
-  const lead = args.match(/^\s*['"`]([^'"`]*)['"`]/);
-  if (lead) return lead[1]!;
+  const named = /name\s*:\s*['"`]([^'"`]*)['"`]/.exec(args);
+  if (named) return named[1];
+  const lead = /^\s*['"`]([^'"`]*)['"`]/.exec(args);
+  if (lead) return lead[1];
   return handler ?? '';
 }
 

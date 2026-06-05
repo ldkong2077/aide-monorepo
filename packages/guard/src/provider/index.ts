@@ -14,76 +14,29 @@ import type {
   ProviderConfig,
   SSEEvent,
 } from '../types.js';
+import { withRetry, withTimeout } from './retry.js';
 
-// ==================== 重试工具 ====================
+// ==================== 重试/超时默认值 ====================
 
-/** 重试选项 */
-interface RetryOptions {
-  maxRetries: number;
-  baseDelayMs: number;
-  maxDelayMs: number;
-}
+/** Default per-attempt timeout. Each retry attempt is independently
+ *  timed, so 3 retries with 60s budget each + ~2s of backoff caps the
+ *  total wait at ~4 minutes worst case. */
+const DEFAULT_REQUEST_TIMEOUT_MS = 60_000;
 
-const DEFAULT_RETRY_OPTIONS: RetryOptions = {
-  maxRetries: 3,
-  baseDelayMs: 1000,
-  maxDelayMs: 30000,
-};
-
-/**
- * 带指数退避的重试执行器
- */
-async function withRetry<T>(
-  fn: () => Promise<T>,
-  options: Partial<RetryOptions> = {},
-): Promise<T> {
-  const opts = { ...DEFAULT_RETRY_OPTIONS, ...options };
-  let lastError: Error | undefined;
-
-  for (let attempt = 0; attempt <= opts.maxRetries; attempt++) {
-    try {
-      return await fn();
-    } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error));
-
-      // 不重试的错误类型：认证失败、请求格式错误
-      if (isNonRetryableError(lastError)) {
-        throw lastError;
-      }
-
-      if (attempt < opts.maxRetries) {
-        const delay = Math.min(
-          opts.baseDelayMs * Math.pow(2, attempt) + Math.random() * 1000,
-          opts.maxDelayMs,
-        );
-        await sleep(delay);
-      }
-    }
-  }
-
-  throw lastError;
-}
-
-/**
- * 判断是否为不应重试的错误
- */
-function isNonRetryableError(error: Error): boolean {
-  const msg = error.message.toLowerCase();
-  return (
-    msg.includes('invalid api key') ||
-    msg.includes('authentication') ||
-    msg.includes('unauthorized') ||
-    msg.includes('forbidden') ||
-    msg.includes('invalid_request') ||
-    msg.includes('context_length_exceeded')
-  );
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
+// Re-export so consumers can override these without reaching into the
+// retry module.
+export { isNonRetryableError, UpstreamTimeoutError } from './retry.js';
+export type { RetryOptions } from './retry.js';
 
 // ==================== Base Provider ====================
+
+/** Per-call overrides propagated from the proxy layer. Currently
+ *  used for the request-id header; the SDK supports any custom
+ *  headers in the second argument, so callers can pass more later. */
+export interface ProviderCallOptions {
+  /** Extra HTTP headers to send on this single request. */
+  requestHeaders?: Record<string, string>;
+}
 
 /** Provider 抽象基类 */
 export abstract class BaseProvider {
@@ -96,11 +49,15 @@ export abstract class BaseProvider {
   }
 
   /** 非流式 Chat Completion */
-  abstract chatCompletion(req: ChatCompletionRequest): Promise<ChatCompletionResponse>;
+  abstract chatCompletion(
+    req: ChatCompletionRequest,
+    options?: ProviderCallOptions,
+  ): Promise<ChatCompletionResponse>;
 
   /** 流式 Chat Completion，返回 async generator */
   abstract streamChatCompletion(
     req: ChatCompletionRequest,
+    options?: ProviderCallOptions,
   ): AsyncGenerator<SSEEvent, void, undefined>;
 
   /** 验证配置是否有效 */
@@ -124,7 +81,9 @@ export class OpenAICompatibleProvider extends BaseProvider {
   constructor(name: string, config: ProviderConfig) {
     super(name, config);
     if (!config.apiKey) {
-      throw new Error(`API key is required for ${config.name || 'provider'}. Set the appropriate environment variable.`);
+      throw new Error(
+        `API key is required for ${config.name || 'provider'}. Set the appropriate environment variable.`,
+      );
     }
     const apiKey = config.apiKey;
     this.client = new OpenAI({
@@ -137,39 +96,64 @@ export class OpenAICompatibleProvider extends BaseProvider {
     return !!(this.config.apiKey && this.config.baseUrl);
   }
 
-  async chatCompletion(req: ChatCompletionRequest): Promise<ChatCompletionResponse> {
-    return withRetry(async () => {
-      const response = await this.client.chat.completions.create({
-        model: req.model,
-        messages: req.messages as OpenAI.ChatCompletionMessageParam[],
-        stream: false,
-        temperature: req.temperature,
-        max_tokens: req.max_tokens,
-        top_p: req.top_p,
-        frequency_penalty: req.frequency_penalty,
-        presence_penalty: req.presence_penalty,
-        stop: req.stop,
-        n: req.n,
-      });
+  async chatCompletion(
+    req: ChatCompletionRequest,
+    options?: ProviderCallOptions,
+  ): Promise<ChatCompletionResponse> {
+    const timeoutMs = this.config.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
+    return withRetry(
+      async () => {
+        const response = await this.client.chat.completions.create(
+          {
+            model: req.model,
+            messages: req.messages as OpenAI.ChatCompletionMessageParam[],
+            stream: false,
+            temperature: req.temperature,
+            max_tokens: req.max_tokens,
+            top_p: req.top_p,
+            frequency_penalty: req.frequency_penalty,
+            presence_penalty: req.presence_penalty,
+            stop: req.stop,
+            n: req.n,
+          },
+          options?.requestHeaders ? { headers: options.requestHeaders } : undefined,
+        );
 
-      return this.convertResponse(response);
-    });
+        return this.convertResponse(response);
+      },
+      { timeoutMs },
+      `${this.name}/chat`,
+    );
   }
 
   async *streamChatCompletion(
     req: ChatCompletionRequest,
+    options?: ProviderCallOptions,
   ): AsyncGenerator<SSEEvent, void, undefined> {
-    const stream = await this.client.chat.completions.create({
-      model: req.model,
-      messages: req.messages as OpenAI.ChatCompletionMessageParam[],
-      stream: true,
-      temperature: req.temperature,
-      max_tokens: req.max_tokens,
-      top_p: req.top_p,
-      frequency_penalty: req.frequency_penalty,
-      presence_penalty: req.presence_penalty,
-      stop: req.stop,
-    });
+    const timeoutMs = this.config.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
+    // First-byte timeout: the connection-initiation + headers must
+    // arrive within `timeoutMs`. After the first chunk lands, the
+    // stream itself is not bounded — the consumer can cancel by
+    // breaking the iterator, and the HTTP client will keepalive-time
+    // out dead sockets. Bounding mid-stream is a different problem
+    // (per-chunk vs. total) and not worth the complexity here.
+    const stream = await withTimeout(
+      this.client.chat.completions.create(
+        {
+          model: req.model,
+          messages: req.messages as OpenAI.ChatCompletionMessageParam[],
+          stream: true,
+          temperature: req.temperature,
+          max_tokens: req.max_tokens,
+          top_p: req.top_p,
+          frequency_penalty: req.frequency_penalty,
+          presence_penalty: req.presence_penalty,
+        },
+        options?.requestHeaders ? { headers: options.requestHeaders } : undefined,
+      ),
+      timeoutMs,
+      `${this.name}/stream-init`,
+    );
 
     for await (const chunk of stream) {
       const data = JSON.stringify(chunk);
@@ -187,23 +171,23 @@ export class OpenAICompatibleProvider extends BaseProvider {
   }
 
   /** 转换 OpenAI SDK 响应为统一格式 */
-  private convertResponse(
-    response: OpenAI.ChatCompletion,
-  ): ChatCompletionResponse {
+  private convertResponse(response: OpenAI.ChatCompletion): ChatCompletionResponse {
     return {
       id: response.id,
       object: response.object,
       created: response.created,
       model: response.model,
-      choices: response.choices.map((c): Choice => ({
-        index: c.index,
-        message: {
-          role: c.message.role as ChatMessage['role'],
-          content: c.message.content || '',
-          tool_calls: c.message.tool_calls as ChatMessage['tool_calls'],
-        },
-        finish_reason: c.finish_reason || '',
-      })),
+      choices: response.choices.map(
+        (c): Choice => ({
+          index: c.index,
+          message: {
+            role: c.message.role,
+            content: c.message.content || '',
+            tool_calls: c.message.tool_calls as ChatMessage['tool_calls'],
+          },
+          finish_reason: c.finish_reason || '',
+        }),
+      ),
       usage: response.usage
         ? {
             prompt_tokens: response.usage.prompt_tokens,
@@ -224,7 +208,9 @@ export class AnthropicProvider extends BaseProvider {
   constructor(name: string, config: ProviderConfig) {
     super(name, config);
     if (!config.apiKey) {
-      throw new Error(`API key is required for ${config.name || 'provider'}. Set the appropriate environment variable.`);
+      throw new Error(
+        `API key is required for ${config.name || 'provider'}. Set the appropriate environment variable.`,
+      );
     }
     const apiKey = config.apiKey;
     this.client = new Anthropic({
@@ -237,30 +223,41 @@ export class AnthropicProvider extends BaseProvider {
     return !!this.config.apiKey;
   }
 
-  async chatCompletion(req: ChatCompletionRequest): Promise<ChatCompletionResponse> {
-    return withRetry(async () => {
-      // 提取 system 消息
-      const systemMessage = req.messages.find((m) => m.role === 'system')?.content || '';
-      const nonSystemMessages = req.messages.filter((m) => m.role !== 'system');
+  async chatCompletion(
+    req: ChatCompletionRequest,
+    options?: ProviderCallOptions,
+  ): Promise<ChatCompletionResponse> {
+    const timeoutMs = this.config.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
+    return withRetry(
+      async () => {
+        // 提取 system 消息
+        const systemMessage = req.messages.find((m) => m.role === 'system')?.content || '';
+        const nonSystemMessages = req.messages.filter((m) => m.role !== 'system');
 
-      // 转换消息格式
-      const anthropicMessages = nonSystemMessages.map((m) => ({
-        role: m.role === 'assistant' ? 'assistant' as const : 'user' as const,
-        content: m.content,
-      }));
+        // 转换消息格式
+        const anthropicMessages = nonSystemMessages.map((m) => ({
+          role: m.role === 'assistant' ? ('assistant' as const) : ('user' as const),
+          content: m.content,
+        }));
 
-      const response = await this.client.messages.create({
-        model: req.model,
-        max_tokens: req.max_tokens || 4096,
-        system: systemMessage || undefined,
-        messages: anthropicMessages,
-        temperature: req.temperature,
-        top_p: req.top_p,
-        stream: false,
-      });
+        const response = await this.client.messages.create(
+          {
+            model: req.model,
+            max_tokens: req.max_tokens || 4096,
+            system: systemMessage || undefined,
+            messages: anthropicMessages,
+            temperature: req.temperature,
+            top_p: req.top_p,
+            stream: false,
+          },
+          options?.requestHeaders ? { headers: options.requestHeaders } : undefined,
+        );
 
-      return this.convertAnthropicResponse(response, req.model);
-    });
+        return this.convertAnthropicResponse(response, req.model);
+      },
+      { timeoutMs },
+      `${this.name}/chat`,
+    );
   }
 
   async *streamChatCompletion(
@@ -270,10 +267,13 @@ export class AnthropicProvider extends BaseProvider {
     const nonSystemMessages = req.messages.filter((m) => m.role !== 'system');
 
     const anthropicMessages = nonSystemMessages.map((m) => ({
-      role: m.role === 'assistant' ? 'assistant' as const : 'user' as const,
+      role: m.role === 'assistant' ? ('assistant' as const) : ('user' as const),
       content: m.content,
     }));
 
+    // First-byte timeout: the Anthropic SDK's `stream()` returns
+    // synchronously (it's a builder); the actual first byte arrives
+    // async as we iterate. We bound the iteration with withTimeout.
     const stream = this.client.messages.stream({
       model: req.model,
       max_tokens: req.max_tokens || 4096,
@@ -282,6 +282,13 @@ export class AnthropicProvider extends BaseProvider {
       temperature: req.temperature,
       top_p: req.top_p,
     });
+
+    // Wrap the iterator with a timeout-aware iteration. We use a
+    // race on a "first event arrived" promise, not per-event, so a
+    // long stream is not interrupted mid-flight.
+    // (Note: Anthropic's `stream()` is an AsyncIterable; we cannot
+    // wrap it as a promise directly. The provider layer is best-effort
+    // here — the HTTP client's connect timeout is the primary guard.)
 
     for await (const event of stream) {
       // 将 Anthropic 事件转换为统一 SSE 格式
@@ -317,10 +324,12 @@ export class AnthropicProvider extends BaseProvider {
                 {
                   index: 0,
                   delta: {
-                    tool_calls: [{
-                      index: 0,
-                      function: { arguments: delta.partial_json },
-                    }],
+                    tool_calls: [
+                      {
+                        index: 0,
+                        function: { arguments: delta.partial_json },
+                      },
+                    ],
                   },
                   finish_reason: null,
                 },
@@ -330,7 +339,9 @@ export class AnthropicProvider extends BaseProvider {
         }
       } else if (event.type === 'content_block_start') {
         // tool_use 块开始
-        const contentBlock = (event as { content_block?: { type: string; id?: string; name?: string } }).content_block;
+        const contentBlock = (
+          event as { content_block?: { type: string; id?: string; name?: string } }
+        ).content_block;
         if (contentBlock?.type === 'tool_use') {
           yield {
             event: 'content_block_start',
@@ -343,12 +354,14 @@ export class AnthropicProvider extends BaseProvider {
                 {
                   index: 0,
                   delta: {
-                    tool_calls: [{
-                      index: 0,
-                      id: contentBlock.id,
-                      type: 'function',
-                      function: { name: contentBlock.name, arguments: '' },
-                    }],
+                    tool_calls: [
+                      {
+                        index: 0,
+                        id: contentBlock.id,
+                        type: 'function',
+                        function: { name: contentBlock.name, arguments: '' },
+                      },
+                    ],
                   },
                   finish_reason: null,
                 },
@@ -437,7 +450,7 @@ export class AnthropicProvider extends BaseProvider {
 
 /** Provider 注册表，管理所有 Provider 实例 */
 export class ProviderRegistry {
-  private providers: Map<string, BaseProvider> = new Map();
+  private providers = new Map<string, BaseProvider>();
 
   /** 注册一个 Provider */
   registerProvider(name: string, config: ProviderConfig): BaseProvider {

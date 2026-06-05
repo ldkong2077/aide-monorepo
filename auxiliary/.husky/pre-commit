@@ -1,0 +1,3 @@
+# husky v9 pre-commit hook
+# Staged files run through lint-staged → ESLint (--fix) + Prettier on TS files
+npx --no-install lint-staged

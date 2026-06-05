@@ -9,18 +9,19 @@
  * with WAL + FTS5) is always available — there is no native build step and no
  * wasm fallback. When run from source instead, it requires Node >= 22.5.
  */
+import { DatabaseSync } from 'node:sqlite';
 
 export interface SqliteStatement {
-  run(...params: any[]): { changes: number; lastInsertRowid: number | bigint };
-  get(...params: any[]): any;
-  all(...params: any[]): any[];
+  run(...params: unknown[]): { changes: number; lastInsertRowid: number | bigint };
+  get(...params: unknown[]): unknown;
+  all(...params: unknown[]): unknown[];
 }
 
 export interface SqliteDatabase {
   prepare(sql: string): SqliteStatement;
   exec(sql: string): void;
-  pragma(str: string, options?: { simple?: boolean }): any;
-  transaction<T>(fn: (...args: any[]) => T): (...args: any[]) => T;
+  pragma(str: string, options?: { simple?: boolean }): unknown;
+  transaction<Args extends unknown[], R>(fn: (...args: Args) => R): (...args: Args) => R;
   close(): void;
   readonly open: boolean;
 }
@@ -40,12 +41,25 @@ export type SqliteBackend = 'node-sqlite';
  * better-sqlite3 conveniences node:sqlite omits: a `.pragma()` helper, a
  * `.transaction()` helper, and `open` (node:sqlite exposes `isOpen`).
  */
+/**
+ * Minimal type for node:sqlite's `DatabaseSync` so we don't need `any` for the
+ * private handle. Only the surface we actually use is declared.
+ */
+interface NodeSqliteDb {
+  isOpen: boolean;
+  prepare(sql: string): {
+    run(...params: unknown[]): { changes: number | bigint; lastInsertRowid: number | bigint };
+    get(...params: unknown[]): unknown;
+    all(...params: unknown[]): unknown[];
+  };
+  exec(sql: string): void;
+  close(): void;
+}
+
 class NodeSqliteAdapter implements SqliteDatabase {
-  private _db: any;
+  private _db: NodeSqliteDb;
 
   constructor(dbPath: string) {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { DatabaseSync } = require('node:sqlite');
     this._db = new DatabaseSync(dbPath);
   }
 
@@ -59,17 +73,17 @@ class NodeSqliteAdapter implements SqliteDatabase {
     // through unchanged.
     const stmt = this._db.prepare(sql);
     return {
-      run(...params: any[]) {
+      run(...params: unknown[]) {
         const r = stmt.run(...params);
         return {
           changes: Number(r?.changes ?? 0),
           lastInsertRowid: r?.lastInsertRowid ?? 0,
         };
       },
-      get(...params: any[]) {
+      get(...params: unknown[]) {
         return stmt.get(...params);
       },
-      all(...params: any[]) {
+      all(...params: unknown[]) {
         return stmt.all(...params);
       },
     };
@@ -79,7 +93,7 @@ class NodeSqliteAdapter implements SqliteDatabase {
     this._db.exec(sql);
   }
 
-  pragma(str: string, options?: { simple?: boolean }): any {
+  pragma(str: string, options?: { simple?: boolean }): unknown {
     const trimmed = str.trim();
     // Write pragma ("key = value"): node:sqlite is real SQLite, so every pragma
     // (WAL, mmap, synchronous, …) applies as-is.
@@ -96,8 +110,8 @@ class NodeSqliteAdapter implements SqliteDatabase {
     return row;
   }
 
-  transaction<T>(fn: (...args: any[]) => T): (...args: any[]) => T {
-    return (...args: any[]) => {
+  transaction<Args extends unknown[], R>(fn: (...args: Args) => R): (...args: Args) => R {
+    return (...args: Args) => {
       this._db.exec('BEGIN');
       try {
         const result = fn(...args);
@@ -131,9 +145,9 @@ export function createDatabase(dbPath: string): { db: SqliteDatabase; backend: S
     const msg = error instanceof Error ? error.message : String(error);
     throw new Error(
       'Failed to open SQLite via the built-in node:sqlite module.\n' +
-      'CodeGraph requires node:sqlite (Node.js 22.5+). Install the self-contained\n' +
-      'CodeGraph release (it bundles a compatible Node), or run on Node 22.5+.\n' +
-      `Underlying error: ${msg}`
+        'CodeGraph requires node:sqlite (Node.js 22.5+). Install the self-contained\n' +
+        'CodeGraph release (it bundles a compatible Node), or run on Node 22.5+.\n' +
+        `Underlying error: ${msg}`,
     );
   }
 }

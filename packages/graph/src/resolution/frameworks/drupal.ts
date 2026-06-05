@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Drupal Framework Resolver
  *
  * Supports Drupal 8/9/10/11 (Composer-based projects). Drupal 7 is not supported.
@@ -48,8 +48,8 @@
  */
 
 import { generateNodeId } from '../../extraction/tree-sitter-helpers.js';
-import { Node } from '../../types.js';
-import { FrameworkResolver, ResolutionContext, ResolvedRef, UnresolvedRef } from '../types.js';
+import { type Node } from '../../types.js';
+import { type FrameworkResolver, type ResolutionContext, type ResolvedRef, type UnresolvedRef } from '../types.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -71,8 +71,8 @@ function lastSegment(fqcn: string): string | null {
  * e.g. `web/modules/custom/my_module/my_module.module` → `my_module`
  */
 function moduleNameFromPath(filePath: string): string | null {
-  const match = filePath.match(/\/([^/]+)\.[^./]+$/);
-  return match ? match[1]! : null;
+  const match = /\/([^/]+)\.[^./]+$/.exec(filePath);
+  return match ? match[1] : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -96,7 +96,7 @@ function moduleNameFromPath(filePath: string): string | null {
  */
 function extractDrupalRoutes(
   filePath: string,
-  content: string
+  content: string,
 ): { nodes: Node[]; references: UnresolvedRef[] } {
   const nodes: Node[] = [];
   const references: UnresolvedRef[] = [];
@@ -104,7 +104,10 @@ function extractDrupalRoutes(
 
   const lines = content.split('\n');
 
-  type PendingRoute = { name: string; lineNum: number };
+  interface PendingRoute {
+    name: string;
+    lineNum: number;
+  }
   let pending: PendingRoute | null = null;
   let currentPath: string | null = null;
   let handlerRefs: string[] = [];
@@ -143,7 +146,7 @@ function extractDrupalRoutes(
   };
 
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]!;
+    const line = lines[i];
     const trimmed = line.trim();
 
     if (!trimmed || trimmed.startsWith('#')) continue;
@@ -159,37 +162,41 @@ function extractDrupalRoutes(
     }
 
     // path: '/some/path'
-    const pathMatch = trimmed.match(/^path:\s*['"]?([^'"#\n]+?)['"]?\s*(?:#.*)?$/);
+    const pathMatch = /^path:\s*['"]?([^'"#\n]+?)['"]?\s*(?:#.*)?$/.exec(trimmed);
     if (pathMatch) {
-      currentPath = pathMatch[1]!.trim();
+      currentPath = pathMatch[1].trim();
       continue;
     }
 
     // _controller: '\Drupal\...\Class::method'
-    const controllerMatch = trimmed.match(/^_controller:\s*['"]?([^'"#\n]+?)['"]?\s*(?:#.*)?$/);
+    const controllerMatch = /^_controller:\s*['"]?([^'"#\n]+?)['"]?\s*(?:#.*)?$/.exec(trimmed);
     if (controllerMatch) {
-      handlerRefs.push(controllerMatch[1]!.trim());
+      handlerRefs.push(controllerMatch[1].trim());
       continue;
     }
 
     // _form: '\Drupal\...\Form\MyForm'
-    const formMatch = trimmed.match(/^_form:\s*['"]?([^'"#\n]+?)['"]?\s*(?:#.*)?$/);
+    const formMatch = /^_form:\s*['"]?([^'"#\n]+?)['"]?\s*(?:#.*)?$/.exec(trimmed);
     if (formMatch) {
-      handlerRefs.push(formMatch[1]!.trim());
+      handlerRefs.push(formMatch[1].trim());
       continue;
     }
 
     // _entity_form / _entity_list / _entity_view: entity.type
-    const entityMatch = trimmed.match(/^_(entity_form|entity_list|entity_view):\s*['"]?([^'"#\n]+?)['"]?\s*(?:#.*)?$/);
+    const entityMatch =
+      /^_(entity_form|entity_list|entity_view):\s*['"]?([^'"#\n]+?)['"]?\s*(?:#.*)?$/.exec(trimmed);
     if (entityMatch) {
-      handlerRefs.push(entityMatch[2]!.trim());
+      handlerRefs.push(entityMatch[2].trim());
       continue;
     }
 
     // methods: [GET, POST]  or  methods: [GET]
-    const methodsMatch = trimmed.match(/^methods:\s*\[([^\]]+)\]/);
+    const methodsMatch = /^methods:\s*\[([^\]]+)\]/.exec(trimmed);
     if (methodsMatch) {
-      methods = methodsMatch[1]!.split(',').map((m) => m.trim().toUpperCase()).filter(Boolean);
+      methods = methodsMatch[1]
+        .split(',')
+        .map((m) => m.trim().toUpperCase())
+        .filter(Boolean);
       continue;
     }
   }
@@ -225,7 +232,7 @@ function isDrupalHookFile(filePath: string): boolean {
  */
 function extractDrupalHooks(
   filePath: string,
-  content: string
+  content: string,
 ): { nodes: Node[]; references: UnresolvedRef[] } {
   const references: UnresolvedRef[] = [];
 
@@ -235,7 +242,7 @@ function extractDrupalHooks(
   const funcDef = /^function\s+(\w+)\s*\(/gm;
   let fm: RegExpExecArray | null;
   while ((fm = funcDef.exec(content)) !== null) {
-    const name = fm[1]!;
+    const name = fm[1];
     if (!funcLineMap.has(name)) {
       // line = number of newlines before match start + 1
       funcLineMap.set(name, content.slice(0, fm.index).split('\n').length);
@@ -265,8 +272,8 @@ function extractDrupalHooks(
   let match: RegExpExecArray | null;
   while ((match = docblockPattern.exec(content)) !== null) {
     const [, hookName, funcName] = match;
-    emitHookRef(hookName!, funcName!);
-    docblockMatched.add(funcName!);
+    emitHookRef(hookName, funcName);
+    docblockMatched.add(funcName);
   }
 
   // Strategy B: fallback name-pattern matching for functions without docblocks.
@@ -301,7 +308,10 @@ export const drupalResolver: FrameworkResolver = {
     const composer = context.readFile('composer.json');
     if (!composer) return false;
     try {
-      const json = JSON.parse(composer) as { require?: Record<string, string>; 'require-dev'?: Record<string, string> };
+      const json = JSON.parse(composer) as {
+        require?: Record<string, string>;
+        'require-dev'?: Record<string, string>;
+      };
       const deps = { ...json.require, ...(json['require-dev'] ?? {}) };
       return Object.keys(deps).some((k) => k.startsWith('drupal/'));
     } catch {
@@ -313,16 +323,21 @@ export const drupalResolver: FrameworkResolver = {
     const name = ref.referenceName;
 
     // _controller: '\Drupal\module\...\ClassName::methodName'
-    const controllerMatch = name.match(/^\\?(?:Drupal\\[^:]+\\)?([^\\:]+)::(\w+)$/);
+    const controllerMatch = /^\\?(?:Drupal\\[^:]+\\)?([^\\:]+)::(\w+)$/.exec(name);
     if (controllerMatch) {
       const [, className, methodName] = controllerMatch;
-      const classNodes = context.getNodesByName(className!);
+      const classNodes = context.getNodesByName(className);
       for (const cls of classNodes) {
         if (cls.kind !== 'class') continue;
         const fileNodes = context.getNodesInFile(cls.filePath);
         const method = fileNodes.find((n) => n.kind === 'method' && n.name === methodName);
         if (method) {
-          return { original: ref, targetNodeId: method.id, confidence: 0.9, resolvedBy: 'framework' };
+          return {
+            original: ref,
+            targetNodeId: method.id,
+            confidence: 0.9,
+            resolvedBy: 'framework',
+          };
         }
         return { original: ref, targetNodeId: cls.id, confidence: 0.7, resolvedBy: 'framework' };
       }
@@ -343,13 +358,13 @@ export const drupalResolver: FrameworkResolver = {
     // hook_X — find any function whose name ends in _{hookSuffix} in a hook file
     if (name.startsWith('hook_')) {
       const hookSuffix = name.slice(5); // strip 'hook_'
-      const candidates = context.getNodesByKind('function').filter(
-        (n) => n.name.endsWith(`_${hookSuffix}`) && isDrupalHookFile(n.filePath)
-      );
+      const candidates = context
+        .getNodesByKind('function')
+        .filter((n) => n.name.endsWith(`_${hookSuffix}`) && isDrupalHookFile(n.filePath));
       if (candidates.length > 0) {
         return {
           original: ref,
-          targetNodeId: candidates[0]!.id,
+          targetNodeId: candidates[0].id,
           confidence: 0.75,
           resolvedBy: 'framework',
         };

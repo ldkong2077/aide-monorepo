@@ -1,10 +1,10 @@
-﻿/**
+/**
  * Cursor target.
  *
  *   - MCP server entry to `~/.cursor/mcp.json` (global) or
  *     `./.cursor/mcp.json` (local). Same `{mcpServers: {...}}` shape
  *     as Claude.
- *   - Instructions to `./.cursor/rules/codegraph.mdc` (project-local
+ *   - Instructions to `./.cursor/rules/aide.mdc` (project-local
  *     ONLY). Cursor's rules system is a project-scoped surface;
  *     global cursor rules aren't a stable convention as of 2026-05.
  *     For `--location=global`, only mcp.json is written.
@@ -13,9 +13,9 @@
  *
  * Cursor launches MCP-server subprocesses with a working directory
  * that ISN'T the workspace root AND doesn't pass `rootUri` /
- * `workspaceFolders` in the MCP initialize call. The codegraph MCP
+ * `workspaceFolders` in the MCP initialize call. The AIDE MCP
  * server's `process.cwd()` fallback therefore misses the workspace's
- * `.codegraph/` and reports "not initialized" on every tool call.
+ * `.aide/` and reports "not initialized" on every tool call.
  *
  * So we inject `--path` into the args ourselves:
  *
@@ -31,16 +31,16 @@
  * the installer can populate. `autoAllow` is silently ignored.
  */
 
-import * as fs from 'fs';
-import * as path from 'path';
-import * as os from 'os';
+import * as fs from "fs";
+import * as path from "path";
+import * as os from "os";
 import {
-  AgentTarget,
-  DetectionResult,
-  InstallOptions,
-  Location,
-  WriteResult,
-} from './types.js';
+  type AgentTarget,
+  type DetectionResult,
+  type InstallOptions,
+  type Location,
+  type WriteResult,
+} from "./types.js";
 import {
   atomicWriteFileSync,
   getMcpServerConfig,
@@ -49,17 +49,17 @@ import {
   removeMarkedSection,
   replaceOrAppendMarkedSection,
   writeJsonFile,
-} from './shared.js';
+} from "./shared.js";
 import {
   CODEGRAPH_SECTION_END,
   CODEGRAPH_SECTION_START,
   INSTRUCTIONS_TEMPLATE,
-} from '../instructions-template.js';
+} from "../instructions-template.js";
 
 function mcpJsonPath(loc: Location): string {
-  return loc === 'global'
-    ? path.join(os.homedir(), '.cursor', 'mcp.json')
-    : path.join(process.cwd(), '.cursor', 'mcp.json');
+  return loc === "global"
+    ? path.join(os.homedir(), ".cursor", "mcp.json")
+    : path.join(process.cwd(), ".cursor", "mcp.json");
 }
 /**
  * Cursor "rules" file. Only meaningful for the project-local
@@ -67,7 +67,7 @@ function mcpJsonPath(loc: Location): string {
  * root. There is no global equivalent.
  */
 function rulesPath(): string {
-  return path.join(process.cwd(), '.cursor', 'rules', 'codegraph.mdc');
+  return path.join(process.cwd(), ".cursor", "rules", "aide.mdc");
 }
 
 /**
@@ -77,17 +77,17 @@ function rulesPath(): string {
  * whenever the user is asking the agent to navigate code.
  */
 const MDC_FRONTMATTER = [
-  '---',
-  'description: CodeGraph MCP usage guide — when to use which tool',
-  'alwaysApply: true',
-  '---',
-  '',
-].join('\n');
+  "---",
+  "description: AIDE MCP usage guide — when to use which tool",
+  "alwaysApply: true",
+  "---",
+  "",
+].join("\n");
 
 class CursorTarget implements AgentTarget {
-  readonly id = 'cursor' as const;
-  readonly displayName = 'Cursor';
-  readonly docsUrl = 'https://docs.cursor.com/context/model-context-protocol';
+  readonly id = "cursor" as const;
+  readonly displayName = "Cursor";
+  readonly docsUrl = "https://docs.cursor.com/context/model-context-protocol";
 
   supportsLocation(_loc: Location): boolean {
     // Both supported, but `local` writes more files (mcp.json + rules);
@@ -99,49 +99,54 @@ class CursorTarget implements AgentTarget {
   detect(loc: Location): DetectionResult {
     const mcpPath = mcpJsonPath(loc);
     const config = readJsonFile(mcpPath);
-    const alreadyConfigured = !!config.mcpServers?.codegraph;
+    const alreadyConfigured = !!config.mcpServers?.aide;
     // "Installed" heuristic: does ~/.cursor exist (global) or has the
     // user opted into a project-local cursor config dir?
-    const installed = loc === 'global'
-      ? fs.existsSync(path.join(os.homedir(), '.cursor'))
-      : fs.existsSync(path.join(process.cwd(), '.cursor'));
+    const installed =
+      loc === "global"
+        ? fs.existsSync(path.join(os.homedir(), ".cursor"))
+        : fs.existsSync(path.join(process.cwd(), ".cursor"));
     return { installed, alreadyConfigured, configPath: mcpPath };
   }
 
   install(loc: Location, _opts: InstallOptions): WriteResult {
-    const files: WriteResult['files'] = [];
+    const files: WriteResult["files"] = [];
 
     files.push(writeMcpEntry(loc));
 
-    if (loc === 'local') {
+    if (loc === "local") {
       files.push(writeRulesEntry());
     }
 
     return {
       files,
-      notes: ['Restart Cursor for MCP changes to take effect.'],
+      notes: ["Restart Cursor for MCP changes to take effect."],
     };
   }
 
   uninstall(loc: Location): WriteResult {
-    const files: WriteResult['files'] = [];
+    const files: WriteResult["files"] = [];
 
     const mcpPath = mcpJsonPath(loc);
     const config = readJsonFile(mcpPath);
-    if (config.mcpServers?.codegraph) {
-      delete config.mcpServers.codegraph;
+    if (config.mcpServers?.aide) {
+      delete config.mcpServers.aide;
       if (Object.keys(config.mcpServers).length === 0) {
         delete config.mcpServers;
       }
       writeJsonFile(mcpPath, config);
-      files.push({ path: mcpPath, action: 'removed' });
+      files.push({ path: mcpPath, action: "removed" });
     } else {
-      files.push({ path: mcpPath, action: 'not-found' });
+      files.push({ path: mcpPath, action: "not-found" });
     }
 
-    if (loc === 'local') {
+    if (loc === "local") {
       const rules = rulesPath();
-      const action = removeMarkedSection(rules, CODEGRAPH_SECTION_START, CODEGRAPH_SECTION_END);
+      const action = removeMarkedSection(
+        rules,
+        CODEGRAPH_SECTION_START,
+        CODEGRAPH_SECTION_END,
+      );
       files.push({ path: rules, action });
     }
 
@@ -150,21 +155,25 @@ class CursorTarget implements AgentTarget {
 
   printConfig(loc: Location): string {
     const target = mcpJsonPath(loc);
-    const snippet = JSON.stringify({ mcpServers: { codegraph: buildCursorMcpConfig(loc) } }, null, 2);
+    const snippet = JSON.stringify(
+      { mcpServers: { aide: buildCursorMcpConfig(loc) } },
+      null,
+      2,
+    );
     return `# Add to ${target}\n\n${snippet}\n`;
   }
 
   describePaths(loc: Location): string[] {
-    return loc === 'local'
+    return loc === "local"
       ? [mcpJsonPath(loc), rulesPath()]
       : [mcpJsonPath(loc)];
   }
 
   /**
-   * Write the project-local `.cursor/rules/codegraph.mdc` file. Used
-   * by `codegraph init` to bootstrap projects that have only the
+   * Write the project-local `.cursor/rules/aide.mdc` file. Used
+   * by `aide graph init` to bootstrap projects that have only the
    * global `~/.cursor/mcp.json` — without the rules file, the Cursor
-   * agent has no signal to prefer codegraph over native grep.
+   * agent has no signal to prefer AIDE over native grep.
    */
   wireProjectSurfaces(): WriteResult {
     return { files: [writeRulesEntry()] };
@@ -172,35 +181,43 @@ class CursorTarget implements AgentTarget {
 }
 
 /**
- * Build the codegraph MCP-server config for Cursor at the given
+ * Build the AIDE MCP-server config for Cursor at the given
  * location. Inherits the shared shape ({type, command, args}) and
  * appends `--path` so the spawned MCP server resolves the workspace
  * correctly regardless of Cursor's launch cwd. See file header for
  * the full rationale.
  */
-function buildCursorMcpConfig(loc: Location): { type: string; command: string; args: string[] } {
+function buildCursorMcpConfig(loc: Location): {
+  type: string;
+  command: string;
+  args: string[];
+} {
   const base = getMcpServerConfig();
-  const pathArg = loc === 'local' ? process.cwd() : '${workspaceFolder}';
-  return { ...base, args: [...base.args, '--path', pathArg] };
+  const pathArg = loc === "local" ? process.cwd() : "${workspaceFolder}";
+  return { ...base, args: [...base.args, "--path", pathArg] };
 }
 
-function writeMcpEntry(loc: Location): WriteResult['files'][number] {
+function writeMcpEntry(loc: Location): WriteResult["files"][number] {
   const file = mcpJsonPath(loc);
   const existing = readJsonFile(file);
-  const before = existing.mcpServers?.codegraph;
+  const before = existing.mcpServers?.aide;
   const after = buildCursorMcpConfig(loc);
 
   if (jsonDeepEqual(before, after)) {
-    return { path: file, action: 'unchanged' };
+    return { path: file, action: "unchanged" };
   }
-  const action: 'created' | 'updated' = before ? 'updated' : (fs.existsSync(file) ? 'updated' : 'created');
+  const action: "created" | "updated" = before
+    ? "updated"
+    : fs.existsSync(file)
+      ? "updated"
+      : "created";
   if (!existing.mcpServers) existing.mcpServers = {};
-  existing.mcpServers.codegraph = after;
+  existing.mcpServers.aide = after;
   writeJsonFile(file, existing);
   return { path: file, action };
 }
 
-function writeRulesEntry(): WriteResult['files'][number] {
+function writeRulesEntry(): WriteResult["files"][number] {
   const file = rulesPath();
   const dir = path.dirname(file);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
@@ -211,15 +228,15 @@ function writeRulesEntry(): WriteResult['files'][number] {
   const body = MDC_FRONTMATTER + INSTRUCTIONS_TEMPLATE;
 
   if (!fs.existsSync(file)) {
-    atomicWriteFileSync(file, body + '\n');
-    return { path: file, action: 'created' };
+    atomicWriteFileSync(file, body + "\n");
+    return { path: file, action: "created" };
   }
 
   // For .mdc files we own outright, do byte-equality first.
-  const existing = fs.readFileSync(file, 'utf-8');
-  const wantWithNL = body + '\n';
+  const existing = fs.readFileSync(file, "utf-8");
+  const wantWithNL = body + "\n";
   if (existing === wantWithNL) {
-    return { path: file, action: 'unchanged' };
+    return { path: file, action: "unchanged" };
   }
 
   // Otherwise, marker-based section swap (preserves any user-added
@@ -230,10 +247,12 @@ function writeRulesEntry(): WriteResult['files'][number] {
     CODEGRAPH_SECTION_START,
     CODEGRAPH_SECTION_END,
   );
-  const mapped: 'created' | 'updated' | 'unchanged' =
-    action === 'created' ? 'created'
-      : action === 'unchanged' ? 'unchanged'
-        : 'updated';
+  const mapped: "created" | "updated" | "unchanged" =
+    action === "created"
+      ? "created"
+      : action === "unchanged"
+        ? "unchanged"
+        : "updated";
   return { path: file, action: mapped };
 }
 

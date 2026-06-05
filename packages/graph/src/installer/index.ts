@@ -1,5 +1,5 @@
-﻿/**
- * CodeGraph Interactive Installer
+/**
+ * AIDE Interactive Installer
  *
  * Multi-target: writes MCP server config + instructions for the
  * agents the user picks (Claude Code, Cursor, Codex CLI, opencode,
@@ -12,22 +12,34 @@
  * `--print-config` CLI flags.
  */
 
-import { execSync } from 'child_process';
-import * as path from 'path';
-import * as fs from 'fs';
+import { execSync } from "child_process";
+import * as os from "os";
+import * as path from "path";
+import * as fs from "fs";
+import { fileURLToPath } from "url";
+import type * as ClackPrompts from "@clack/prompts";
+
+// ESM polyfill: __dirname is not defined in ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+import type CodeGraphNs from "../index.js";
 import {
   ALL_TARGETS,
   detectAll,
   getTarget,
   resolveTargetFlag,
-} from './targets/registry.js';
-import type { AgentTarget, Location, WriteResult } from './targets/types.js';
-import { getGlyphs } from '../ui/glyphs.js';
+} from "./targets/registry.js";
+import type { AgentTarget, Location, WriteResult } from "./targets/types.js";
+import { getGlyphs } from "../ui/glyphs.js";
 // Import the lightweight submodules directly (not the ../sync barrel, which
 // re-exports FileWatcher and would transitively pull in ../extraction — the
 // installer must stay importable even when native modules can't load).
-import { watchDisabledReason } from '../sync/watch-policy.js';
-import { isGitRepo, isSyncHookInstalled, installGitSyncHook } from '../sync/git-hooks.js';
+import { watchDisabledReason } from "../sync/watch-policy.js";
+import {
+  isGitRepo,
+  isSyncHookInstalled,
+  installGitSyncHook,
+} from "../sync/git-hooks.js";
 
 // Backwards-compat: keep these named exports — downstream code may
 // import them. The shim in `config-writer.ts` continues to re-export
@@ -39,14 +51,45 @@ export {
   hasMcpConfig,
   hasPermissions,
   hasClaudeMdSection,
-} from './config-writer.js';
-export type { InstallLocation } from './config-writer.js';
+} from "./config-writer.js";
+export type { InstallLocation } from "./config-writer.js";
+// Re-export the shared config helpers so the CLI's tests (and any
+// downstream tooling that wants to inspect what `aide install` would
+// write) can do so via the `@aide/graph/installer` subpath without
+// having to know the per-target layout.
+export {
+  getMcpServerConfig,
+  getAidePermissions,
+  getCodeGraphPermissions,
+} from "./targets/shared.js";
+// Re-export the target registry so the CLI's `aide install --print-config`
+// and `--target` plumbing can resolve target ids without taking a deep
+// import into `./targets/registry.js`.
+export {
+  ALL_TARGETS,
+  getTarget,
+  listTargetIds,
+  detectAll,
+  resolveTargetFlag,
+} from "./targets/registry.js";
+// Re-export the instructions template so tests + downstream tooling
+// can pin the agent-rulings wording (MUST / NEVER / ALWAYS) without
+// reaching into a private subpath.
+export { INSTRUCTIONS_TEMPLATE } from "./instructions-template.js";
+export type {
+  AgentTarget,
+  Location,
+  TargetId,
+  DetectionResult,
+  WriteResult,
+} from "./targets/types.js";
 
 // Dynamic import helper — tsc compiles import() to require() in CJS mode,
 // which fails for ESM-only packages. This bypasses the transformation.
-// eslint-disable-next-line @typescript-eslint/no-implied-eval
-const importESM = new Function('specifier', 'return import(specifier)') as
-  (specifier: string) => Promise<typeof import('@clack/prompts')>;
+
+const importESM = new Function("specifier", "return import(specifier)") as (
+  specifier: string,
+) => Promise<typeof ClackPrompts>;
 
 function formatNumber(n: number): string {
   return n.toLocaleString();
@@ -54,11 +97,11 @@ function formatNumber(n: number): string {
 
 function getVersion(): string {
   try {
-    const packageJsonPath = path.join(__dirname, '..', '..', 'package.json');
-    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
+    const packageJsonPath = path.join(__dirname, "..", "..", "package.json");
+    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf-8"));
     return packageJson.version;
   } catch {
-    return '0.0.0';
+    return "0.0.0";
   }
 }
 
@@ -77,7 +120,7 @@ export interface RunInstallerOptions {
 }
 
 /**
- * Interactive entry point — preserves the historical UX (`codegraph
+ * Interactive entry point — preserves the historical UX (`aide
  * install` with no args goes through the prompts), but now starts
  * the targets multi-select pre-populated with detected agents.
  */
@@ -85,10 +128,12 @@ export async function runInstaller(): Promise<void> {
   return runInstallerWithOptions({});
 }
 
-export async function runInstallerWithOptions(opts: RunInstallerOptions): Promise<void> {
-  const clack = await importESM('@clack/prompts');
+export async function runInstallerWithOptions(
+  opts: RunInstallerOptions,
+): Promise<void> {
+  const clack = await importESM("@clack/prompts");
 
-  clack.intro(`CodeGraph v${getVersion()}`);
+  clack.intro(`AIDE v${getVersion()}`);
 
   // --yes implies all defaults; explicit flags still win.
   const useDefaults = opts.yes === true;
@@ -97,36 +142,44 @@ export async function runInstallerWithOptions(opts: RunInstallerOptions): Promis
   // they're committing to before we touch npm or disk. Detection
   // probes the user-provided location if known, else 'global' as the
   // most common default — labels are a hint, not load-bearing.
-  const detectionLocation: Location = opts.location ?? 'global';
-  const targets = await resolveTargets(clack, opts, detectionLocation, useDefaults);
+  const detectionLocation: Location = opts.location ?? "global";
+  const targets = await resolveTargets(
+    clack,
+    opts,
+    detectionLocation,
+    useDefaults,
+  );
   if (targets.length === 0) {
-    clack.outro('No agent targets selected — nothing to do.');
+    clack.outro("No agent targets selected — nothing to do.");
     return;
   }
 
-  // Step 2: install the codegraph npm package on PATH (always offered;
-  // matches existing behavior). Skipped when --yes (assume present).
+  // Step 2: install the AIDE CLI on PATH (always offered; matches
+  // existing behavior). Skipped when --yes (assume present).
   if (!useDefaults) {
     const shouldInstallGlobally = await clack.confirm({
-      message: 'Install the codegraph CLI on your PATH? (Required so agents can launch the MCP server)',
+      message:
+        "Install the AIDE CLI on your PATH? (Required so agents can launch the MCP server)",
       initialValue: true,
     });
     if (clack.isCancel(shouldInstallGlobally)) {
-      clack.cancel('Installation cancelled.');
+      clack.cancel("Installation cancelled.");
       process.exit(0);
     }
     if (shouldInstallGlobally) {
       const s = clack.spinner();
-      s.start('Installing codegraph CLI...');
+      s.start("Installing AIDE CLI...");
       try {
-        execSync('npm install -g @colbymchenry/codegraph', { stdio: 'pipe' });
-        s.stop('Installed codegraph CLI on PATH');
+        execSync("npm install -g @aide/cli", { stdio: "pipe" });
+        s.stop("Installed AIDE CLI on PATH");
       } catch {
-        s.stop('Could not install (permission denied)');
-        clack.log.warn('Try: sudo npm install -g @colbymchenry/codegraph');
+        s.stop("Could not install (permission denied)");
+        clack.log.warn("Try: sudo npm install -g @aide/cli");
       }
     } else {
-      clack.log.info('Skipped CLI install — agents will not be able to launch the MCP server without it');
+      clack.log.info(
+        "Skipped CLI install — agents will not be able to launch the MCP server without it",
+      );
     }
   }
 
@@ -135,26 +188,36 @@ export async function runInstallerWithOptions(opts: RunInstallerOptions): Promis
   if (opts.location) {
     location = opts.location;
   } else if (useDefaults) {
-    location = 'global';
+    location = "global";
   } else {
     // If every selected target is global-only (e.g. Codex), skip the
     // prompt and force user-wide — project-local would just produce
     // skip warnings.
-    const allGlobalOnly = targets.every((t) => !t.supportsLocation('local'));
+    const allGlobalOnly = targets.every((t) => !t.supportsLocation("local"));
     if (allGlobalOnly) {
-      location = 'global';
-      clack.log.info('Writing user-wide configs (selected agents have no project-local config).');
+      location = "global";
+      clack.log.info(
+        "Writing user-wide configs (selected agents have no project-local config).",
+      );
     } else {
       const sel = await clack.select({
-        message: 'Apply agent configs to all your projects, or just this one?',
+        message: "Apply agent configs to all your projects, or just this one?",
         options: [
-          { value: 'global' as const, label: 'All projects', hint: '~/.claude, ~/.cursor, etc.' },
-          { value: 'local'  as const, label: 'Just this project', hint: './.claude, ./.cursor, etc.' },
+          {
+            value: "global" as const,
+            label: "All projects",
+            hint: "~/.claude, ~/.cursor, etc.",
+          },
+          {
+            value: "local" as const,
+            label: "Just this project",
+            hint: "./.claude, ./.cursor, etc.",
+          },
         ],
-        initialValue: 'global' as const,
+        initialValue: "global" as const,
       });
       if (clack.isCancel(sel)) {
-        clack.cancel('Installation cancelled.');
+        clack.cancel("Installation cancelled.");
         process.exit(0);
       }
       location = sel;
@@ -168,13 +231,14 @@ export async function runInstallerWithOptions(opts: RunInstallerOptions): Promis
     autoAllow = opts.autoAllow;
   } else if (useDefaults) {
     autoAllow = true;
-  } else if (targets.some((t) => t.id === 'claude')) {
+  } else if (targets.some((t) => t.id === "claude")) {
     const ans = await clack.confirm({
-      message: 'Auto-allow CodeGraph commands? (Skips permission prompts in Claude Code)',
+      message:
+        "Auto-allow AIDE commands? (Skips permission prompts in Claude Code)",
       initialValue: true,
     });
     if (clack.isCancel(ans)) {
-      clack.cancel('Installation cancelled.');
+      clack.cancel("Installation cancelled.");
       process.exit(0);
     }
     autoAllow = ans;
@@ -192,9 +256,12 @@ export async function runInstallerWithOptions(opts: RunInstallerOptions): Promis
     }
     const result = target.install(location, { autoAllow });
     for (const file of result.files) {
-      const verb = file.action === 'unchanged'
-        ? 'Unchanged'
-        : file.action === 'created' ? 'Created' : 'Updated';
+      const verb =
+        file.action === "unchanged"
+          ? "Unchanged"
+          : file.action === "created"
+            ? "Created"
+            : "Updated";
       clack.log.success(`${target.displayName}: ${verb} ${tildify(file.path)}`);
     }
     for (const note of result.notes ?? []) {
@@ -203,45 +270,50 @@ export async function runInstallerWithOptions(opts: RunInstallerOptions): Promis
   }
 
   // Step 6: for local install, initialize the project.
-  if (location === 'local') {
+  if (location === "local") {
     await initializeLocalProject(clack, useDefaults);
   }
 
-  if (location === 'global') {
-    clack.note('cd your-project\ncodegraph init -i', 'Quick start');
+  if (location === "global") {
+    clack.note(
+      "cd your-project\naide graph init && aide graph index",
+      "Quick start",
+    );
   }
 
-  const finalNote = targets.length > 0
-    ? `Done! Restart your agent${targets.length > 1 ? 's' : ''} to use CodeGraph.`
-    : 'Done!';
+  const finalNote =
+    targets.length > 0
+      ? `Done! Restart your agent${targets.length > 1 ? "s" : ""} to use AIDE.`
+      : "Done!";
   clack.outro(finalNote);
 }
 
 /**
  * For every target that has a global config and exposes
  * `wireProjectSurfaces`, write its project-local surfaces (e.g.
- * Cursor's `.cursor/rules/codegraph.mdc`). Idempotent — runs
- * silently when there's nothing to write.
+ * Cursor's `.cursor/rules/aide.mdc`). Idempotent — runs silently
+ * when there's nothing to write.
  *
- * Called by `codegraph init` so that a user who ran
- * `codegraph install` once globally doesn't have to re-run it per
+ * Called by `aide graph init` so that a user who ran
+ * `aide install` once globally doesn't have to re-run it per
  * project to get full agent support.
  *
  * Returns the list of `(target, file)` pairs that were created or
  * updated — caller decides how to surface them.
  */
-export function wireProjectSurfacesForGlobalAgents(): Array<{
+export function wireProjectSurfacesForGlobalAgents(): {
   target: AgentTarget;
-  file: WriteResult['files'][number];
-}> {
-  const written: Array<{ target: AgentTarget; file: WriteResult['files'][number] }> = [];
+  file: WriteResult["files"][number];
+}[] {
+  const written: { target: AgentTarget; file: WriteResult["files"][number] }[] =
+    [];
   for (const target of ALL_TARGETS) {
-    if (typeof target.wireProjectSurfaces !== 'function') continue;
-    const detection = target.detect('global');
+    if (typeof target.wireProjectSurfaces !== "function") continue;
+    const detection = target.detect("global");
     if (!detection.alreadyConfigured) continue;
     const result = target.wireProjectSurfaces();
     for (const file of result.files) {
-      if (file.action === 'created' || file.action === 'updated') {
+      if (file.action === "created" || file.action === "updated") {
         written.push({ target, file });
       }
     }
@@ -254,13 +326,13 @@ export function wireProjectSurfacesForGlobalAgents(): Array<{
  * lines. Pure cosmetic.
  */
 function tildify(p: string): string {
-  const home = require('os').homedir();
-  if (p.startsWith(home + path.sep)) return '~' + p.substring(home.length);
+  const home = os.homedir();
+  if (p.startsWith(home + path.sep)) return "~" + p.substring(home.length);
   return p;
 }
 
 async function resolveTargets(
-  clack: typeof import('@clack/prompts'),
+  clack: typeof ClackPrompts,
   opts: RunInstallerOptions,
   location: Location,
   useDefaults: boolean,
@@ -272,7 +344,7 @@ async function resolveTargets(
 
   // --yes implies auto-detect.
   if (useDefaults) {
-    return resolveTargetFlag('auto', location);
+    return resolveTargetFlag("auto", location);
   }
 
   // Interactive multi-select.
@@ -282,14 +354,14 @@ async function resolveTargets(
     .map(({ target }) => target.id);
   // If nothing detected, default to Claude alone (matches the
   // historical default and the smallest-surprise outcome).
-  const initial = initialValues.length > 0 ? initialValues : ['claude'];
+  const initial = initialValues.length > 0 ? initialValues : ["claude"];
 
   const choice = await clack.multiselect<string>({
-    message: 'Which agents should CodeGraph configure?',
+    message: "Which agents should CodeGraph configure?",
     options: ALL_TARGETS.map((t) => {
       const det = detected.find(({ target }) => target.id === t.id)!.detection;
-      const flag = det.installed ? '(detected)' : '(not found)';
-      const globalOnly = !t.supportsLocation('local') ? ' — global only' : '';
+      const flag = det.installed ? "(detected)" : "(not found)";
+      const globalOnly = !t.supportsLocation("local") ? " — global only" : "";
       return {
         value: t.id,
         label: `${t.displayName} ${flag}${globalOnly}`,
@@ -300,7 +372,7 @@ async function resolveTargets(
   });
 
   if (clack.isCancel(choice)) {
-    clack.cancel('Installation cancelled.');
+    clack.cancel("Installation cancelled.");
     process.exit(0);
   }
 
@@ -310,39 +382,41 @@ async function resolveTargets(
 }
 
 /**
- * Initialize CodeGraph in the current project (for local installs), then
+ * Initialize AIDE in the current project (for local installs), then
  * offer the watch fallback when the live watcher won't run here (see
  * offerWatchFallback). Agent-agnostic by nature.
  */
 async function initializeLocalProject(
-  clack: typeof import('@clack/prompts'),
+  clack: typeof ClackPrompts,
   useDefaults = false,
 ): Promise<void> {
   const projectPath = process.cwd();
 
-  let CodeGraph: typeof import('../index.js').default;
+  let CodeGraph: typeof CodeGraphNs;
   try {
-    CodeGraph = (await import('../index.js')).default;
+    CodeGraph = (await import("../index.js")).default;
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     clack.log.error(`Could not load native modules: ${msg}`);
-    clack.log.info('Skipping project initialization. Run "codegraph init -i" later.');
+    clack.log.info(
+      "Skipping project initialization. Run `aide graph init` later.",
+    );
     return;
   }
 
   // Check if already initialized
   if (CodeGraph.isInitialized(projectPath)) {
-    clack.log.info('CodeGraph already initialized in this project');
+    clack.log.info("AIDE already initialized in this project");
     await offerWatchFallback(clack, projectPath, { yes: useDefaults });
     return;
   }
 
   // Initialize
   const cg = await CodeGraph.init(projectPath);
-  clack.log.success('Created .codegraph/ directory');
+  clack.log.success("Created .aide/ directory");
 
   // Index the project with shimmer progress (worker thread for smooth animation)
-  const { createShimmerProgress } = await import('../ui/shimmer-progress.js');
+  const { createShimmerProgress } = await import("../ui/shimmer-progress.js");
   process.stdout.write(`\x1b[2m${getGlyphs().rail}\x1b[0m\n`);
   const progress = createShimmerProgress();
 
@@ -353,9 +427,13 @@ async function initializeLocalProject(
   await progress.stop();
 
   if (result.filesErrored > 0) {
-    clack.log.success(`Indexed ${formatNumber(result.filesIndexed)} files (${formatNumber(result.filesErrored)} failed, ${formatNumber(result.nodesCreated)} symbols)`);
+    clack.log.success(
+      `Indexed ${formatNumber(result.filesIndexed)} files (${formatNumber(result.filesErrored)} failed, ${formatNumber(result.nodesCreated)} symbols)`,
+    );
   } else {
-    clack.log.success(`Indexed ${formatNumber(result.filesIndexed)} files (${formatNumber(result.nodesCreated)} symbols)`);
+    clack.log.success(
+      `Indexed ${formatNumber(result.filesIndexed)} files (${formatNumber(result.nodesCreated)} symbols)`,
+    );
   }
 
   cg.close();
@@ -367,13 +445,13 @@ async function initializeLocalProject(
  * When the live file watcher will be disabled for this project (e.g. WSL2
  * /mnt drives, or CODEGRAPH_NO_WATCH), the index would silently go stale.
  * Explain that, and offer to keep it fresh automatically via git hooks
- * (commit / pull / checkout) instead of manual `codegraph sync`.
+ * (commit / pull / checkout) instead of manual `aide graph index`.
  *
  * No-op on environments where the watcher runs normally, so it's safe to
  * call unconditionally after init.
  */
 export async function offerWatchFallback(
-  clack: typeof import('@clack/prompts'),
+  clack: typeof ClackPrompts,
   projectPath: string,
   opts: { yes?: boolean } = {},
 ): Promise<void> {
@@ -381,55 +459,73 @@ export async function offerWatchFallback(
   if (!reason) return; // Watcher runs normally — nothing to set up.
 
   clack.log.warn(`Live file watching is disabled here — ${reason}.`);
-  clack.log.info('Until you re-sync, the CodeGraph index stays frozen — it will not pick up edits on its own.');
+  clack.log.info(
+    "Until you re-sync, the AIDE index stays frozen — it will not pick up edits on its own.",
+  );
 
   // No git repo → the commit-hook path doesn't apply; point at manual sync.
   if (!isGitRepo(projectPath)) {
-    clack.log.info('Run `codegraph sync` after changing files to refresh the index.');
+    clack.log.info(
+      "Run `aide graph index` after changing files to refresh the index.",
+    );
     return;
   }
 
   // Already wired up on a previous run — confirm and move on without nagging.
   if (isSyncHookInstalled(projectPath)) {
-    clack.log.info('Git sync hooks are already installed — the index refreshes after commit / pull / checkout.');
+    clack.log.info(
+      "Git sync hooks are already installed — the index refreshes after commit / pull / checkout.",
+    );
     return;
   }
 
-  let choice: 'hook' | 'manual';
+  let choice: "hook" | "manual";
   if (opts.yes) {
-    choice = 'hook';
+    choice = "hook";
   } else {
     const sel = await clack.select({
-      message: 'How should CodeGraph keep its index fresh?',
+      message: "How should AIDE keep its index fresh?",
       options: [
-        { value: 'hook' as const, label: 'Sync on git commit / pull / checkout', hint: 'installs git hooks (recommended)' },
-        { value: 'manual' as const, label: 'I\'ll run `codegraph sync` myself', hint: 'fully manual' },
+        {
+          value: "hook" as const,
+          label: "Sync on git commit / pull / checkout",
+          hint: "installs git hooks (recommended)",
+        },
+        {
+          value: "manual" as const,
+          label: "I'll run `aide graph index` myself",
+          hint: "fully manual",
+        },
       ],
-      initialValue: 'hook' as const,
+      initialValue: "hook" as const,
     });
     if (clack.isCancel(sel)) {
-      clack.log.info('Skipped — run `codegraph sync` after changes to refresh the index.');
+      clack.log.info(
+        "Skipped — run `aide graph index` after changes to refresh the index.",
+      );
       return;
     }
     choice = sel;
   }
 
-  if (choice === 'manual') {
-    clack.log.info('Run `codegraph sync` after changing files to refresh the index.');
+  if (choice === "manual") {
+    clack.log.info(
+      "Run `aide graph index` after changing files to refresh the index.",
+    );
     return;
   }
 
   const result = installGitSyncHook(projectPath);
   if (result.installed.length > 0) {
     clack.log.success(
-      `Installed git ${result.installed.join(', ')} hook${result.installed.length > 1 ? 's' : ''} — ` +
-      'the index refreshes in the background after each.',
+      `Installed git ${result.installed.join(", ")} hook${result.installed.length > 1 ? "s" : ""} — ` +
+        "the index refreshes in the background after each.",
     );
-    clack.log.info('Run `codegraph sync` anytime to refresh immediately.');
+    clack.log.info("Run `aide graph index` anytime to refresh immediately.");
   } else {
     clack.log.warn(
-      `Could not install git hooks${result.skipped ? ` (${result.skipped})` : ''}. ` +
-      'Run `codegraph sync` after changes instead.',
+      `Could not install git hooks${result.skipped ? ` (${result.skipped})` : ""}. ` +
+        "Run `aide graph index` after changes instead.",
     );
   }
 }

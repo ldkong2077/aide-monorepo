@@ -1,0 +1,34 @@
+# 90-servicemonitor.yaml
+#
+# Prometheus Operator only. If you use vanilla Prometheus, add a
+# scrape job to your prometheus.yml instead.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: aide
+  namespace: aide
+  labels:
+    app.kubernetes.io/name: aide
+    app.kubernetes.io/instance: aide
+    app.kubernetes.io/component: monitoring
+    app.kubernetes.io/part-of: aide
+    app.kubernetes.io/managed-by: kustomize
+    # Match this label in your Prometheus selector (default: `release: prometheus`).
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: aide
+      app.kubernetes.io/instance: aide
+      app.kubernetes.io/component: service
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s
+      honorLabels: true
+      # Don't add Prometheus-injected labels — we already set our own.
+      relabelings:
+        - sourceLabels: [__meta_kubernetes_pod_phase]
+          action: keep
+          regex: Running

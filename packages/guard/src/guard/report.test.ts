@@ -2,7 +2,12 @@
  * CodeGuard - Report Formatter Tests
  */
 import { describe, it, expect } from 'vitest';
-import { ReportFormatter, formatConsoleReport, formatJSONReport, formatMarkdownReport } from './report.js';
+import {
+  ReportFormatter,
+  formatConsoleReport,
+  formatJSONReport,
+  formatMarkdownReport,
+} from './report.js';
 import type { VerificationReport } from '../types.js';
 
 describe('ReportFormatter', () => {
@@ -63,8 +68,16 @@ describe('ReportFormatter', () => {
       const report = {
         ...baseReport,
         hallucinations: [
-          { severity: 'critical' as const, message: 'Critical: fake import', category: 'package_import' as const },
-          { severity: 'high' as const, message: 'High: bad API', category: 'api_signature' as const },
+          {
+            severity: 'critical' as const,
+            message: 'Critical: fake import',
+            category: 'package_import' as const,
+          },
+          {
+            severity: 'high' as const,
+            message: 'High: bad API',
+            category: 'api_signature' as const,
+          },
         ],
       };
       const output = formatter.formatConsoleReport(report);
@@ -133,7 +146,12 @@ describe('ReportFormatter', () => {
       const report = {
         ...baseReport,
         hallucinations: [
-          { severity: 'critical' as const, message: 'Fake package', category: 'package_import' as const, line: 5 },
+          {
+            severity: 'critical' as const,
+            message: 'Fake package',
+            category: 'package_import' as const,
+            line: 5,
+          },
         ],
       };
       const output = formatter.formatMarkdownReport(report);

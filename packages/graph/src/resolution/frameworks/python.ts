@@ -1,11 +1,16 @@
-﻿/**
+/**
  * Python Framework Resolver
  *
  * Handles Django, Flask, and FastAPI patterns.
  */
 
-import { Node } from '../../types.js';
-import { FrameworkResolver, UnresolvedRef, ResolutionContext, FrameworkExtractionResult } from '../types.js';
+import { type Node } from '../../types.js';
+import {
+  type FrameworkResolver,
+  type UnresolvedRef,
+  type ResolutionContext,
+  type FrameworkExtractionResult,
+} from '../types.js';
 import { stripCommentsForRegex } from '../strip-comments.js';
 
 export const djangoResolver: FrameworkResolver = {
@@ -25,15 +30,18 @@ export const djangoResolver: FrameworkResolver = {
   resolve(ref, context) {
     if (ref.referenceName.endsWith('Model') || /^[A-Z][a-z]+$/.test(ref.referenceName)) {
       const result = resolveByNameAndKind(ref.referenceName, CLASS_KINDS, MODEL_DIRS, context);
-      if (result) return { original: ref, targetNodeId: result, confidence: 0.8, resolvedBy: 'framework' };
+      if (result)
+        return { original: ref, targetNodeId: result, confidence: 0.8, resolvedBy: 'framework' };
     }
     if (ref.referenceName.endsWith('View') || ref.referenceName.endsWith('ViewSet')) {
       const result = resolveByNameAndKind(ref.referenceName, VIEW_KINDS, VIEW_DIRS, context);
-      if (result) return { original: ref, targetNodeId: result, confidence: 0.8, resolvedBy: 'framework' };
+      if (result)
+        return { original: ref, targetNodeId: result, confidence: 0.8, resolvedBy: 'framework' };
     }
     if (ref.referenceName.endsWith('Form')) {
       const result = resolveByNameAndKind(ref.referenceName, CLASS_KINDS, FORM_DIRS, context);
-      if (result) return { original: ref, targetNodeId: result, confidence: 0.8, resolvedBy: 'framework' };
+      if (result)
+        return { original: ref, targetNodeId: result, confidence: 0.8, resolvedBy: 'framework' };
     }
     return null;
   },
@@ -49,7 +57,8 @@ export const djangoResolver: FrameworkResolver = {
     // path('url', handler, name=...) / re_path(r'...', handler) / url(r'...', handler)
     // Capture groups: 1=function name, 2=url string, 3=handler expr
     // Handler expr may contain one balanced () pair (e.g. View.as_view(), include('x.y'))
-    const routeRegex = /\b(path|re_path|url)\s*\(\s*r?['"]([^'"]+)['"]\s*,\s*([\w.]+(?:\s*\([^)]*\))?)/g;
+    const routeRegex =
+      /\b(path|re_path|url)\s*\(\s*r?['"]([^'"]+)['"]\s*,\s*([\w.]+(?:\s*\([^)]*\))?)/g;
 
     let match: RegExpExecArray | null;
     while ((match = routeRegex.exec(safe)) !== null) {
@@ -59,7 +68,7 @@ export const djangoResolver: FrameworkResolver = {
       const routeNode: Node = {
         id: `route:${filePath}:${line}:${urlPath}`,
         kind: 'route',
-        name: urlPath!,
+        name: urlPath,
         qualifiedName: `${filePath}::route:${urlPath}`,
         filePath,
         startLine: line,
@@ -71,7 +80,7 @@ export const djangoResolver: FrameworkResolver = {
       };
       nodes.push(routeNode);
 
-      const handler = handlerExpr!.trim();
+      const handler = handlerExpr.trim();
       const target = resolveHandlerName(handler);
       if (target) {
         references.push({
@@ -96,8 +105,8 @@ export const djangoResolver: FrameworkResolver = {
  */
 function resolveHandlerName(expr: string): { name: string; kind: 'references' | 'imports' } | null {
   // include('module.path')
-  const includeMatch = expr.match(/^include\s*\(\s*['"]([^'"]+)['"]/);
-  if (includeMatch) return { name: includeMatch[1]!, kind: 'imports' };
+  const includeMatch = /^include\s*\(\s*['"]([^'"]+)['"]/.exec(expr);
+  if (includeMatch) return { name: includeMatch[1], kind: 'imports' };
 
   // Strip trailing .as_view(...) or .as_view()
   let head = expr.replace(/\.as_view\s*\([^)]*\)\s*$/, '');
@@ -106,7 +115,7 @@ function resolveHandlerName(expr: string): { name: string; kind: 'references' | 
 
   const dotted = head.split('.').filter(Boolean);
   if (dotted.length === 0) return null;
-  const last = dotted[dotted.length - 1]!;
+  const last = dotted[dotted.length - 1];
   if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(last)) return null;
 
   return { name: last, kind: 'references' };
@@ -131,7 +140,8 @@ export const flaskResolver: FrameworkResolver = {
   resolve(ref, context) {
     if (ref.referenceName.endsWith('_bp') || ref.referenceName.endsWith('_blueprint')) {
       const result = resolveByNameAndKind(ref.referenceName, VARIABLE_KINDS, [], context);
-      if (result) return { original: ref, targetNodeId: result, confidence: 0.8, resolvedBy: 'framework' };
+      if (result)
+        return { original: ref, targetNodeId: result, confidence: 0.8, resolvedBy: 'framework' };
     }
     return null;
   },
@@ -140,7 +150,8 @@ export const flaskResolver: FrameworkResolver = {
     if (!filePath.endsWith('.py')) return { nodes: [], references: [] };
     return extractDecoratorRoutes(filePath, stripCommentsForRegex(content, 'python'), {
       // Flask: @x.route('/path', methods=[...])
-      decoratorRegex: /@(\w+)\.route\s*\(\s*['"]([^'"]+)['"](?:\s*,\s*methods\s*=\s*\[([^\]]+)\])?\s*\)\s*\n\s*(?:async\s+)?def\s+(\w+)/g,
+      decoratorRegex:
+        /@(\w+)\.route\s*\(\s*['"]([^'"]+)['"](?:\s*,\s*methods\s*=\s*\[([^\]]+)\])?\s*\)\s*\n\s*(?:async\s+)?def\s+(\w+)/g,
       defaultMethod: 'GET',
       methodFromGroup: 3,
       pathGroup: 2,
@@ -169,11 +180,13 @@ export const fastapiResolver: FrameworkResolver = {
   resolve(ref, context) {
     if (ref.referenceName.endsWith('_router') || ref.referenceName === 'router') {
       const result = resolveByNameAndKind(ref.referenceName, VARIABLE_KINDS, ROUTER_DIRS, context);
-      if (result) return { original: ref, targetNodeId: result, confidence: 0.8, resolvedBy: 'framework' };
+      if (result)
+        return { original: ref, targetNodeId: result, confidence: 0.8, resolvedBy: 'framework' };
     }
     if (ref.referenceName.startsWith('get_') || ref.referenceName.startsWith('Depends')) {
       const result = resolveByNameAndKind(ref.referenceName, FUNCTION_KINDS, DEP_DIRS, context);
-      if (result) return { original: ref, targetNodeId: result, confidence: 0.75, resolvedBy: 'framework' };
+      if (result)
+        return { original: ref, targetNodeId: result, confidence: 0.75, resolvedBy: 'framework' };
     }
     return null;
   },
@@ -203,7 +216,11 @@ interface DecoratorRouteOpts {
   language: 'python';
 }
 
-function extractDecoratorRoutes(filePath: string, content: string, opts: DecoratorRouteOpts): FrameworkExtractionResult {
+function extractDecoratorRoutes(
+  filePath: string,
+  content: string,
+  opts: DecoratorRouteOpts,
+): FrameworkExtractionResult {
   const nodes: Node[] = [];
   const references: UnresolvedRef[] = [];
   const now = Date.now();
@@ -212,13 +229,13 @@ function extractDecoratorRoutes(filePath: string, content: string, opts: Decorat
     const routePath = match[opts.pathGroup];
     let method = opts.defaultMethod;
     if (opts.methodGroup && match[opts.methodGroup]) {
-      method = match[opts.methodGroup]!.toUpperCase();
+      method = match[opts.methodGroup].toUpperCase();
     } else if (opts.methodFromGroup && match[opts.methodFromGroup]) {
-      const m = match[opts.methodFromGroup]!.match(/['"]([A-Z]+)['"]/i);
-      if (m) method = m[1]!.toUpperCase();
+      const m = /['"]([A-Z]+)['"]/i.exec(match[opts.methodFromGroup]);
+      if (m) method = m[1].toUpperCase();
     }
     const line = content.slice(0, match.index).split('\n').length;
-    const name = method ? `${method} ${routePath}` : routePath!;
+    const name = method ? `${method} ${routePath}` : routePath;
     const routeNode: Node = {
       id: `route:${filePath}:${line}:${method}:${routePath}`,
       kind: 'route',
@@ -239,7 +256,7 @@ function extractDecoratorRoutes(filePath: string, content: string, opts: Decorat
       handlerName = match[opts.handlerGroup];
     } else if (opts.findHandler) {
       const tail = content.slice(match.index + match[0].length);
-      const defMatch = tail.match(/\n\s*(?:async\s+)?def\s+(\w+)/);
+      const defMatch = /\n\s*(?:async\s+)?def\s+(\w+)/.exec(tail);
       if (defMatch) handlerName = defMatch[1];
     }
     if (handlerName) {
@@ -287,11 +304,11 @@ function resolveByNameAndKind(
   // Prefer candidates in framework-conventional directories
   if (preferredDirPatterns.length > 0) {
     const preferred = kindFiltered.filter((n) =>
-      preferredDirPatterns.some((d) => n.filePath.includes(d))
+      preferredDirPatterns.some((d) => n.filePath.includes(d)),
     );
-    if (preferred.length > 0) return preferred[0]!.id;
+    if (preferred.length > 0) return preferred[0].id;
   }
 
   // Fall back to any match
-  return kindFiltered[0]!.id;
+  return kindFiltered[0].id;
 }

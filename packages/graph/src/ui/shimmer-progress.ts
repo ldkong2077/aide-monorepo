@@ -1,5 +1,10 @@
 import { Worker } from 'worker_threads';
 import * as path from 'path';
+import { fileURLToPath } from 'url';
+
+// ESM polyfill: __dirname is not defined in ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const PHASE_NAMES: Record<string, string> = {
   scanning: 'Scanning files',

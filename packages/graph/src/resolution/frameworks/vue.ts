@@ -1,12 +1,12 @@
-﻿/**
+/**
  * Vue / Nuxt Framework Resolver
  *
  * Handles Vue component references, compiler macros (defineProps, etc.),
  * Nuxt auto-imports, and Nuxt file-based routing patterns.
  */
 
-import { Node } from '../../types.js';
-import { FrameworkResolver, UnresolvedRef, ResolvedRef, ResolutionContext } from '../types.js';
+import { type Node } from '../../types.js';
+import { type FrameworkResolver, type UnresolvedRef, type ResolvedRef, type ResolutionContext } from '../types.js';
 
 /**
  * Vue 3 compiler macros — compiler-provided, not user code
@@ -69,13 +69,7 @@ const NUXT_AUTO_IMPORTS = new Set([
 /**
  * Nuxt virtual module prefixes (auto-import namespaces)
  */
-const NUXT_VIRTUAL_MODULES = [
-  '#imports',
-  '#components',
-  '#app',
-  '#build',
-  '#head',
-];
+const NUXT_VIRTUAL_MODULES = ['#imports', '#components', '#app', '#build', '#head'];
 
 export const vueResolver: FrameworkResolver = {
   name: 'vue',
@@ -143,7 +137,7 @@ export const vueResolver: FrameworkResolver = {
           if (nodes.length > 0) {
             return {
               original: ref,
-              targetNodeId: nodes[0]!.id,
+              targetNodeId: nodes[0].id,
               confidence: 0.9,
               resolvedBy: 'framework',
             };
@@ -162,7 +156,7 @@ export const vueResolver: FrameworkResolver = {
           if (nodes.length > 0) {
             return {
               original: ref,
-              targetNodeId: nodes[0]!.id,
+              targetNodeId: nodes[0].id,
               confidence: 0.9,
               resolvedBy: 'framework',
             };
@@ -277,7 +271,7 @@ function isPascalCase(str: string): boolean {
 function resolveComponent(
   name: string,
   fromFile: string,
-  context: ResolutionContext
+  context: ResolutionContext,
 ): string | null {
   const allFiles = context.getAllFiles();
   const vueFiles = allFiles.filter((f) => f.endsWith('.vue'));
@@ -327,10 +321,12 @@ function filePathToNuxtRoute(normalized: string, afterPagesStart: number): strin
   const withoutIndex = withoutExt.replace(/\/index$/, '');
 
   // Convert Nuxt param syntax [param] to :param
-  let route = '/' + withoutIndex
-    .replace(/\[\.\.\.([^\]]+)\]/g, '*$1')  // [...slug] -> *slug (catch-all)
-    .replace(/\[{2}([^\]]+)\]{2}/g, ':$1?') // [[optional]] -> :optional?
-    .replace(/\[([^\]]+)\]/g, ':$1');        // [param] -> :param
+  const route =
+    '/' +
+    withoutIndex
+      .replace(/\[\.\.\.([^\]]+)\]/g, '*$1') // [...slug] -> *slug (catch-all)
+      .replace(/\[{2}([^\]]+)\]{2}/g, ':$1?') // [[optional]] -> :optional?
+      .replace(/\[([^\]]+)\]/g, ':$1'); // [param] -> :param
 
   if (route === '/') return '/';
   // Remove trailing slash

@@ -179,10 +179,7 @@ export function extractTokenUsageFromAnthropicSSE(events: SSEEvent[]): UsageInfo
  * 收集 SSE 事件并估算 token 使用量
  * 当流中没有 usage 信息时，通过文本长度估算
  */
-export function estimateTokenUsage(
-  promptText: string,
-  completionText: string,
-): UsageInfo {
+export function estimateTokenUsage(promptText: string, completionText: string): UsageInfo {
   // 粗略估算：英文约4字符/token，中文约2字符/token
   const estimateTokens = (text: string): number => {
     const cjkChars = (text.match(/[\u4e00-\u9fff\u3400-\u4dbf]/g) || []).length;

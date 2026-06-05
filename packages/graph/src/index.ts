@@ -1,65 +1,77 @@
-﻿/**
+/**
  * CodeGraph
  *
  * A local-first code intelligence system that builds a semantic
  * knowledge graph from any codebase.
  */
 
-import * as path from 'path';
+import * as path from "path";
 import {
-  Node,
-  Edge,
-  FileRecord,
-  ExtractionResult,
-  Subgraph,
-  TraversalOptions,
-  SearchOptions,
-  SearchResult,
-  Context,
-  GraphStats,
-  TaskInput,
-  TaskContext,
-  BuildContextOptions,
-  FindRelevantContextOptions,
-} from './types.js';
-import { DatabaseConnection, getDatabasePath } from './db/index.js';
-import { QueryBuilder } from './db/queries.js';
+  type Node,
+  type Edge,
+  type FileRecord,
+  type ExtractionResult,
+  type Subgraph,
+  type TraversalOptions,
+  type SearchOptions,
+  type SearchResult,
+  type Context,
+  type GraphStats,
+  type TaskInput,
+  type TaskContext,
+  type BuildContextOptions,
+  type FindRelevantContextOptions,
+} from "./types.js";
+import {
+  DatabaseConnection,
+  getDatabasePath,
+  type SqliteBackend,
+} from "./db/index.js";
+import { QueryBuilder } from "./db/queries.js";
 import {
   isInitialized,
   createDirectory,
   removeDirectory,
   validateDirectory,
-} from './directory.js';
+} from "./directory.js";
 import {
   ExtractionOrchestrator,
-  IndexProgress,
-  IndexResult,
-  SyncResult,
+  type IndexProgress,
+  type IndexResult,
+  type SyncResult,
   extractFromSource,
   initGrammars,
-} from './extraction/index.js';
+} from "./extraction/index.js";
 import {
-  ReferenceResolver,
+  type ReferenceResolver,
   createResolver,
-  ResolutionResult,
-} from './resolution/index.js';
-import { GraphTraverser, GraphQueryManager } from './graph/index.js';
-import { ContextBuilder, createContextBuilder } from './context/index.js';
-import { Mutex, FileLock } from './utils.js';
-import { FileWatcher, WatchOptions } from './sync/index.js';
+  type ResolutionResult,
+} from "./resolution/index.js";
+import { GraphTraverser, GraphQueryManager } from "./graph/index.js";
+import { type ContextBuilder, createContextBuilder } from "./context/index.js";
+import { Mutex, FileLock } from "./utils.js";
+import { FileWatcher, type WatchOptions } from "./sync/index.js";
 
 // Re-export types for consumers
-export * from './types.js';
-export { getDatabasePath } from './db/index.js';
+export * from "./types.js";
+export { getDatabasePath } from "./db/index.js";
 export {
   getCodeGraphDir,
   isInitialized,
   findNearestCodeGraphRoot,
   CODEGRAPH_DIR,
-} from './directory.js';
-export { IndexProgress, IndexResult, SyncResult } from './extraction/index.js';
-export { detectLanguage, isLanguageSupported, isGrammarLoaded, getSupportedLanguages, initGrammars, loadGrammarsForLanguages, loadAllGrammars } from './extraction/index.js';
-export { ResolutionResult } from './resolution/index.js';
+} from "./directory.js";
+export { IndexProgress, IndexResult, SyncResult } from "./extraction/index.js";
+export {
+  detectLanguage,
+  isLanguageSupported,
+  isGrammarLoaded,
+  getSupportedLanguages,
+  initGrammars,
+  loadGrammarsForLanguages,
+  loadAllGrammars,
+} from "./extraction/index.js";
+export { ResolutionResult } from "./resolution/index.js";
 export {
   CodeGraphError,
   FileError,
@@ -73,10 +85,24 @@ export {
   getLogger,
   silentLogger,
   defaultLogger,
-} from './errors.js';
-export { Mutex, FileLock, processInBatches, debounce, throttle, MemoryMonitor } from './utils.js';
-export { FileWatcher, WatchOptions } from './sync/index.js';
-export { MCPServer } from './mcp/index.js';
+} from "./errors.js";
+export {
+  Mutex,
+  FileLock,
+  processInBatches,
+  debounce,
+  throttle,
+  MemoryMonitor,
+} from "./utils.js";
+export { FileWatcher, WatchOptions } from "./sync/index.js";
+export { MCPServer } from "./mcp/index.js";
+// Note: the installer lives at the `@aide/graph/installer` subpath
+// (see `package.json#exports`). It is intentionally NOT re-exported
+// from the main entry because the installer must stay importable even
+// when tree-sitter native modules (`web-tree-sitter`, WASM grammars)
+// can't be loaded — e.g. during `aide install` on a system that
+// only needs to write config files. Importing the installer via the
+// main entry would transitively pull in the extraction pipeline.
 
 /**
  * Options for initializing a new CodeGraph project
@@ -141,13 +167,13 @@ export class CodeGraph {
   private constructor(
     db: DatabaseConnection,
     queries: QueryBuilder,
-    projectRoot: string
+    projectRoot: string,
   ) {
     this.db = db;
     this.queries = queries;
     this.projectRoot = projectRoot;
     this.fileLock = new FileLock(
-      path.join(projectRoot, '.codegraph', 'codegraph.lock')
+      path.join(projectRoot, ".codegraph", "codegraph.lock"),
     );
     this.orchestrator = new ExtractionOrchestrator(projectRoot, queries);
     this.resolver = createResolver(projectRoot, queries);
@@ -156,7 +182,7 @@ export class CodeGraph {
     this.contextBuilder = createContextBuilder(
       projectRoot,
       queries,
-      this.traverser
+      this.traverser,
     );
   }
 
@@ -173,7 +199,10 @@ export class CodeGraph {
    * @param options - Initialization options
    * @returns A new CodeGraph instance
    */
-  static async init(projectRoot: string, options: InitOptions = {}): Promise<CodeGraph> {
+  static async init(
+    projectRoot: string,
+    options: InitOptions = {},
+  ): Promise<CodeGraph> {
     await initGrammars();
     const resolvedRoot = path.resolve(projectRoot);
 
@@ -229,19 +258,26 @@ export class CodeGraph {
    * @param options - Open options
    * @returns A CodeGraph instance
    */
-  static async open(projectRoot: string, options: OpenOptions = {}): Promise<CodeGraph> {
+  static async open(
+    projectRoot: string,
+    options: OpenOptions = {},
+  ): Promise<CodeGraph> {
     await initGrammars();
     const resolvedRoot = path.resolve(projectRoot);
 
     // Check if initialized
     if (!isInitialized(resolvedRoot)) {
-      throw new Error(`CodeGraph not initialized in ${resolvedRoot}. Run init() first.`);
+      throw new Error(
+        `CodeGraph not initialized in ${resolvedRoot}. Run init() first.`,
+      );
     }
 
     // Validate directory structure
     const validation = validateDirectory(resolvedRoot);
     if (!validation.valid) {
-      throw new Error(`Invalid CodeGraph directory: ${validation.errors.join(', ')}`);
+      throw new Error(
+        `Invalid CodeGraph directory: ${validation.errors.join(", ")}`,
+      );
     }
 
     // Open database
@@ -267,13 +303,17 @@ export class CodeGraph {
 
     // Check if initialized
     if (!isInitialized(resolvedRoot)) {
-      throw new Error(`CodeGraph not initialized in ${resolvedRoot}. Run init() first.`);
+      throw new Error(
+        `CodeGraph not initialized in ${resolvedRoot}. Run init() first.`,
+      );
     }
 
     // Validate directory structure
     const validation = validateDirectory(resolvedRoot);
     if (!validation.valid) {
-      throw new Error(`Invalid CodeGraph directory: ${validation.errors.join(', ')}`);
+      throw new Error(
+        `Invalid CodeGraph directory: ${validation.errors.join(", ")}`,
+      );
     }
 
     // Open database
@@ -322,10 +362,29 @@ export class CodeGraph {
       try {
         this.fileLock.acquire();
       } catch {
-        return { success: false, filesIndexed: 0, filesSkipped: 0, filesErrored: 0, nodesCreated: 0, edgesCreated: 0, errors: [{ message: 'Could not acquire file lock - another process may be indexing', severity: 'error' as const }], durationMs: 0 };
+        return {
+          success: false,
+          filesIndexed: 0,
+          filesSkipped: 0,
+          filesErrored: 0,
+          nodesCreated: 0,
+          edgesCreated: 0,
+          errors: [
+            {
+              message:
+                "Could not acquire file lock - another process may be indexing",
+              severity: "error" as const,
+            },
+          ],
+          durationMs: 0,
+        };
       }
       try {
-        const result = await this.orchestrator.indexAll(options.onProgress, options.signal, options.verbose);
+        const result = await this.orchestrator.indexAll(
+          options.onProgress,
+          options.signal,
+          options.verbose,
+        );
 
         // Resolve references to create call/import/extends edges
         if (result.success && result.filesIndexed > 0) {
@@ -333,14 +392,14 @@ export class CodeGraph {
           const unresolvedCount = this.queries.getUnresolvedReferencesCount();
 
           options.onProgress?.({
-            phase: 'resolving',
+            phase: "resolving",
             current: 0,
             total: unresolvedCount,
           });
 
           await this.resolveReferencesBatched((current, total) => {
             options.onProgress?.({
-              phase: 'resolving',
+              phase: "resolving",
               current,
               total,
             });
@@ -364,7 +423,22 @@ export class CodeGraph {
       try {
         this.fileLock.acquire();
       } catch {
-        return { success: false, filesIndexed: 0, filesSkipped: 0, filesErrored: 0, nodesCreated: 0, edgesCreated: 0, errors: [{ message: 'Could not acquire file lock - another process may be indexing', severity: 'error' as const }], durationMs: 0 };
+        return {
+          success: false,
+          filesIndexed: 0,
+          filesSkipped: 0,
+          filesErrored: 0,
+          nodesCreated: 0,
+          edgesCreated: 0,
+          errors: [
+            {
+              message:
+                "Could not acquire file lock - another process may be indexing",
+              severity: "error" as const,
+            },
+          ],
+          durationMs: 0,
+        };
       }
       try {
         return this.orchestrator.indexFiles(filePaths);
@@ -384,7 +458,14 @@ export class CodeGraph {
       try {
         this.fileLock.acquire();
       } catch {
-        return { filesChecked: 0, filesAdded: 0, filesModified: 0, filesRemoved: 0, nodesUpdated: 0, durationMs: 0 };
+        return {
+          filesChecked: 0,
+          filesAdded: 0,
+          filesModified: 0,
+          filesRemoved: 0,
+          nodesUpdated: 0,
+          durationMs: 0,
+        };
       }
       try {
         const result = await this.orchestrator.sync(options.onProgress);
@@ -393,34 +474,39 @@ export class CodeGraph {
         if (result.filesAdded > 0 || result.filesModified > 0) {
           if (result.changedFilePaths) {
             // Scope resolution to changed files (git fast path — bounded set)
-            const unresolvedRefs = this.queries.getUnresolvedReferencesByFiles(result.changedFilePaths);
+            const unresolvedRefs = this.queries.getUnresolvedReferencesByFiles(
+              result.changedFilePaths,
+            );
 
             options.onProgress?.({
-              phase: 'resolving',
+              phase: "resolving",
               current: 0,
               total: unresolvedRefs.length,
             });
 
-            this.resolver.resolveAndPersist(unresolvedRefs, (current, total) => {
-              options.onProgress?.({
-                phase: 'resolving',
-                current,
-                total,
-              });
-            });
+            this.resolver.resolveAndPersist(
+              unresolvedRefs,
+              (current, total) => {
+                options.onProgress?.({
+                  phase: "resolving",
+                  current,
+                  total,
+                });
+              },
+            );
           } else {
             // No git info — use batched resolution to avoid OOM
             const unresolvedCount = this.queries.getUnresolvedReferencesCount();
 
             options.onProgress?.({
-              phase: 'resolving',
+              phase: "resolving",
               current: 0,
               total: unresolvedCount,
             });
 
             await this.resolveReferencesBatched((current, total) => {
               options.onProgress?.({
-                phase: 'resolving',
+                phase: "resolving",
                 current,
                 total,
               });
@@ -462,10 +548,11 @@ export class CodeGraph {
       this.projectRoot,
       async () => {
         const result = await this.sync();
-        const filesChanged = result.filesAdded + result.filesModified + result.filesRemoved;
+        const filesChanged =
+          result.filesAdded + result.filesModified + result.filesRemoved;
         return { filesChanged, durationMs: result.durationMs };
       },
-      options
+      options,
     );
 
     return this.watcher.start();
@@ -491,7 +578,11 @@ export class CodeGraph {
   /**
    * Get files that have changed since last index
    */
-  getChangedFiles(): { added: string[]; modified: string[]; removed: string[] } {
+  getChangedFiles(): {
+    added: string[];
+    modified: string[];
+    removed: string[];
+  } {
     return this.orchestrator.getChangedFiles();
   }
 
@@ -515,7 +606,9 @@ export class CodeGraph {
    * - Import-based resolution
    * - Name-based symbol matching
    */
-  resolveReferences(onProgress?: (current: number, total: number) => void): ResolutionResult {
+  resolveReferences(
+    onProgress?: (current: number, total: number) => void,
+  ): ResolutionResult {
     // Get all unresolved references from the database
     const unresolvedRefs = this.queries.getUnresolvedReferences();
     return this.resolver.resolveAndPersist(unresolvedRefs, onProgress);
@@ -525,7 +618,9 @@ export class CodeGraph {
    * Resolve references in batches to keep memory bounded on large codebases.
    * Processes chunks of unresolved refs, persisting results after each batch.
    */
-  async resolveReferencesBatched(onProgress?: (current: number, total: number) => void): Promise<ResolutionResult> {
+  async resolveReferencesBatched(
+    onProgress?: (current: number, total: number) => void,
+  ): Promise<ResolutionResult> {
     return this.resolver.resolveAndPersistBatched(onProgress);
   }
 
@@ -561,7 +656,7 @@ export class CodeGraph {
    * built-in real-SQLite module). Surfaced via `codegraph status` and the
    * `codegraph_status` MCP tool alongside the effective journal mode.
    */
-  getBackend(): import('./db/index.js').SqliteBackend {
+  getBackend(): SqliteBackend {
     return this.db.getBackend();
   }
 
@@ -596,7 +691,7 @@ export class CodeGraph {
   /**
    * Get all nodes of a specific kind
    */
-  getNodesByKind(kind: Node['kind']): Node[] {
+  getNodesByKind(kind: Node["kind"]): Node[] {
     return this.queries.getNodesByKind(kind);
   }
 
@@ -685,7 +780,7 @@ export class CodeGraph {
    * @param depth - Maximum depth in each direction (default: 2)
    * @returns Subgraph containing the call graph
    */
-  getCallGraph(nodeId: string, depth: number = 2): Subgraph {
+  getCallGraph(nodeId: string, depth = 2): Subgraph {
     return this.traverser.getCallGraph(nodeId, depth);
   }
 
@@ -711,7 +806,7 @@ export class CodeGraph {
    * @param nodeId - ID of the symbol node
    * @returns Array of nodes and edges that reference this symbol
    */
-  findUsages(nodeId: string): Array<{ node: Node; edge: Edge }> {
+  findUsages(nodeId: string): { node: Node; edge: Edge }[] {
     return this.traverser.findUsages(nodeId);
   }
 
@@ -722,7 +817,7 @@ export class CodeGraph {
    * @param maxDepth - Maximum depth to traverse (default: 1)
    * @returns Array of nodes that call this function
    */
-  getCallers(nodeId: string, maxDepth: number = 1): Array<{ node: Node; edge: Edge }> {
+  getCallers(nodeId: string, maxDepth = 1): { node: Node; edge: Edge }[] {
     return this.traverser.getCallers(nodeId, maxDepth);
   }
 
@@ -733,7 +828,7 @@ export class CodeGraph {
    * @param maxDepth - Maximum depth to traverse (default: 1)
    * @returns Array of nodes called by this function
    */
-  getCallees(nodeId: string, maxDepth: number = 1): Array<{ node: Node; edge: Edge }> {
+  getCallees(nodeId: string, maxDepth = 1): { node: Node; edge: Edge }[] {
     return this.traverser.getCallees(nodeId, maxDepth);
   }
 
@@ -746,7 +841,7 @@ export class CodeGraph {
    * @param maxDepth - Maximum depth to traverse (default: 3)
    * @returns Subgraph containing potentially impacted nodes
    */
-  getImpactRadius(nodeId: string, maxDepth: number = 3): Subgraph {
+  getImpactRadius(nodeId: string, maxDepth = 3): Subgraph {
     return this.traverser.getImpactRadius(nodeId, maxDepth);
   }
 
@@ -761,8 +856,8 @@ export class CodeGraph {
   findPath(
     fromId: string,
     toId: string,
-    edgeKinds?: Edge['kind'][]
-  ): Array<{ node: Node; edge: Edge | null }> | null {
+    edgeKinds?: Edge["kind"][],
+  ): { node: Node; edge: Edge | null }[] | null {
     return this.traverser.findPath(fromId, toId, edgeKinds);
   }
 
@@ -821,7 +916,7 @@ export class CodeGraph {
    * @param kinds - Node kinds to check (default: functions, methods, classes)
    * @returns Array of unreferenced nodes
    */
-  findDeadCode(kinds?: Node['kind'][]): Node[] {
+  findDeadCode(kinds?: Node["kind"][]): Node[] {
     return this.graphManager.findDeadCode(kinds);
   }
 
@@ -870,7 +965,7 @@ export class CodeGraph {
    */
   async findRelevantContext(
     query: string,
-    options?: FindRelevantContextOptions
+    options?: FindRelevantContextOptions,
   ): Promise<Subgraph> {
     return this.contextBuilder.findRelevantContext(query, options);
   }
@@ -890,7 +985,7 @@ export class CodeGraph {
    */
   async buildContext(
     input: TaskInput,
-    options?: BuildContextOptions
+    options?: BuildContextOptions,
   ): Promise<TaskContext | string> {
     return this.contextBuilder.buildContext(input, options);
   }

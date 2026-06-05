@@ -28,14 +28,42 @@ export interface Storage {
   getCostSummary(period: 'today' | 'week' | 'month'): CostSummary;
   getCostByModel(): Record<string, number>;
   getCostByTask(): Record<string, number>;
-  recordRouteLog(taskType: TaskType, fromModel: string, toModel: string, toProvider: string, latency: number, success: boolean): void;
+  recordRouteLog(
+    taskType: TaskType,
+    fromModel: string,
+    toModel: string,
+    toProvider: string,
+    latency: number,
+    success: boolean,
+  ): void;
   getRouteLogs(limit: number): RouteLog[];
-  recordModelPerformance(provider: string, model: string, taskType: TaskType, success: boolean, latency: number): void;
+  recordModelPerformance(
+    provider: string,
+    model: string,
+    taskType: TaskType,
+    success: boolean,
+    latency: number,
+  ): void;
   getModelPerformance(): ModelPerformance[];
   recordVerification(report: VerificationReport): void;
   getVerificationHistory(limit: number): VerificationReport[];
-  addHallucinationRule(rule: { category: string; pattern: string; language?: string; severity?: string; message: string; suggestion?: string }): void;
-  getHallucinationRules(language?: string): Array<{ id: number; category: string; pattern: string; language: string; severity: string; message: string; suggestion: string | null }>;
+  addHallucinationRule(rule: {
+    category: string;
+    pattern: string;
+    language?: string;
+    severity?: string;
+    message: string;
+    suggestion?: string;
+  }): void;
+  getHallucinationRules(language?: string): {
+    id: number;
+    category: string;
+    pattern: string;
+    language: string;
+    severity: string;
+    message: string;
+    suggestion: string | null;
+  }[];
   addTrustedPackage(name: string, language?: string): void;
   getTrustedPackages(language?: string): string[];
   close(): void;
@@ -278,34 +306,50 @@ export class SQLiteStorage implements Storage {
   getCostSummary(period: 'today' | 'week' | 'month'): CostSummary {
     const since = this.getPeriodStart(period);
 
-    const totalRow = this.db.prepare(`
+    const totalRow = this.db
+      .prepare(
+        `
       SELECT
         COALESCE(SUM(cost_usd), 0) as total_usd,
         COUNT(*) as request_count
       FROM cost_records
       WHERE timestamp >= ?
-    `).get(since) as { total_usd: number; request_count: number };
+    `,
+      )
+      .get(since) as { total_usd: number; request_count: number };
 
-    const byModelRows = this.db.prepare(`
+    const byModelRows = this.db
+      .prepare(
+        `
       SELECT model, COALESCE(SUM(cost_usd), 0) as total
       FROM cost_records
       WHERE timestamp >= ?
       GROUP BY model
-    `).all(since) as Array<{ model: string; total: number }>;
+    `,
+      )
+      .all(since) as { model: string; total: number }[];
 
-    const byTaskRows = this.db.prepare(`
+    const byTaskRows = this.db
+      .prepare(
+        `
       SELECT task_type, COALESCE(SUM(cost_usd), 0) as total
       FROM cost_records
       WHERE timestamp >= ?
       GROUP BY task_type
-    `).all(since) as Array<{ task_type: string; total: number }>;
+    `,
+      )
+      .all(since) as { task_type: string; total: number }[];
 
-    const byProviderRows = this.db.prepare(`
+    const byProviderRows = this.db
+      .prepare(
+        `
       SELECT provider, COALESCE(SUM(cost_usd), 0) as total
       FROM cost_records
       WHERE timestamp >= ?
       GROUP BY provider
-    `).all(since) as Array<{ provider: string; total: number }>;
+    `,
+      )
+      .all(since) as { provider: string; total: number }[];
 
     const byModel: Record<string, number> = {};
     for (const row of byModelRows) {
@@ -334,11 +378,15 @@ export class SQLiteStorage implements Storage {
 
   /** 按模型获取成本 */
   getCostByModel(): Record<string, number> {
-    const rows = this.db.prepare(`
+    const rows = this.db
+      .prepare(
+        `
       SELECT model, COALESCE(SUM(cost_usd), 0) as total
       FROM cost_records
       GROUP BY model
-    `).all() as Array<{ model: string; total: number }>;
+    `,
+      )
+      .all() as { model: string; total: number }[];
 
     const result: Record<string, number> = {};
     for (const row of rows) {
@@ -349,11 +397,15 @@ export class SQLiteStorage implements Storage {
 
   /** 按任务类型获取成本 */
   getCostByTask(): Record<string, number> {
-    const rows = this.db.prepare(`
+    const rows = this.db
+      .prepare(
+        `
       SELECT task_type, COALESCE(SUM(cost_usd), 0) as total
       FROM cost_records
       GROUP BY task_type
-    `).all() as Array<{ task_type: string; total: number }>;
+    `,
+      )
+      .all() as { task_type: string; total: number }[];
 
     const result: Record<string, number> = {};
     for (const row of rows) {
@@ -382,9 +434,13 @@ export class SQLiteStorage implements Storage {
 
   /** 获取路由日志 */
   getRouteLogs(limit: number): RouteLog[] {
-    const rows = this.db.prepare(`
+    const rows = this.db
+      .prepare(
+        `
       SELECT * FROM route_logs ORDER BY timestamp DESC LIMIT ?
-    `).all(limit) as Array<{
+    `,
+      )
+      .all(limit) as {
       id: number;
       timestamp: number;
       task_type: string;
@@ -394,7 +450,7 @@ export class SQLiteStorage implements Storage {
       latency_ms: number;
       success: number;
       cost_usd: number;
-    }>;
+    }[];
 
     return rows.map((row) => ({
       id: row.id,
@@ -431,19 +487,29 @@ export class SQLiteStorage implements Storage {
         last_used = ?
     `);
     stmt.run(
-      provider, model, taskType,
-      success ? 1 : 0, latency, Date.now(),
-      success ? 1 : 0, latency, Date.now(),
+      provider,
+      model,
+      taskType,
+      success ? 1 : 0,
+      latency,
+      Date.now(),
+      success ? 1 : 0,
+      latency,
+      Date.now(),
     );
   }
 
   /** 获取模型性能数据 */
   getModelPerformance(): ModelPerformance[] {
-    const rows = this.db.prepare(`
+    const rows = this.db
+      .prepare(
+        `
       SELECT provider, model, task_type, total_requests, success_count, avg_latency_ms, last_used
       FROM model_performance
       ORDER BY last_used DESC
-    `).all() as Array<{
+    `,
+      )
+      .all() as {
       provider: string;
       model: string;
       task_type: string;
@@ -451,7 +517,7 @@ export class SQLiteStorage implements Storage {
       success_count: number;
       avg_latency_ms: number;
       last_used: number;
-    }>;
+    }[];
 
     return rows.map((row) => ({
       provider: row.provider,
@@ -484,9 +550,13 @@ export class SQLiteStorage implements Storage {
 
   /** 获取验证历史 */
   getVerificationHistory(limit: number): VerificationReport[] {
-    const rows = this.db.prepare(`
+    const rows = this.db
+      .prepare(
+        `
       SELECT * FROM verification_reports ORDER BY timestamp DESC LIMIT ?
-    `).all(limit) as Array<{
+    `,
+      )
+      .all(limit) as {
       id: number;
       timestamp: number;
       files_checked: string;
@@ -494,7 +564,7 @@ export class SQLiteStorage implements Storage {
       hallucinations: string;
       confidence: string;
       test_result: string | null;
-    }>;
+    }[];
 
     return rows.map((row) => ({
       timestamp: row.timestamp,
@@ -515,25 +585,28 @@ export class SQLiteStorage implements Storage {
     if (pattern.length > 1000) {
       return { valid: false, error: 'Pattern too long (max 1000 chars)' };
     }
-    
+
     // 检测嵌套量词（ReDoS 风险）
     const nestedQuantifiers = /(\+|\*|\{[0-9]+,?\})\s*\)/;
     if (nestedQuantifiers.test(pattern)) {
       return { valid: false, error: 'Nested quantifiers detected (ReDoS risk)' };
     }
-    
+
     // 检测回溯引用
     const backreferences = /\\[1-9]/;
     if (backreferences.test(pattern)) {
       return { valid: false, error: 'Backreferences not allowed' };
     }
-    
+
     // 尝试编译正则表达式
     try {
       new RegExp(pattern);
       return { valid: true };
     } catch (e) {
-      return { valid: false, error: `Invalid regex: ${e instanceof Error ? e.message : String(e)}` };
+      return {
+        valid: false,
+        error: `Invalid regex: ${e instanceof Error ? e.message : String(e)}`,
+      };
     }
   }
 
@@ -547,12 +620,12 @@ export class SQLiteStorage implements Storage {
     suggestion?: string;
   }): { valid: boolean; errors: string[] } {
     const errors: string[] = [];
-    
+
     // 验证类别
     if (!rule.category || rule.category.length < 3) {
       errors.push('Category must be at least 3 characters');
     }
-    
+
     // 验证模式
     if (!rule.pattern) {
       errors.push('Pattern is required');
@@ -562,24 +635,38 @@ export class SQLiteStorage implements Storage {
         errors.push(`Pattern: ${patternValidation.error}`);
       }
     }
-    
+
     // 验证语言
-    const validLanguages = ['any', 'typescript', 'javascript', 'python', 'go', 'rust', 'java', 'c', 'cpp'];
+    const validLanguages = [
+      'any',
+      'typescript',
+      'javascript',
+      'python',
+      'go',
+      'rust',
+      'java',
+      'c',
+      'cpp',
+    ];
     if (rule.language && !validLanguages.includes(rule.language)) {
-      errors.push(`Invalid language: ${rule.language}. Must be one of: ${validLanguages.join(', ')}`);
+      errors.push(
+        `Invalid language: ${rule.language}. Must be one of: ${validLanguages.join(', ')}`,
+      );
     }
-    
+
     // 验证严重程度
     const validSeverities = ['low', 'medium', 'high', 'critical'];
     if (rule.severity && !validSeverities.includes(rule.severity)) {
-      errors.push(`Invalid severity: ${rule.severity}. Must be one of: ${validSeverities.join(', ')}`);
+      errors.push(
+        `Invalid severity: ${rule.severity}. Must be one of: ${validSeverities.join(', ')}`,
+      );
     }
-    
+
     // 验证消息
     if (!rule.message || rule.message.length < 10) {
       errors.push('Message must be at least 10 characters');
     }
-    
+
     return { valid: errors.length === 0, errors };
   }
 
@@ -597,17 +684,26 @@ export class SQLiteStorage implements Storage {
     if (!validation.valid) {
       throw new Error(`Invalid rule: ${validation.errors.join('; ')}`);
     }
-    
+
     const stmt = this.db.prepare(`
       INSERT INTO hallucination_rules (category, pattern, language, severity, message, suggestion, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `);
     const now = Date.now();
-    stmt.run(rule.category, rule.pattern, rule.language || 'any', rule.severity || 'medium', rule.message, rule.suggestion || null, now, now);
+    stmt.run(
+      rule.category,
+      rule.pattern,
+      rule.language || 'any',
+      rule.severity || 'medium',
+      rule.message,
+      rule.suggestion || null,
+      now,
+      now,
+    );
   }
 
   /** 获取所有启用的幻觉检测规则 */
-  getHallucinationRules(language?: string): Array<{
+  getHallucinationRules(language?: string): {
     id: number;
     category: string;
     pattern: string;
@@ -615,11 +711,13 @@ export class SQLiteStorage implements Storage {
     severity: string;
     message: string;
     suggestion: string | null;
-  }> {
+  }[] {
     if (language && language !== 'any') {
-      return this.db.prepare(
-        'SELECT * FROM hallucination_rules WHERE enabled = 1 AND (language = ? OR language = ?) ORDER BY category'
-      ).all(language, 'any') as Array<{
+      return this.db
+        .prepare(
+          'SELECT * FROM hallucination_rules WHERE enabled = 1 AND (language = ? OR language = ?) ORDER BY category',
+        )
+        .all(language, 'any') as {
         id: number;
         category: string;
         pattern: string;
@@ -627,11 +725,11 @@ export class SQLiteStorage implements Storage {
         severity: string;
         message: string;
         suggestion: string | null;
-      }>;
+      }[];
     }
-    return this.db.prepare(
-      'SELECT * FROM hallucination_rules WHERE enabled = 1 ORDER BY category'
-    ).all() as Array<{
+    return this.db
+      .prepare('SELECT * FROM hallucination_rules WHERE enabled = 1 ORDER BY category')
+      .all() as {
       id: number;
       category: string;
       pattern: string;
@@ -639,31 +737,35 @@ export class SQLiteStorage implements Storage {
       severity: string;
       message: string;
       suggestion: string | null;
-    }>;
+    }[];
   }
 
   /** 搜索幻觉规则（使用FTS5） */
-  searchHallucinationRules(query: string): Array<{
+  searchHallucinationRules(query: string): {
     id: number;
     category: string;
     pattern: string;
     message: string;
-  }> {
+  }[] {
     try {
       const safeQuery = this.escapeFTS5Query(query);
-      return this.db.prepare(`
+      return this.db
+        .prepare(
+          `
         SELECT r.id, r.category, r.pattern, r.message
         FROM hallucination_rules r
         JOIN rules_fts f ON r.rowid = f.rowid
         WHERE rules_fts MATCH ? AND r.enabled = 1
         ORDER BY rank
         LIMIT 20
-      `).all(safeQuery) as Array<{
+      `,
+        )
+        .all(safeQuery) as {
         id: number;
         category: string;
         pattern: string;
         message: string;
-      }>;
+      }[];
     } catch {
       return [];
     }
@@ -672,7 +774,7 @@ export class SQLiteStorage implements Storage {
   // ==================== 可信包管理 ====================
 
   /** 添加可信包 */
-  addTrustedPackage(name: string, language: string = 'any'): void {
+  addTrustedPackage(name: string, language = 'any'): void {
     const stmt = this.db.prepare(`
       INSERT OR IGNORE INTO trusted_packages (name, language, created_at)
       VALUES (?, ?, ?)
@@ -683,44 +785,51 @@ export class SQLiteStorage implements Storage {
   /** 获取所有可信包 */
   getTrustedPackages(language?: string): string[] {
     if (language && language !== 'any') {
-      const rows = this.db.prepare(
-        'SELECT name FROM trusted_packages WHERE language = ? OR language = ?'
-      ).all(language, 'any') as Array<{ name: string }>;
-      return rows.map(r => r.name);
+      const rows = this.db
+        .prepare('SELECT name FROM trusted_packages WHERE language = ? OR language = ?')
+        .all(language, 'any') as { name: string }[];
+      return rows.map((r) => r.name);
     }
-    const rows = this.db.prepare(
-      'SELECT name FROM trusted_packages'
-    ).all() as Array<{ name: string }>;
-    return rows.map(r => r.name);
+    const rows = this.db.prepare('SELECT name FROM trusted_packages').all() as { name: string }[];
+    return rows.map((r) => r.name);
   }
 
   /** 移除可信包 */
-  removeTrustedPackage(name: string, language: string = 'any'): void {
-    this.db.prepare('DELETE FROM trusted_packages WHERE name = ? AND language = ?').run(name, language);
+  removeTrustedPackage(name: string, language = 'any'): void {
+    this.db
+      .prepare('DELETE FROM trusted_packages WHERE name = ? AND language = ?')
+      .run(name, language);
   }
 
   // ==================== FTS5 搜索 ====================
 
   /** 搜索验证报告（使用FTS5全文搜索） */
-  searchVerificationReports(query: string, limit: number = 20): Array<{
+  searchVerificationReports(
+    query: string,
+    limit = 20,
+  ): {
     id: number;
     timestamp: number;
     files_checked: string;
-  }> {
+  }[] {
     try {
       const safeQuery = this.escapeFTS5Query(query);
-      return this.db.prepare(`
+      return this.db
+        .prepare(
+          `
         SELECT v.id, v.timestamp, v.files_checked
         FROM verification_reports v
         JOIN verification_fts f ON v.rowid = f.rowid
         WHERE verification_fts MATCH ?
         ORDER BY rank
         LIMIT ?
-      `).all(safeQuery, limit) as Array<{
+      `,
+        )
+        .all(safeQuery, limit) as {
         id: number;
         timestamp: number;
         files_checked: string;
-      }>;
+      }[];
     } catch {
       return [];
     }
@@ -729,9 +838,7 @@ export class SQLiteStorage implements Storage {
   // ==================== 工具方法 ====================
 
   private escapeFTS5Query(query: string): string {
-    return query
-      .replace(/["*]/g, '')
-      .replace(/\b(AND|OR|NOT|NEAR)\b/gi, '');
+    return query.replace(/["*]/g, '').replace(/\b(AND|OR|NOT|NEAR)\b/gi, '');
   }
 
   /** 获取时间段起始时间戳 */

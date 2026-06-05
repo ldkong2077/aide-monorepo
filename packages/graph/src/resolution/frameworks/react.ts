@@ -1,11 +1,11 @@
-﻿/**
+/**
  * React Framework Resolver
  *
  * Handles React and Next.js patterns.
  */
 
-import { Node } from '../../types.js';
-import { FrameworkResolver, UnresolvedRef, ResolvedRef, ResolutionContext } from '../types.js';
+import { type Node } from '../../types.js';
+import { type FrameworkResolver, type UnresolvedRef, type ResolvedRef, type ResolutionContext } from '../types.js';
 
 export const reactResolver: FrameworkResolver = {
   name: 'react',
@@ -98,14 +98,18 @@ export const reactResolver: FrameworkResolver = {
         const line = content.slice(0, match.index).split('\n').length;
 
         // Check if it returns JSX (rough heuristic)
-        const afterMatch = content.slice(match.index + fullMatch.length, match.index + fullMatch.length + 500);
-        const hasJSX = afterMatch.includes('<') && (afterMatch.includes('/>') || afterMatch.includes('</'));
+        const afterMatch = content.slice(
+          match.index + fullMatch.length,
+          match.index + fullMatch.length + 500,
+        );
+        const hasJSX =
+          afterMatch.includes('<') && (afterMatch.includes('/>') || afterMatch.includes('</'));
 
         if (hasJSX) {
           nodes.push({
             id: `component:${filePath}:${name}:${line}`,
             kind: 'component',
-            name: name!,
+            name: name,
             qualifiedName: `${filePath}::${name}`,
             filePath,
             startLine: line,
@@ -130,14 +134,15 @@ export const reactResolver: FrameworkResolver = {
       nodes.push({
         id: `hook:${filePath}:${name}:${line}`,
         kind: 'function',
-        name: name!,
+        name: name,
         qualifiedName: `${filePath}::${name}`,
         filePath,
         startLine: line,
         endLine: line,
         startColumn: 0,
         endColumn: fullMatch.length,
-        language: filePath.endsWith('.ts') || filePath.endsWith('.tsx') ? 'typescript' : 'javascript',
+        language:
+          filePath.endsWith('.ts') || filePath.endsWith('.tsx') ? 'typescript' : 'javascript',
         isExported: fullMatch.includes('export'),
         updatedAt: now,
       });
@@ -162,7 +167,11 @@ export const reactResolver: FrameworkResolver = {
             endLine: lineNum,
             startColumn: 0,
             endColumn: 0,
-            language: filePath.endsWith('.tsx') ? 'tsx' : filePath.endsWith('.ts') ? 'typescript' : 'javascript',
+            language: filePath.endsWith('.tsx')
+              ? 'tsx'
+              : filePath.endsWith('.ts')
+                ? 'typescript'
+                : 'javascript',
             updatedAt: now,
           });
         }
@@ -188,9 +197,28 @@ function isBuiltInType(name: string): boolean {
 }
 
 const BUILT_IN_TYPES = new Set([
-  'Array', 'Boolean', 'Date', 'Error', 'Function', 'JSON', 'Math', 'Number',
-  'Object', 'Promise', 'RegExp', 'String', 'Symbol', 'Map', 'Set', 'WeakMap', 'WeakSet',
-  'React', 'Component', 'Fragment', 'Suspense', 'StrictMode',
+  'Array',
+  'Boolean',
+  'Date',
+  'Error',
+  'Function',
+  'JSON',
+  'Math',
+  'Number',
+  'Object',
+  'Promise',
+  'RegExp',
+  'String',
+  'Symbol',
+  'Map',
+  'Set',
+  'WeakMap',
+  'WeakSet',
+  'React',
+  'Component',
+  'Fragment',
+  'Suspense',
+  'StrictMode',
 ]);
 
 const COMPONENT_KINDS = new Set(['component', 'function', 'class']);
@@ -201,7 +229,7 @@ const COMPONENT_KINDS = new Set(['component', 'function', 'class']);
 function resolveComponent(
   name: string,
   fromFile: string,
-  context: ResolutionContext
+  context: ResolutionContext,
 ): string | null {
   const candidates = context.getNodesByName(name);
   if (candidates.length === 0) return null;
@@ -212,16 +240,22 @@ function resolveComponent(
   // Prefer same directory
   const fromDir = fromFile.substring(0, fromFile.lastIndexOf('/'));
   const sameDir = components.filter((n) => n.filePath.startsWith(fromDir));
-  if (sameDir.length > 0) return sameDir[0]!.id;
+  if (sameDir.length > 0) return sameDir[0].id;
 
   // Prefer component directories
-  const COMPONENT_DIRS = ['/components/', '/src/components/', '/app/components/', '/pages/', '/src/pages/', '/views/', '/src/views/'];
-  const preferred = components.filter((n) =>
-    COMPONENT_DIRS.some((d) => n.filePath.includes(d))
-  );
-  if (preferred.length > 0) return preferred[0]!.id;
+  const COMPONENT_DIRS = [
+    '/components/',
+    '/src/components/',
+    '/app/components/',
+    '/pages/',
+    '/src/pages/',
+    '/views/',
+    '/src/views/',
+  ];
+  const preferred = components.filter((n) => COMPONENT_DIRS.some((d) => n.filePath.includes(d)));
+  if (preferred.length > 0) return preferred[0].id;
 
-  return components[0]!.id;
+  return components[0].id;
 }
 
 /**
@@ -236,12 +270,10 @@ function resolveHook(name: string, context: ResolutionContext): string | null {
 
   // Prefer hooks directories
   const HOOK_DIRS = ['/hooks/', '/src/hooks/', '/lib/hooks/', '/utils/hooks/'];
-  const preferred = hooks.filter((n) =>
-    HOOK_DIRS.some((d) => n.filePath.includes(d))
-  );
-  if (preferred.length > 0) return preferred[0]!.id;
+  const preferred = hooks.filter((n) => HOOK_DIRS.some((d) => n.filePath.includes(d)));
+  if (preferred.length > 0) return preferred[0].id;
 
-  return hooks[0]!.id;
+  return hooks[0].id;
 }
 
 /**
@@ -254,19 +286,24 @@ function resolveContext(name: string, context: ResolutionContext): string | null
     const baseName = name.replace(/Context$|Provider$/, '');
     if (baseName !== name) {
       const baseCandidates = context.getNodesByName(baseName);
-      if (baseCandidates.length > 0) return baseCandidates[0]!.id;
+      if (baseCandidates.length > 0) return baseCandidates[0].id;
     }
     return null;
   }
 
   // Prefer context directories
-  const CONTEXT_DIRS = ['/context/', '/contexts/', '/src/context/', '/src/contexts/', '/providers/', '/src/providers/'];
-  const preferred = candidates.filter((n) =>
-    CONTEXT_DIRS.some((d) => n.filePath.includes(d))
-  );
-  if (preferred.length > 0) return preferred[0]!.id;
+  const CONTEXT_DIRS = [
+    '/context/',
+    '/contexts/',
+    '/src/context/',
+    '/src/contexts/',
+    '/providers/',
+    '/src/providers/',
+  ];
+  const preferred = candidates.filter((n) => CONTEXT_DIRS.some((d) => n.filePath.includes(d)));
+  if (preferred.length > 0) return preferred[0].id;
 
-  return candidates[0]!.id;
+  return candidates[0].id;
 }
 
 /**

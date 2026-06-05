@@ -1,4 +1,4 @@
-﻿/**
+/**
  * CodeGraph MCP Server
  *
  * Model Context Protocol server that exposes CodeGraph functionality
@@ -18,7 +18,7 @@
 import * as path from 'path';
 import CodeGraph, { findNearestCodeGraphRoot } from '../index.js';
 import { watchDisabledReason } from '../sync/index.js';
-import { StdioTransport, JsonRpcRequest, JsonRpcNotification, ErrorCodes } from './transport.js';
+import { StdioTransport, type JsonRpcRequest, type JsonRpcNotification, ErrorCodes } from './transport.js';
 import { tools, ToolHandler } from './tools.js';
 import { SERVER_INSTRUCTIONS } from './server-instructions.js';
 
@@ -171,7 +171,11 @@ export class MCPServer {
   private async retryInitIfNeeded(): Promise<void> {
     // Wait for the background init started during handleInitialize, if any.
     if (this.initPromise) {
-      try { await this.initPromise; } catch { /* errored init falls through to retry */ }
+      try {
+        await this.initPromise;
+      } catch {
+        /* errored init falls through to retry */
+      }
     }
 
     // Already initialized successfully
@@ -184,11 +188,15 @@ export class MCPServer {
     if (!this.projectPath && !this.rootsAttempted) {
       this.rootsAttempted = true;
       this.initPromise = (
-        this.clientSupportsRoots
-          ? this.initFromRoots()
-          : this.tryInitializeDefault(process.cwd())
-      ).finally(() => { this.initPromise = null; });
-      try { await this.initPromise; } catch { /* fall through to last-resort below */ }
+        this.clientSupportsRoots ? this.initFromRoots() : this.tryInitializeDefault(process.cwd())
+      ).finally(() => {
+        this.initPromise = null;
+      });
+      try {
+        await this.initPromise;
+      } catch {
+        /* fall through to last-resort below */
+      }
       if (this.toolHandler.hasDefaultCodeGraph()) return;
     }
 
@@ -203,7 +211,11 @@ export class MCPServer {
     try {
       // Close any previously failed instance to avoid leaking resources
       if (this.cg) {
-        try { this.cg.close(); } catch { /* ignore */ }
+        try {
+          this.cg.close();
+        } catch {
+          /* ignore */
+        }
         this.cg = null;
       }
       this.cg = CodeGraph.openSync(resolvedRoot);
@@ -228,11 +240,15 @@ export class MCPServer {
       if (rootPath) {
         target = rootPath;
       } else {
-        process.stderr.write('[CodeGraph MCP] Client returned no workspace roots; falling back to process cwd.\n');
+        process.stderr.write(
+          '[CodeGraph MCP] Client returned no workspace roots; falling back to process cwd.\n',
+        );
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      process.stderr.write(`[CodeGraph MCP] roots/list request failed (${msg}); falling back to process cwd.\n`);
+      process.stderr.write(
+        `[CodeGraph MCP] roots/list request failed (${msg}); falling back to process cwd.\n`,
+      );
     }
     await this.tryInitializeDefault(target);
   }
@@ -251,7 +267,7 @@ export class MCPServer {
     if (disabledReason) {
       process.stderr.write(
         `[CodeGraph MCP] File watcher disabled — ${disabledReason}. ` +
-        `The graph will not auto-update; run \`codegraph sync\` (or install the git sync hooks via \`codegraph init\`) to refresh.\n`
+          `The graph will not auto-update; run \`codegraph sync\` (or install the git sync hooks via \`codegraph init\`) to refresh.\n`,
       );
       return;
     }
@@ -260,7 +276,7 @@ export class MCPServer {
       onSyncComplete: (result) => {
         if (result.filesChanged > 0) {
           process.stderr.write(
-            `[CodeGraph MCP] Auto-synced ${result.filesChanged} file(s) in ${result.durationMs}ms\n`
+            `[CodeGraph MCP] Auto-synced ${result.filesChanged} file(s) in ${result.durationMs}ms\n`,
           );
         }
       },
@@ -270,11 +286,13 @@ export class MCPServer {
     });
 
     if (started) {
-      process.stderr.write('[CodeGraph MCP] File watcher active — graph will auto-sync on changes\n');
+      process.stderr.write(
+        '[CodeGraph MCP] File watcher active — graph will auto-sync on changes\n',
+      );
     } else {
       // start() can also return false when recursive fs.watch isn't supported.
       process.stderr.write(
-        '[CodeGraph MCP] File watcher unavailable on this platform — run `codegraph sync` to refresh the graph after changes.\n'
+        '[CodeGraph MCP] File watcher unavailable on this platform — run `codegraph sync` to refresh the graph after changes.\n',
       );
     }
   }
@@ -304,7 +322,7 @@ export class MCPServer {
     switch (message.method) {
       case 'initialize':
         if (isRequest) {
-          await this.handleInitialize(message as JsonRpcRequest);
+          await this.handleInitialize(message);
         }
         break;
 
@@ -315,28 +333,28 @@ export class MCPServer {
 
       case 'tools/list':
         if (isRequest) {
-          await this.handleToolsList(message as JsonRpcRequest);
+          await this.handleToolsList(message);
         }
         break;
 
       case 'tools/call':
         if (isRequest) {
-          await this.handleToolsCall(message as JsonRpcRequest);
+          await this.handleToolsCall(message);
         }
         break;
 
       case 'ping':
         if (isRequest) {
-          this.transport.sendResult((message as JsonRpcRequest).id, {});
+          this.transport.sendResult(message.id, {});
         }
         break;
 
       default:
         if (isRequest) {
           this.transport.sendError(
-            (message as JsonRpcRequest).id,
+            message.id,
             ErrorCodes.MethodNotFound,
-            `Method not found: ${message.method}`
+            `Method not found: ${message.method}`,
           );
         }
     }
@@ -346,11 +364,13 @@ export class MCPServer {
    * Handle initialize request
    */
   private async handleInitialize(request: JsonRpcRequest): Promise<void> {
-    const params = request.params as {
-      rootUri?: string;
-      workspaceFolders?: Array<{ uri: string; name: string }>;
-      capabilities?: { roots?: unknown };
-    } | undefined;
+    const params = request.params as
+      | {
+          rootUri?: string;
+          workspaceFolders?: { uri: string; name: string }[];
+          capabilities?: { roots?: unknown };
+        }
+      | undefined;
 
     // Does the client support the MCP `roots` protocol? If so, and we have no
     // explicit path, we ask it for the workspace root after the handshake
@@ -425,12 +445,8 @@ export class MCPServer {
       arguments?: Record<string, unknown>;
     };
 
-    if (!params || !params.name) {
-      this.transport.sendError(
-        request.id,
-        ErrorCodes.InvalidParams,
-        'Missing tool name'
-      );
+    if (!params?.name) {
+      this.transport.sendError(request.id, ErrorCodes.InvalidParams, 'Missing tool name');
       return;
     }
 
@@ -438,13 +454,9 @@ export class MCPServer {
     const toolArgs = params.arguments || {};
 
     // Validate tool exists
-    const tool = tools.find(t => t.name === toolName);
+    const tool = tools.find((t) => t.name === toolName);
     if (!tool) {
-      this.transport.sendError(
-        request.id,
-        ErrorCodes.InvalidParams,
-        `Unknown tool: ${toolName}`
-      );
+      this.transport.sendError(request.id, ErrorCodes.InvalidParams, `Unknown tool: ${toolName}`);
       return;
     }
 

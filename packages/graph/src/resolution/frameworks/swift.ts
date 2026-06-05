@@ -1,11 +1,11 @@
-﻿/**
+/**
  * Swift Framework Resolver
  *
  * Handles SwiftUI, UIKit, and Vapor (server-side Swift) patterns.
  */
 
-import { Node } from '../../types.js';
-import { FrameworkResolver, UnresolvedRef, ResolvedRef, ResolutionContext } from '../types.js';
+import { type Node } from '../../types.js';
+import { type FrameworkResolver, type UnresolvedRef, type ResolvedRef, type ResolutionContext } from '../types.js';
 import { stripCommentsForRegex } from '../strip-comments.js';
 
 export const swiftUIResolver: FrameworkResolver = {
@@ -49,7 +49,11 @@ export const swiftUIResolver: FrameworkResolver = {
     }
 
     // Pattern 2: ViewModel/ObservableObject references
-    if (ref.referenceName.endsWith('ViewModel') || ref.referenceName.endsWith('Store') || ref.referenceName.endsWith('Manager')) {
+    if (
+      ref.referenceName.endsWith('ViewModel') ||
+      ref.referenceName.endsWith('Store') ||
+      ref.referenceName.endsWith('Manager')
+    ) {
       const result = resolveByNameAndKind(ref.referenceName, CLASS_KINDS, VIEWMODEL_DIRS, context);
       if (result) {
         return {
@@ -95,7 +99,7 @@ export const swiftUIResolver: FrameworkResolver = {
       nodes.push({
         id: `view:${filePath}:${viewName}:${line}`,
         kind: 'component',
-        name: viewName!,
+        name: viewName,
         qualifiedName: `${filePath}::${viewName}`,
         filePath,
         startLine: line,
@@ -117,7 +121,7 @@ export const swiftUIResolver: FrameworkResolver = {
       nodes.push({
         id: `app:${filePath}:${appName}:${line}`,
         kind: 'class',
-        name: appName!,
+        name: appName,
         qualifiedName: `${filePath}::${appName}`,
         filePath,
         startLine: line,
@@ -142,11 +146,12 @@ export const uikitResolver: FrameworkResolver = {
     for (const file of allFiles) {
       if (file.endsWith('.swift')) {
         const content = context.readFile(file);
-        if (content && (
-          content.includes('import UIKit') ||
-          content.includes('UIViewController') ||
-          content.includes('UIView')
-        )) {
+        if (
+          content &&
+          (content.includes('import UIKit') ||
+            content.includes('UIViewController') ||
+            content.includes('UIView'))
+        ) {
           return true;
         }
       }
@@ -228,7 +233,7 @@ export const uikitResolver: FrameworkResolver = {
       nodes.push({
         id: `viewcontroller:${filePath}:${vcName}:${line}`,
         kind: 'class',
-        name: vcName!,
+        name: vcName,
         qualifiedName: `${filePath}::${vcName}`,
         filePath,
         startLine: line,
@@ -250,7 +255,7 @@ export const uikitResolver: FrameworkResolver = {
       nodes.push({
         id: `uiview:${filePath}:${viewName}:${line}`,
         kind: 'class',
-        name: viewName!,
+        name: viewName,
         qualifiedName: `${filePath}::${viewName}`,
         filePath,
         startLine: line,
@@ -294,7 +299,12 @@ export const vaporResolver: FrameworkResolver = {
   resolve(ref: UnresolvedRef, context: ResolutionContext): ResolvedRef | null {
     // Pattern 1: Controller references
     if (ref.referenceName.endsWith('Controller')) {
-      const result = resolveByNameAndKind(ref.referenceName, VAPOR_CONTROLLER_KINDS, VAPOR_CONTROLLER_DIRS, context);
+      const result = resolveByNameAndKind(
+        ref.referenceName,
+        VAPOR_CONTROLLER_KINDS,
+        VAPOR_CONTROLLER_DIRS,
+        context,
+      );
       if (result) {
         return {
           original: ref,
@@ -307,7 +317,12 @@ export const vaporResolver: FrameworkResolver = {
 
     // Pattern 2: Model references (Fluent)
     if (/^[A-Z][a-zA-Z]+$/.test(ref.referenceName)) {
-      const result = resolveByNameAndKind(ref.referenceName, CLASS_KINDS, FLUENT_MODEL_DIRS, context);
+      const result = resolveByNameAndKind(
+        ref.referenceName,
+        CLASS_KINDS,
+        FLUENT_MODEL_DIRS,
+        context,
+      );
       if (result) {
         return {
           original: ref,
@@ -320,7 +335,12 @@ export const vaporResolver: FrameworkResolver = {
 
     // Pattern 3: Middleware references
     if (ref.referenceName.endsWith('Middleware')) {
-      const result = resolveByNameAndKind(ref.referenceName, VAPOR_CONTROLLER_KINDS, VAPOR_MIDDLEWARE_DIRS, context);
+      const result = resolveByNameAndKind(
+        ref.referenceName,
+        VAPOR_CONTROLLER_KINDS,
+        VAPOR_MIDDLEWARE_DIRS,
+        context,
+      );
       if (result) {
         return {
           original: ref,
@@ -342,12 +362,13 @@ export const vaporResolver: FrameworkResolver = {
     const safe = stripCommentsForRegex(content, 'swift');
 
     // Vapor: (app|router|routes).METHOD("path", use: handler)
-    const routeRegex = /\b(?:app|router|routes)\.(get|post|put|patch|delete)\s*\(\s*"([^"]+)"\s*,\s*use:\s*([A-Za-z_][A-Za-z0-9_.]*)/g;
+    const routeRegex =
+      /\b(?:app|router|routes)\.(get|post|put|patch|delete)\s*\(\s*"([^"]+)"\s*,\s*use:\s*([A-Za-z_][A-Za-z0-9_.]*)/g;
     let match: RegExpExecArray | null;
     while ((match = routeRegex.exec(safe)) !== null) {
       const [, method, routePath, handlerExpr] = match;
       const line = safe.slice(0, match.index).split('\n').length;
-      const upper = method!.toUpperCase();
+      const upper = method.toUpperCase();
 
       const routeNode: Node = {
         id: `route:${filePath}:${line}:${upper}:${routePath}`,
@@ -365,7 +386,7 @@ export const vaporResolver: FrameworkResolver = {
       nodes.push(routeNode);
 
       // Last segment of dotted path (e.g. UserController.list -> list)
-      const parts = handlerExpr!.split('.');
+      const parts = handlerExpr.split('.');
       const handlerName = parts[parts.length - 1];
       if (handlerName) {
         references.push({
@@ -419,11 +440,11 @@ function resolveByNameAndKind(
   // Prefer candidates in framework-conventional directories
   if (preferredDirPatterns.length > 0) {
     const preferred = kindFiltered.filter((n) =>
-      preferredDirPatterns.some((d) => n.filePath.includes(d))
+      preferredDirPatterns.some((d) => n.filePath.includes(d)),
     );
-    if (preferred.length > 0) return preferred[0]!.id;
+    if (preferred.length > 0) return preferred[0].id;
   }
 
   // Fall back to any match
-  return kindFiltered[0]!.id;
+  return kindFiltered[0].id;
 }

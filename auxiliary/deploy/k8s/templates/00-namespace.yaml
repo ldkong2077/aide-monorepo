@@ -1,0 +1,15 @@
+# 00-namespace.yaml
+# WHY: dedicated namespace isolates the aide deployment from the default
+# namespace and gives us a place to attach Pod Security Admission labels.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: aide
+  labels:
+    app.kubernetes.io/part-of: aide
+    app.kubernetes.io/managed-by: kustomize
+    # PSS "restricted" profile — must be applied before any workload
+    # so the aide deployment satisfies it.
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted

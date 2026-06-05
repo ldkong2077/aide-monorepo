@@ -50,15 +50,30 @@ export class AideError extends Error {
 
 /** Configuration errors */
 export class ConfigError extends AideError {
-  constructor(message: string, opts?: { recoverable?: boolean; context?: Record<string, unknown>; suggestion?: string; cause?: Error }) {
-    super({ message, code: 'CONFIG_ERROR', recoverable: opts?.recoverable ?? true, severity: 'error', ...opts });
+  constructor(
+    message: string,
+    opts?: {
+      recoverable?: boolean;
+      context?: Record<string, unknown>;
+      suggestion?: string;
+      cause?: Error;
+    },
+  ) {
+    super({
+      message,
+      code: 'CONFIG_ERROR',
+      recoverable: opts?.recoverable ?? true,
+      severity: 'error',
+      ...opts,
+    });
     this.name = 'ConfigError';
   }
 
   static notFound(path: string): ConfigError {
     return new ConfigError(`Configuration file not found: ${path}`, {
       recoverable: true,
-      suggestion: 'Run "aide init" to generate a default configuration, or create aide.config.yaml manually.',
+      suggestion:
+        'Run "aide init" to generate a default configuration, or create aide.config.yaml manually.',
     });
   }
 
@@ -72,8 +87,22 @@ export class ConfigError extends AideError {
 
 /** CodeGuard verification errors */
 export class GuardError extends AideError {
-  constructor(message: string, opts?: { recoverable?: boolean; context?: Record<string, unknown>; suggestion?: string; cause?: Error }) {
-    super({ message, code: 'GUARD_ERROR', recoverable: opts?.recoverable ?? false, severity: 'error', ...opts });
+  constructor(
+    message: string,
+    opts?: {
+      recoverable?: boolean;
+      context?: Record<string, unknown>;
+      suggestion?: string;
+      cause?: Error;
+    },
+  ) {
+    super({
+      message,
+      code: 'GUARD_ERROR',
+      recoverable: opts?.recoverable ?? false,
+      severity: 'error',
+      ...opts,
+    });
     this.name = 'GuardError';
   }
 
@@ -95,8 +124,22 @@ export class GuardError extends AideError {
 
 /** Route/model routing errors */
 export class RouteError extends AideError {
-  constructor(message: string, opts?: { recoverable?: boolean; context?: Record<string, unknown>; suggestion?: string; cause?: Error }) {
-    super({ message, code: 'ROUTE_ERROR', recoverable: opts?.recoverable ?? true, severity: 'error', ...opts });
+  constructor(
+    message: string,
+    opts?: {
+      recoverable?: boolean;
+      context?: Record<string, unknown>;
+      suggestion?: string;
+      cause?: Error;
+    },
+  ) {
+    super({
+      message,
+      code: 'ROUTE_ERROR',
+      recoverable: opts?.recoverable ?? true,
+      severity: 'error',
+      ...opts,
+    });
     this.name = 'RouteError';
   }
 
@@ -117,8 +160,22 @@ export class RouteError extends AideError {
 
 /** CodeGraph errors */
 export class GraphError extends AideError {
-  constructor(message: string, opts?: { recoverable?: boolean; context?: Record<string, unknown>; suggestion?: string; cause?: Error }) {
-    super({ message, code: 'GRAPH_ERROR', recoverable: opts?.recoverable ?? false, severity: 'error', ...opts });
+  constructor(
+    message: string,
+    opts?: {
+      recoverable?: boolean;
+      context?: Record<string, unknown>;
+      suggestion?: string;
+      cause?: Error;
+    },
+  ) {
+    super({
+      message,
+      code: 'GRAPH_ERROR',
+      recoverable: opts?.recoverable ?? false,
+      severity: 'error',
+      ...opts,
+    });
     this.name = 'GraphError';
   }
 
@@ -139,8 +196,22 @@ export class GraphError extends AideError {
 
 /** Project-Mind errors */
 export class MindError extends AideError {
-  constructor(message: string, opts?: { recoverable?: boolean; context?: Record<string, unknown>; suggestion?: string; cause?: Error }) {
-    super({ message, code: 'MIND_ERROR', recoverable: opts?.recoverable ?? true, severity: 'error', ...opts });
+  constructor(
+    message: string,
+    opts?: {
+      recoverable?: boolean;
+      context?: Record<string, unknown>;
+      suggestion?: string;
+      cause?: Error;
+    },
+  ) {
+    super({
+      message,
+      code: 'MIND_ERROR',
+      recoverable: opts?.recoverable ?? true,
+      severity: 'error',
+      ...opts,
+    });
     this.name = 'MindError';
   }
 

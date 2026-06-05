@@ -1,37 +1,38 @@
-﻿{
-    "scripts":  {
-                    "clean":  "node -e \"require(\u0027fs\u0027).rmSync(\u0027dist\u0027,{recursive:true,force:true})\"",
-                    "build":  "tsc -b",
-                    "dev":  "tsc -b --watch"
-                },
-    "description":  "AIDE Core - shared types, config, storage, logging, and error handling",
-    "type":  "module",
-    "types":  "./dist/index.d.ts",
-    "version":  "1.0.0",
-    "files":  [
-                  "dist",
-                  "src/db/schema.sql"
-              ],
-    "license":  "MIT",
-    "name":  "@aide/core",
-    "main":  "./dist/index.js",
-    "exports":  {
-                    ".":  {
-                              "types":  "./dist/index.d.ts",
-                              "import":  "./dist/index.js"
-                          }
-                },
-    "devDependencies":  {
-                            "typescript":  "^5.7.0",
-                            "@types/better-sqlite3":  "^7.6.0",
-                            "vitest":  "^3.0.0"
-                        },
-    "dependencies":  {
-                         "pino":  "^9.6.0",
-                         "pino-pretty":  "^13.0.0",
-                         "dotenv":  "^16.5.0",
-                         "better-sqlite3":  "^11.9.0",
-                         "chalk":  "^5.4.0",
-                         "yaml":  "^2.7.0"
-                     }
+{
+  "scripts": {
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
+    "build": "tsc -b",
+    "dev": "tsc -b --watch"
+  },
+  "description": "AIDE Core - shared types, config, storage, logging, and error handling",
+  "type": "module",
+  "types": "./dist/index.d.ts",
+  "version": "1.1.0",
+  "files": [
+    "dist",
+    "src/db/schema.sql"
+  ],
+  "license": "MIT",
+  "name": "@aide/core",
+  "main": "./dist/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.9.0",
+    "chalk": "^5.4.0",
+    "dotenv": "^16.5.0",
+    "gpt-tokenizer": "^3.4.0",
+    "pino": "^9.6.0",
+    "pino-pretty": "^13.0.0",
+    "yaml": "^2.7.0"
+  }
 }

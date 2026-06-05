@@ -1,10 +1,10 @@
-﻿/**
+/**
  * Framework Resolver Registry
  *
  * Manages framework-specific resolvers.
  */
 
-import { FrameworkResolver, ResolutionContext } from '../types.js';
+import { type FrameworkResolver, type ResolutionContext } from '../types.js';
 import type { Language } from '../../types.js';
 import { drupalResolver } from './drupal.js';
 import { laravelResolver } from './laravel.js';
@@ -87,11 +87,9 @@ export function detectFrameworks(context: ResolutionContext): FrameworkResolver[
  */
 export function getApplicableFrameworks(
   detected: FrameworkResolver[],
-  language: Language
+  language: Language,
 ): FrameworkResolver[] {
-  return detected.filter(
-    (fw) => !fw.languages || fw.languages.includes(language)
-  );
+  return detected.filter((fw) => !fw.languages || fw.languages.includes(language));
 }
 
 /**

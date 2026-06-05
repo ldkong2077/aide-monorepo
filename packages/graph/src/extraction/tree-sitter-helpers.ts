@@ -1,13 +1,13 @@
-﻿/**
+/**
  * Tree-sitter Shared Helpers
  *
  * Utility functions used by the core TreeSitterExtractor and per-language extractors.
  * Extracted to a leaf module to avoid circular imports between tree-sitter.ts and languages/.
  */
 
-import { Node as SyntaxNode } from 'web-tree-sitter';
+import { type Node as SyntaxNode } from 'web-tree-sitter';
 import * as crypto from 'crypto';
-import { NodeKind } from '../types.js';
+import { type NodeKind } from '../types.js';
 
 /**
  * Generate a unique node ID
@@ -19,7 +19,7 @@ export function generateNodeId(
   filePath: string,
   kind: NodeKind,
   name: string,
-  line: number
+  line: number,
 ): string {
   const hash = crypto
     .createHash('sha256')
@@ -73,7 +73,7 @@ export function getPrecedingDocstring(node: SyntaxNode, source: string): string 
         .replace(/^\/\*\*?|\*\/$/g, '')
         .replace(/^\/\/\s?/gm, '')
         .replace(/^\s*\*\s?/gm, '')
-        .trim()
+        .trim(),
     )
     .join('\n')
     .trim();

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * OpenAI Codex CLI target.
  *
  *   - MCP server entry to `~/.codex/config.toml` as the dotted-key
@@ -14,74 +14,83 @@
  * No permissions concept.
  */
 
-import * as fs from 'fs';
-import * as path from 'path';
-import * as os from 'os';
+import * as fs from "fs";
+import * as path from "path";
+import * as os from "os";
 import {
-  AgentTarget,
-  DetectionResult,
-  InstallOptions,
-  Location,
-  WriteResult,
-} from './types.js';
+  type AgentTarget,
+  type DetectionResult,
+  type InstallOptions,
+  type Location,
+  type WriteResult,
+} from "./types.js";
 import {
   atomicWriteFileSync,
   getMcpServerConfig,
   removeMarkedSection,
   replaceOrAppendMarkedSection,
-} from './shared.js';
+} from "./shared.js";
 import {
   CODEGRAPH_SECTION_END,
   CODEGRAPH_SECTION_START,
   INSTRUCTIONS_TEMPLATE,
-} from '../instructions-template.js';
-import { buildTomlTable, removeTomlTable, upsertTomlTable } from './toml.js';
+} from "../instructions-template.js";
+import { buildTomlTable, removeTomlTable, upsertTomlTable } from "./toml.js";
 
-const TOML_HEADER = 'mcp_servers.codegraph';
+const TOML_HEADER = "mcp_servers.aide";
 
 function configDir(): string {
-  return path.join(os.homedir(), '.codex');
+  return path.join(os.homedir(), ".codex");
 }
 function tomlConfigPath(): string {
-  return path.join(configDir(), 'config.toml');
+  return path.join(configDir(), "config.toml");
 }
 function instructionsPath(): string {
-  return path.join(configDir(), 'AGENTS.md');
+  return path.join(configDir(), "AGENTS.md");
 }
 
 class CodexTarget implements AgentTarget {
-  readonly id = 'codex' as const;
-  readonly displayName = 'Codex CLI';
-  readonly docsUrl = 'https://github.com/openai/codex';
+  readonly id = "codex" as const;
+  readonly displayName = "Codex CLI";
+  readonly docsUrl = "https://github.com/openai/codex";
 
   supportsLocation(loc: Location): boolean {
-    return loc === 'global';
+    return loc === "global";
   }
 
   detect(loc: Location): DetectionResult {
-    if (loc !== 'global') {
+    if (loc !== "global") {
       return { installed: false, alreadyConfigured: false };
     }
     const tomlPath = tomlConfigPath();
     let alreadyConfigured = false;
     if (fs.existsSync(tomlPath)) {
       try {
-        const content = fs.readFileSync(tomlPath, 'utf-8');
-        alreadyConfigured = content.includes(`[${TOML_HEADER}]`);
-      } catch { /* ignore */ }
+        const content = fs.readFileSync(tomlPath, "utf-8");
+        // Match either the new `mcp_servers.aide` table or a legacy
+        // `mcp_servers.codegraph` one — keeps detection honest across
+        // the rename.
+        alreadyConfigured =
+          content.includes(`[${TOML_HEADER}]`) ||
+          content.includes("[mcp_servers.codegraph]");
+      } catch {
+        /* ignore */
+      }
     }
     const installed = fs.existsSync(configDir());
     return { installed, alreadyConfigured, configPath: tomlPath };
   }
 
   install(loc: Location, _opts: InstallOptions): WriteResult {
-    if (loc !== 'global') {
+    if (loc !== "global") {
       return {
         files: [],
-        notes: ['Codex CLI has no project-local config — re-run with --location=global to install.'],
+        notes: [
+          "Codex CLI has no project-local config — re-run with --location=global to install.",
+        ],
       };
     }
-    const files: WriteResult['files'] = [];
+    const files: WriteResult["files"] = [];
 
     files.push(writeMcpEntry());
     files.push(writeInstructionsEntry());
@@ -90,44 +99,62 @@ class CodexTarget implements AgentTarget {
   }
 
   uninstall(loc: Location): WriteResult {
-    if (loc !== 'global') return { files: [] };
-    const files: WriteResult['files'] = [];
+    if (loc !== "global") return { files: [] };
+    const files: WriteResult["files"] = [];
 
     const tomlPath = tomlConfigPath();
     if (fs.existsSync(tomlPath)) {
-      const content = fs.readFileSync(tomlPath, 'utf-8');
-      const { content: nextContent, action } = removeTomlTable(content, TOML_HEADER);
-      if (action === 'removed') {
-        if (nextContent.trim() === '') {
-          try { fs.unlinkSync(tomlPath); } catch { /* ignore */ }
+      let content = fs.readFileSync(tomlPath, "utf-8");
+      // Strip the new `[mcp_servers.aide]` table.
+      const removed = removeTomlTable(content, TOML_HEADER);
+      // If only the legacy `[mcp_servers.codegraph]` table is present,
+      // strip that too — completes the rename uninstall.
+      const legacyRemoved = removeTomlTable(
+        removed.content,
+        "mcp_servers.codegraph",
+      );
+      content = legacyRemoved.content;
+      const wasRemoved =
+        removed.action === "removed" || legacyRemoved.action === "removed";
+      if (wasRemoved) {
+        if (content.trim() === "") {
+          try {
+            fs.unlinkSync(tomlPath);
+          } catch {
+            /* ignore */
+          }
         } else {
-          atomicWriteFileSync(tomlPath, nextContent.trimEnd() + '\n');
+          atomicWriteFileSync(tomlPath, content.trimEnd() + "\n");
         }
-        files.push({ path: tomlPath, action: 'removed' });
+        files.push({ path: tomlPath, action: "removed" });
       } else {
-        files.push({ path: tomlPath, action: 'not-found' });
+        files.push({ path: tomlPath, action: "not-found" });
       }
     } else {
-      files.push({ path: tomlPath, action: 'not-found' });
+      files.push({ path: tomlPath, action: "not-found" });
     }
 
     const instr = instructionsPath();
-    const instrAction = removeMarkedSection(instr, CODEGRAPH_SECTION_START, CODEGRAPH_SECTION_END);
+    const instrAction = removeMarkedSection(
+      instr,
+      CODEGRAPH_SECTION_START,
+      CODEGRAPH_SECTION_END,
+    );
     files.push({ path: instr, action: instrAction });
 
     return { files };
   }
 
   printConfig(loc: Location): string {
-    if (loc !== 'global') {
-      return '# Codex CLI has no project-local config — use --location=global.\n';
+    if (loc !== "global") {
+      return "# Codex CLI has no project-local config — use --location=global.\n";
     }
     const block = buildCodegraphBlock();
     return `# Add to ${tomlConfigPath()}\n\n${block}\n`;
   }
 
   describePaths(loc: Location): string[] {
-    if (loc !== 'global') return [];
+    if (loc !== "global") return [];
     return [tomlConfigPath(), instructionsPath()];
   }
 }
@@ -140,7 +167,7 @@ function buildCodegraphBlock(): string {
   });
 }
 
-function writeMcpEntry(): WriteResult['files'][number] {
+function writeMcpEntry(): WriteResult["files"][number] {
   const file = tomlConfigPath();
   const dir = path.dirname(file);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
@@ -149,18 +176,22 @@ function writeMcpEntry(): WriteResult['files'][number] {
   // Single read — `existing === ''` derives both "is the file empty
   // or absent" and "what was its content," avoiding a TOCTOU window
   // between two `fs.existsSync` calls.
-  const existing = fs.existsSync(file) ? fs.readFileSync(file, 'utf-8') : '';
+  const existing = fs.existsSync(file) ? fs.readFileSync(file, "utf-8") : "";
   const created = existing.length === 0;
-  const { content: nextContent, action } = upsertTomlTable(existing, TOML_HEADER, block);
+  const { content: nextContent, action } = upsertTomlTable(
+    existing,
+    TOML_HEADER,
+    block,
+  );
 
-  if (action === 'unchanged') {
-    return { path: file, action: 'unchanged' };
+  if (action === "unchanged") {
+    return { path: file, action: "unchanged" };
   }
   atomicWriteFileSync(file, nextContent);
-  return { path: file, action: created ? 'created' : 'updated' };
+  return { path: file, action: created ? "created" : "updated" };
 }
 
-function writeInstructionsEntry(): WriteResult['files'][number] {
+function writeInstructionsEntry(): WriteResult["files"][number] {
   const file = instructionsPath();
   const dir = path.dirname(file);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
@@ -171,10 +202,12 @@ function writeInstructionsEntry(): WriteResult['files'][number] {
     CODEGRAPH_SECTION_START,
     CODEGRAPH_SECTION_END,
   );
-  const mapped: 'created' | 'updated' | 'unchanged' =
-    action === 'created' ? 'created'
-      : action === 'unchanged' ? 'unchanged'
-        : 'updated';
+  const mapped: "created" | "updated" | "unchanged" =
+    action === "created"
+      ? "created"
+      : action === "unchanged"
+        ? "unchanged"
+        : "updated";
   return { path: file, action: mapped };
 }
 

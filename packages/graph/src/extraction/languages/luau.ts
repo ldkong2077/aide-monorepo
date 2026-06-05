@@ -1,4 +1,4 @@
-﻿import { getNodeText, getChildByField } from '../tree-sitter-helpers.js';
+import { getNodeText, getChildByField } from '../tree-sitter-helpers.js';
 import type { LanguageExtractor } from '../tree-sitter-types.js';
 import { luaExtractor } from './lua.js';
 

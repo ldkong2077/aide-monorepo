@@ -1,4 +1,4 @@
-﻿import type { Node as SyntaxNode } from 'web-tree-sitter';
+import type { Node as SyntaxNode } from 'web-tree-sitter';
 import { getNodeText, getChildByField } from '../tree-sitter-helpers.js';
 import type { LanguageExtractor } from '../tree-sitter-types.js';
 
@@ -19,9 +19,7 @@ export const pascalExtractor: LanguageExtractor = {
   returnField: 'type',
   getSignature: (node, source) => {
     const args = getChildByField(node, 'args');
-    const returnType = node.namedChildren.find(
-      (c: SyntaxNode) => c.type === 'typeref'
-    );
+    const returnType = node.namedChildren.find((c: SyntaxNode) => c.type === 'typeref');
     if (!args && !returnType) return undefined;
     let sig = '';
     if (args) sig = getNodeText(args, source);
@@ -36,8 +34,7 @@ export const pascalExtractor: LanguageExtractor = {
       if (current.type === 'declSection') {
         for (let i = 0; i < current.childCount; i++) {
           const child = current.child(i);
-          if (child?.type === 'kPublic' || child?.type === 'kPublished')
-            return 'public';
+          if (child?.type === 'kPublic' || child?.type === 'kPublished') return 'public';
           if (child?.type === 'kPrivate') return 'private';
           if (child?.type === 'kProtected') return 'protected';
         }

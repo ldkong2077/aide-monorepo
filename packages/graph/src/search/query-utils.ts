@@ -1,11 +1,11 @@
-﻿/**
+/**
  * Search Query Utilities
  *
  * Shared module for search term extraction and scoring.
  */
 
 import * as path from 'path';
-import { Node } from '../types.js';
+import { type Node } from '../types.js';
 
 /**
  * Common stop words to filter from search queries.
@@ -13,22 +13,115 @@ import { Node } from '../types.js';
  */
 export const STOP_WORDS = new Set([
   // English
-  'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
-  'of', 'with', 'by', 'from', 'is', 'it', 'that', 'this', 'are', 'was',
-  'be', 'has', 'had', 'have', 'do', 'does', 'did', 'will', 'would', 'could',
-  'should', 'may', 'might', 'can', 'shall', 'not', 'no', 'all', 'each',
-  'every', 'how', 'what', 'where', 'when', 'who', 'which', 'why',
-  'i', 'me', 'my', 'we', 'our', 'you', 'your', 'he', 'she', 'they',
-  'show', 'give', 'tell',
-  'been', 'done', 'made', 'used', 'using', 'work', 'works', 'found',
-  'also', 'into', 'then', 'than', 'just', 'more', 'some', 'such',
-  'over', 'only', 'out', 'its', 'so', 'up', 'as', 'if',
-  'look', 'need', 'needs', 'want', 'happen', 'happens',
-  'affect', 'affected', 'break', 'breaks', 'failing',
-  'implemented', 'implement',
+  'the',
+  'a',
+  'an',
+  'and',
+  'or',
+  'but',
+  'in',
+  'on',
+  'at',
+  'to',
+  'for',
+  'of',
+  'with',
+  'by',
+  'from',
+  'is',
+  'it',
+  'that',
+  'this',
+  'are',
+  'was',
+  'be',
+  'has',
+  'had',
+  'have',
+  'do',
+  'does',
+  'did',
+  'will',
+  'would',
+  'could',
+  'should',
+  'may',
+  'might',
+  'can',
+  'shall',
+  'not',
+  'no',
+  'all',
+  'each',
+  'every',
+  'how',
+  'what',
+  'where',
+  'when',
+  'who',
+  'which',
+  'why',
+  'i',
+  'me',
+  'my',
+  'we',
+  'our',
+  'you',
+  'your',
+  'he',
+  'she',
+  'they',
+  'show',
+  'give',
+  'tell',
+  'been',
+  'done',
+  'made',
+  'used',
+  'using',
+  'work',
+  'works',
+  'found',
+  'also',
+  'into',
+  'then',
+  'than',
+  'just',
+  'more',
+  'some',
+  'such',
+  'over',
+  'only',
+  'out',
+  'its',
+  'so',
+  'up',
+  'as',
+  'if',
+  'look',
+  'need',
+  'needs',
+  'want',
+  'happen',
+  'happens',
+  'affect',
+  'affected',
+  'break',
+  'breaks',
+  'failing',
+  'implemented',
+  'implement',
   // Code-specific noise (avoid filtering common symbol names like get/set/add/build/find/list)
-  'code', 'file', 'files', 'function', 'method', 'class', 'type',
-  'fix', 'bug', 'called',
+  'code',
+  'file',
+  'files',
+  'function',
+  'method',
+  'class',
+  'type',
+  'fix',
+  'bug',
+  'called',
 ]);
 
 /**
@@ -92,7 +185,7 @@ export function getStemVariants(term: string): string[] {
     }
   }
 
-  return [...variants].filter(v => v.length >= 3 && v !== t);
+  return [...variants].filter((v) => v.length >= 3 && v !== t);
 }
 
 /**
@@ -207,12 +300,12 @@ export function scorePathRelevance(filePath: string, query: string): number {
  */
 export function isTestFile(filePath: string): boolean {
   const lower = filePath.toLowerCase();
-  const fileName = path.basename(filePath);   // original case — needed for camelCase boundaries
+  const fileName = path.basename(filePath); // original case — needed for camelCase boundaries
   const lowerName = fileName.toLowerCase();
 
   // --- Filename patterns ---
   if (
-    lowerName.startsWith('test_') ||                              // python: test_foo.py
+    lowerName.startsWith('test_') || // python: test_foo.py
     lowerName.startsWith('test.') ||
     // separator-delimited: foo_test.go, foo.test.ts, foo-spec.rb, bar_spec.py
     /[._-](test|tests|spec|specs)\.[a-z0-9]+$/.test(lowerName) ||
@@ -226,12 +319,17 @@ export function isTestFile(filePath: string): boolean {
 
   // --- Directory patterns ---
   if (
-    lower.includes('/tests/') || lower.includes('/test/') ||
-    lower.includes('/__tests__/') || lower.includes('/spec/') ||
-    lower.includes('/specs/') || lower.includes('/testlib/') ||
+    lower.includes('/tests/') ||
+    lower.includes('/test/') ||
+    lower.includes('/__tests__/') ||
+    lower.includes('/spec/') ||
+    lower.includes('/specs/') ||
+    lower.includes('/testlib/') ||
     lower.includes('/testing/') ||
-    lower.startsWith('test/') || lower.startsWith('tests/') ||
-    lower.startsWith('spec/') || lower.startsWith('specs/') ||
+    lower.startsWith('test/') ||
+    lower.startsWith('tests/') ||
+    lower.startsWith('spec/') ||
+    lower.startsWith('specs/') ||
     // CamelCase test source-set dirs (Kotlin Multiplatform / Gradle / Xcode):
     // jvmTest/, commonTest/, androidTest/, iosTest/, integrationTest/. Capital-led
     // so "latest/" / "manifest/" are not matched.
@@ -252,8 +350,17 @@ export function isTestFile(filePath: string): boolean {
  */
 function matchesNonProductionDir(lowerPath: string): boolean {
   const dirs = [
-    'integration', 'sample', 'samples', 'example', 'examples',
-    'fixture', 'fixtures', 'benchmark', 'benchmarks', 'demo', 'demos',
+    'integration',
+    'sample',
+    'samples',
+    'example',
+    'examples',
+    'fixture',
+    'fixtures',
+    'benchmark',
+    'benchmarks',
+    'demo',
+    'demos',
   ];
   for (const dir of dirs) {
     if (lowerPath.includes('/' + dir + '/') || lowerPath.startsWith(dir + '/')) {
@@ -274,12 +381,15 @@ export function nameMatchBonus(nodeName: string, query: string): number {
   // Split query into word-level terms (handles "CacheBuilder build" → ["cache","builder","build"])
   const rawTerms = query
     .replace(/([a-z])([A-Z])/g, '$1 $2')
-    .split(/[\s_.\-]+/)
-    .map(t => t.toLowerCase())
-    .filter(t => t.length >= 2);
+    .split(/[\s_.-]+/)
+    .map((t) => t.toLowerCase())
+    .filter((t) => t.length >= 2);
 
   // Also keep original space-separated tokens for exact-term matching
-  const queryTokens = query.split(/\s+/).map(t => t.toLowerCase()).filter(t => t.length >= 2);
+  const queryTokens = query
+    .split(/\s+/)
+    .map((t) => t.toLowerCase())
+    .filter((t) => t.length >= 2);
 
   // Full query as a single token (for compound identifiers like "CacheBuilder")
   const queryLower = query.replace(/[\s]+/g, '').toLowerCase();
@@ -299,7 +409,7 @@ export function nameMatchBonus(nodeName: string, query: string): number {
 
   // All camelCase-split terms appear in the name
   if (rawTerms.length > 1) {
-    const allMatch = rawTerms.every(t => nameLower.includes(t));
+    const allMatch = rawTerms.every((t) => nameLower.includes(t));
     if (allMatch) return 15;
   }
 

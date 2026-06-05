@@ -1,0 +1,48 @@
+﻿# .dockerignore — keep the build context small and avoid leaking secrets.
+
+# Build artefacts
+node_modules
+**/node_modules
+**/dist
+**/*.tsbuildinfo
+coverage
+.nyc_output
+
+# VCS / IDE / OS
+.git
+.gitignore
+.github
+.husky
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+
+# Logs and local state
+*.log
+logs
+.aide
+data
+
+# Test artefacts (the `aide` binary runs from `packages/cli/dist/bin.js`;
+# tests are not needed inside the image)
+**/*.test.ts
+**/*.test.js
+**/__tests__
+**/__mocks__
+
+# Documentation (not needed inside the image)
+docs
+*.md
+!packages/*/README.md
+
+# Local environment / secrets — never bake them in
+.env
+.env.*
+!.env.example
+*.local
+
+# CI / release plumbing
+.changeset
+_staging
+scripts

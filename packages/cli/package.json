@@ -1,38 +1,39 @@
-﻿{
-    "scripts":  {
-                    "build":  "tsc -b",
-                    "dev":  "tsc -b --watch",
-                    "test":  "vitest run"
-                },
-    "description":  "Unified aide CLI",
-    "type":  "module",
-    "types":  "./dist/index.d.ts",
-    "version":  "1.0.0",
-    "name":  "@aide/cli",
-    "main":  "./dist/index.js",
-    "exports":  {
-                    ".":  {
-                              "types":  "./dist/index.d.ts",
-                              "import":  "./dist/index.js"
-                          }
-                },
-    "devDependencies":  {
-                            "vitest":  "^3.0.0",
-                            "typescript":  "^5.7.0"
-                        },
-    "dependencies":  {
-                         "ora":  "^8.1.1",
-                         "@aide/mind":  "*",
-                         "@aide/mcp-server":  "*",
-                         "commander":  "^13.0.0",
-                         "@aide/guard":  "*",
-                         "chalk":  "^5.4.1",
-                         "@aide/graph":  "*",
-                         "@aide/core":  "*",
-                         "@aide/router":  "*"
-                     },
-    "bin":  {
-                "aide":  "./dist/bin.js"
-            }
+{
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "tsc -b --watch",
+    "test": "vitest run"
+  },
+  "description": "Unified aide CLI",
+  "type": "module",
+  "types": "./dist/index.d.ts",
+  "version": "1.1.0",
+  "name": "@aide/cli",
+  "main": "./dist/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "devDependencies": {
+    "vitest": "^3.0.0",
+    "typescript": "^5.7.0"
+  },
+  "dependencies": {
+    "ora": "^8.1.1",
+    "@aide/mcp-server": "*",
+    "@aide/templates": "*",
+    "@aide/flow": "*",
+    "@aide/mind": "*",
+    "@aide/dashboard": "*",
+    "commander": "^13.0.0",
+    "@aide/guard": "*",
+    "chalk": "^5.4.1",
+    "@aide/graph": "*",
+    "@aide/core": "*"
+  },
+  "bin": {
+    "aide": "./dist/bin.js"
+  }
 }
-

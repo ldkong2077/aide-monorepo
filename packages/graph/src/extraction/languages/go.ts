@@ -1,12 +1,12 @@
-﻿import { getNodeText, getChildByField } from '../tree-sitter-helpers.js';
+import { getNodeText, getChildByField } from '../tree-sitter-helpers.js';
 import type { LanguageExtractor } from '../tree-sitter-types.js';
 
 export const goExtractor: LanguageExtractor = {
   functionTypes: ['function_declaration'],
   classTypes: [], // Go doesn't have classes
   methodTypes: ['method_declaration'],
-  interfaceTypes: [],  // Handled via type_spec → resolveTypeAliasKind
-  structTypes: [],     // Handled via type_spec → resolveTypeAliasKind
+  interfaceTypes: [], // Handled via type_spec → resolveTypeAliasKind
+  structTypes: [], // Handled via type_spec → resolveTypeAliasKind
   enumTypes: [],
   typeAliasTypes: ['type_spec'], // Go type declarations
   importTypes: ['import_declaration'],
@@ -45,7 +45,7 @@ export const goExtractor: LanguageExtractor = {
     // Find the type identifier inside the receiver
     const text = getNodeText(receiver, source);
     // Extract type name from patterns like "(sl *Type)", "(sl Type)", "(*Type)", "(Type)"
-    const match = text.match(/\*?\s*([A-Za-z_][A-Za-z0-9_]*)\s*\)/);
+    const match = /\*?\s*([A-Za-z_][A-Za-z0-9_]*)\s*\)/.exec(text);
     return match?.[1];
   },
 };

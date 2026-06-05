@@ -5,7 +5,13 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { loadConfig, findConfigPath, getDefaultConfig, generateDefaultConfigFile, CONFIG_FILENAME } from './config.js';
+import {
+  loadConfig,
+  findConfigPath,
+  getDefaultConfig,
+  generateDefaultConfigFile,
+  CONFIG_FILENAME,
+} from './config.js';
 
 describe('loadConfig', () => {
   let tmpDir: string;
@@ -151,8 +157,14 @@ describe('getDefaultConfig', () => {
   it('has all routing task types', () => {
     const config = getDefaultConfig();
     const expectedTasks = [
-      'code_completion', 'code_generation', 'debugging', 'refactoring',
-      'code_review', 'explanation', 'testing', 'general',
+      'code_completion',
+      'code_generation',
+      'debugging',
+      'refactoring',
+      'code_review',
+      'explanation',
+      'testing',
+      'general',
     ];
     for (const task of expectedTasks) {
       expect(config.routing[task]).toBeDefined();

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Grammar Loading and Caching
  *
  * Uses web-tree-sitter (WASM) for universal cross-platform support.
@@ -7,10 +7,21 @@
  */
 
 import * as path from 'path';
+import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
 import { Parser, Language as WasmLanguage } from 'web-tree-sitter';
-import { Language } from '../types.js';
+import { type Language } from '../types.js';
+import { logWarn } from '../errors.js';
 
-export type GrammarLanguage = Exclude<Language, 'svelte' | 'vue' | 'liquid' | 'yaml' | 'twig' | 'unknown'>;
+// `require` is not available in ESM. `createRequire` lets us call
+// `require.resolve` against the current module's URL — used to locate
+// `tree-sitter-wasms/out/*.wasm` files (which are NOT vendored).
+const requireFromHere = createRequire(import.meta.url);
+
+export type GrammarLanguage = Exclude<
+  Language,
+  'svelte' | 'vue' | 'liquid' | 'yaml' | 'twig' | 'unknown'
+>;
 
 /**
  * WASM filename map — maps each language to its .wasm grammar file
@@ -140,9 +151,7 @@ export async function loadGrammarsForLanguages(languages: Language[]): Promise<v
   // Deduplicate and filter to languages that have WASM grammars and aren't already loaded
   const toLoad = [...new Set(languages)].filter(
     (lang): lang is GrammarLanguage =>
-      lang in WASM_GRAMMAR_FILES &&
-      !languageCache.has(lang) &&
-      !unavailableGrammarErrors.has(lang)
+      lang in WASM_GRAMMAR_FILES && !languageCache.has(lang) && !unavailableGrammarErrors.has(lang),
   );
 
   // Load grammars sequentially to avoid web-tree-sitter WASM race condition on Node 20+
@@ -155,14 +164,19 @@ export async function loadGrammarsForLanguages(languages: Language[]): Promise<v
       // ABI-13 build that corrupts the shared WASM heap under web-tree-sitter
       // 0.25 (drops nested calls/imports on every file after the first); we
       // vendor the upstream ABI-15 wasm instead.
-      const wasmPath = (lang === 'pascal' || lang === 'scala' || lang === 'lua' || lang === 'luau')
-        ? path.join(__dirname, 'wasm', wasmFile)
-        : require.resolve(`tree-sitter-wasms/out/${wasmFile}`);
+      // `__dirname` is not defined in ESM; derive it from import.meta.url.
+      // Vendored WASM files are copied to dist/extraction/wasm/ by the postbuild.
+      const __filename = fileURLToPath(import.meta.url);
+      const __dirname = path.dirname(__filename);
+      const wasmPath =
+        lang === 'pascal' || lang === 'scala' || lang === 'lua' || lang === 'luau'
+          ? path.join(__dirname, 'wasm', wasmFile)
+          : requireFromHere.resolve(`tree-sitter-wasms/out/${wasmFile}`);
       const language = await WasmLanguage.load(wasmPath);
       languageCache.set(lang, language);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      console.warn(`[CodeGraph] Failed to load ${lang} grammar — parsing will be unavailable: ${message}`);
+      logWarn(`Failed to load ${lang} grammar — parsing will be unavailable`, { error: message });
       unavailableGrammarErrors.set(lang, message);
     }
   }
@@ -225,7 +239,9 @@ export function detectLanguage(filePath: string, source?: string): Language {
  */
 function looksLikeCpp(source: string): boolean {
   const sample = source.substring(0, 8192);
-  return /\bnamespace\b|\bclass\s+\w+\s*[:{]|\btemplate\s*<|\b(?:public|private|protected)\s*:|\bvirtual\b|\busing\s+(?:namespace\b|\w+\s*=)/.test(sample);
+  return /\bnamespace\b|\bclass\s+\w+\s*[:{]|\btemplate\s*<|\b(?:public|private|protected)\s*:|\bvirtual\b|\busing\s+(?:namespace\b|\w+\s*=)/.test(
+    sample,
+  );
 }
 
 /**
