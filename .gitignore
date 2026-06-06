@@ -28,11 +28,13 @@ packages/*/dist/
 packages/*/tsconfig.tsbuildinfo
 # Stale / no-longer-used scratch directory
 _staging/
+# Local / user-specific files (not part of the project)
+.local/
+
+# Auxiliary / reference directories (not part of the published project)
+auxiliary/
 # Per-package node_modules from a buggy npm install
 packages/*/node_modules/
 # Reference directories
 superpowers-main/
-# Temporary files
-ai工具评估.txt
-err.log
-err2.log
+# Temporary files (remove these patterns once they've been cleaned up)
