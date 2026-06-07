@@ -7,7 +7,7 @@ This is the package most users will install. It is intentionally thin: it parses
 ## Install
 
 ```bash
-npm install -g aide      # or: npm install -g @aide-dev/cli
+npm install -g @aide-dev/cli
 aide --version
 ```
 

@@ -10,6 +10,16 @@
   "version": "1.1.0",
   "name": "@aide-dev/cli",
   "license": "MIT",
+  "keywords": [
+    "aide",
+    "ai",
+    "cli",
+    "code-review",
+    "hallucination-detection",
+    "code-graph",
+    "mcp",
+    "llm-proxy"
+  ],
   "main": "./dist/index.js",
   "files": [
     "dist",
