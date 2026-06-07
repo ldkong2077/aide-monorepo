@@ -1,5 +1,5 @@
 /**
- * @aide/guard — Upstream-call resilience helpers.
+ * @aide-dev/guard — Upstream-call resilience helpers.
  *
  * `withRetry` adds exponential backoff with jitter. `withTimeout` adds a
  * hard wall-clock cap on a single attempt, so a hung TCP connection
@@ -13,7 +13,7 @@
 
 /** Thrown by `withTimeout` when an attempt exceeds its budget. */
 export class UpstreamTimeoutError extends Error {
-  override readonly name = 'UpstreamTimeoutError';
+  override readonly name = "UpstreamTimeoutError";
   readonly timeoutMs: number;
   constructor(timeoutMs: number, label: string) {
     super(`Upstream ${label} timed out after ${timeoutMs}ms`);
@@ -22,9 +22,16 @@ export class UpstreamTimeoutError extends Error {
 }
 
 /** Promise that rejects after `ms` milliseconds. Cleared on settle. */
-export function withTimeout<T>(promise: Promise<T>, ms: number, label = 'request'): Promise<T> {
+export function withTimeout<T>(
+  promise: Promise<T>,
+  ms: number,
+  label = "request",
+): Promise<T> {
   return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new UpstreamTimeoutError(ms, label)), ms);
+    const timer = setTimeout(
+      () => reject(new UpstreamTimeoutError(ms, label)),
+      ms,
+    );
     // Unref so a pending timer never holds the event loop open after
     // the parent promise has already settled.
     timer.unref();
@@ -67,12 +74,12 @@ export const DEFAULT_RETRY_OPTIONS: RetryOptions = {
 export function isNonRetryableError(error: Error): boolean {
   const msg = error.message.toLowerCase();
   return (
-    msg.includes('invalid api key') ||
-    msg.includes('authentication') ||
-    msg.includes('unauthorized') ||
-    msg.includes('forbidden') ||
-    msg.includes('invalid_request') ||
-    msg.includes('context_length_exceeded')
+    msg.includes("invalid api key") ||
+    msg.includes("authentication") ||
+    msg.includes("unauthorized") ||
+    msg.includes("forbidden") ||
+    msg.includes("invalid_request") ||
+    msg.includes("context_length_exceeded")
   );
 }
 
@@ -89,7 +96,7 @@ export function sleep(ms: number): Promise<void> {
 export async function withRetry<T>(
   fn: () => Promise<T>,
   options: Partial<RetryOptions> = {},
-  label = 'request',
+  label = "request",
 ): Promise<T> {
   const opts = { ...DEFAULT_RETRY_OPTIONS, ...options };
   let lastError: Error | undefined;
@@ -97,7 +104,9 @@ export async function withRetry<T>(
   for (let attempt = 0; attempt <= opts.maxRetries; attempt++) {
     try {
       const p = fn();
-      return opts.timeoutMs ? await withTimeout(p, opts.timeoutMs, label) : await p;
+      return opts.timeoutMs
+        ? await withTimeout(p, opts.timeoutMs, label)
+        : await p;
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
 

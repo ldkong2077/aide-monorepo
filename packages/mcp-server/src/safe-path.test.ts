@@ -10,31 +10,42 @@
  *  - allow-list patterns
  *  - batch resolution
  */
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join, resolve, sep } from 'node:path';
-import { resolveSafePath, resolveSafePaths } from './safe-path.js';
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import {
+  mkdir,
+  mkdtemp,
+  realpath,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join, resolve, sep } from "node:path";
+import { resolveSafePath, resolveSafePaths } from "./safe-path.js";
 
 let sandbox: string;
 let outsideDir: string;
 let symlinkPath: string;
 let realFile: string;
+let canonicalSandbox: string;
+let canonicalRealFile: string;
 
 beforeEach(async () => {
   // Create a sandbox project root.
-  sandbox = await mkdtemp(join(tmpdir(), 'aide-safepath-'));
+  sandbox = await mkdtemp(join(tmpdir(), "aide-safepath-"));
+  canonicalSandbox = await realpath(sandbox);
   // Create an "outside" directory that traversal attempts will target.
-  outsideDir = await mkdtemp(join(tmpdir(), 'aide-outside-'));
+  outsideDir = await mkdtemp(join(tmpdir(), "aide-outside-"));
   // Create a real file inside the sandbox.
-  realFile = join(sandbox, 'real.txt');
-  await writeFile(realFile, 'hello');
+  realFile = join(sandbox, "real.txt");
+  await writeFile(realFile, "hello");
+  canonicalRealFile = await realpath(realFile);
   // Create a real file outside the sandbox.
-  const outsideFile = join(outsideDir, 'secret.txt');
-  await writeFile(outsideFile, 'SECRET');
+  const outsideFile = join(outsideDir, "secret.txt");
+  await writeFile(outsideFile, "SECRET");
   // Create a symlink inside the sandbox that points outside.
-  symlinkPath = join(sandbox, 'escape');
-  await symlink(outsideFile, symlinkPath, 'file');
+  symlinkPath = join(sandbox, "escape");
+  await symlink(outsideFile, symlinkPath, "file");
 });
 
 afterEach(async () => {
@@ -42,123 +53,137 @@ afterEach(async () => {
   await rm(outsideDir, { recursive: true, force: true });
 });
 
-describe('resolveSafePath — happy paths', () => {
-  it('resolves a relative path inside the project root', async () => {
-    const result = await resolveSafePath('real.txt', { projectRoot: sandbox });
-    expect(result).toBe(resolve(sandbox, 'real.txt'));
+describe("resolveSafePath — happy paths", () => {
+  it("resolves a relative path inside the project root", async () => {
+    const result = await resolveSafePath("real.txt", { projectRoot: sandbox });
+    expect(result).toBe(resolve(canonicalSandbox, "real.txt"));
   });
 
-  it('resolves an absolute path inside the project root', async () => {
+  it("resolves an absolute path inside the project root", async () => {
     const result = await resolveSafePath(realFile, { projectRoot: sandbox });
-    expect(result).toBe(realFile);
+    expect(result).toBe(canonicalRealFile);
   });
 
-  it('resolves a nested relative path', async () => {
-    const nestedDir = join(sandbox, 'a', 'b', 'c');
+  it("resolves a nested relative path", async () => {
+    const nestedDir = join(sandbox, "a", "b", "c");
     await mkdir(nestedDir, { recursive: true });
-    const result = await resolveSafePath('a/b/c', { projectRoot: sandbox });
-    expect(result).toBe(resolve(sandbox, 'a', 'b', 'c'));
+    const result = await resolveSafePath("a/b/c", { projectRoot: sandbox });
+    expect(result).toBe(resolve(canonicalSandbox, "a", "b", "c"));
   });
 
-  it('resolves a non-existent path when mustExist is false', async () => {
-    const result = await resolveSafePath('not-yet-created.txt', {
+  it("resolves a non-existent path when mustExist is false", async () => {
+    const result = await resolveSafePath("not-yet-created.txt", {
       projectRoot: sandbox,
       mustExist: false,
     });
-    expect(result).toBe(resolve(sandbox, 'not-yet-created.txt'));
+    expect(result).toBe(resolve(canonicalSandbox, "not-yet-created.txt"));
   });
 });
 
-describe('resolveSafePath — rejections', () => {
-  it('rejects an empty string', async () => {
-    await expect(resolveSafePath('', { projectRoot: sandbox })).rejects.toMatchObject({
-      code: 'PATH_INVALID',
+describe("resolveSafePath — rejections", () => {
+  it("rejects an empty string", async () => {
+    await expect(
+      resolveSafePath("", { projectRoot: sandbox }),
+    ).rejects.toMatchObject({
+      code: "PATH_INVALID",
     });
   });
 
-  it('rejects a whitespace-only string', async () => {
-    await expect(resolveSafePath('   ', { projectRoot: sandbox })).rejects.toMatchObject({
-      code: 'PATH_INVALID',
+  it("rejects a whitespace-only string", async () => {
+    await expect(
+      resolveSafePath("   ", { projectRoot: sandbox }),
+    ).rejects.toMatchObject({
+      code: "PATH_INVALID",
     });
   });
 
-  it('rejects a non-string at runtime', async () => {
+  it("rejects a non-string at runtime", async () => {
     // Bypass the type signature to verify the runtime guard.
     const badInput = null as unknown as string;
-    await expect(resolveSafePath(badInput, { projectRoot: sandbox })).rejects.toMatchObject({
-      code: 'PATH_INVALID',
+    await expect(
+      resolveSafePath(badInput, { projectRoot: sandbox }),
+    ).rejects.toMatchObject({
+      code: "PATH_INVALID",
     });
   });
 
-  it('rejects a missing path when mustExist is true', async () => {
+  it("rejects a missing path when mustExist is true", async () => {
     await expect(
-      resolveSafePath('does-not-exist.txt', { projectRoot: sandbox, mustExist: true }),
-    ).rejects.toMatchObject({ code: 'PATH_NOT_FOUND' });
+      resolveSafePath("does-not-exist.txt", {
+        projectRoot: sandbox,
+        mustExist: true,
+      }),
+    ).rejects.toMatchObject({ code: "PATH_NOT_FOUND" });
   });
 
-  it('blocks ../ traversal that escapes the root', async () => {
-    const escape = join('..', '..', 'escape-target', 'file.txt');
-    await expect(resolveSafePath(escape, { projectRoot: sandbox })).rejects.toMatchObject({
-      code: 'PATH_TRAVERSAL',
+  it("blocks ../ traversal that escapes the root", async () => {
+    const escape = join("..", "..", "escape-target", "file.txt");
+    await expect(
+      resolveSafePath(escape, { projectRoot: sandbox }),
+    ).rejects.toMatchObject({
+      code: "PATH_TRAVERSAL",
     });
   });
 
-  it('blocks an absolute path outside the root', async () => {
+  it("blocks an absolute path outside the root", async () => {
     await expect(
-      resolveSafePath(join(outsideDir, 'secret.txt'), { projectRoot: sandbox }),
-    ).rejects.toMatchObject({ code: 'PATH_TRAVERSAL' });
+      resolveSafePath(join(outsideDir, "secret.txt"), { projectRoot: sandbox }),
+    ).rejects.toMatchObject({ code: "PATH_TRAVERSAL" });
   });
 
-  it('blocks symlink escape', async () => {
+  it("blocks symlink escape", async () => {
     // The sandbox contains a symlink that points OUTSIDE the sandbox.
     // resolveSafePath must canonicalize via realpath and reject.
-    await expect(resolveSafePath('escape', { projectRoot: sandbox })).rejects.toMatchObject({
-      code: 'PATH_TRAVERSAL',
+    await expect(
+      resolveSafePath("escape", { projectRoot: sandbox }),
+    ).rejects.toMatchObject({
+      code: "PATH_TRAVERSAL",
     });
   });
 
-  it('blocks Windows-style traversal when on Windows', async () => {
-    if (sep !== '\\') return; // skip on POSIX
+  it("blocks Windows-style traversal when on Windows", async () => {
+    if (sep !== "\\") return; // skip on POSIX
     await expect(
-      resolveSafePath('..\\..\\Windows\\System32', { projectRoot: sandbox }),
-    ).rejects.toMatchObject({ code: 'PATH_TRAVERSAL' });
+      resolveSafePath("..\\..\\Windows\\System32", { projectRoot: sandbox }),
+    ).rejects.toMatchObject({ code: "PATH_TRAVERSAL" });
   });
 });
 
-describe('resolveSafePath — allow patterns', () => {
-  it('accepts a path matching the allow-list', async () => {
-    const result = await resolveSafePath('real.txt', {
+describe("resolveSafePath — allow patterns", () => {
+  it("accepts a path matching the allow-list", async () => {
+    const result = await resolveSafePath("real.txt", {
       projectRoot: sandbox,
-      allowPatterns: ['*.txt', 'docs/**'],
+      allowPatterns: ["*.txt", "docs/**"],
     });
-    expect(result).toBe(realFile);
+    expect(result).toBe(canonicalRealFile);
   });
 
-  it('rejects a path that matches nothing in the allow-list', async () => {
-    const subDir = join(sandbox, 'config.json');
-    await writeFile(subDir, '{}');
+  it("rejects a path that matches nothing in the allow-list", async () => {
+    const subDir = join(sandbox, "config.json");
+    await writeFile(subDir, "{}");
     await expect(
-      resolveSafePath('config.json', {
+      resolveSafePath("config.json", {
         projectRoot: sandbox,
-        allowPatterns: ['*.txt'],
+        allowPatterns: ["*.txt"],
       }),
-    ).rejects.toMatchObject({ code: 'PATH_NOT_ALLOWED' });
+    ).rejects.toMatchObject({ code: "PATH_NOT_ALLOWED" });
   });
 });
 
-describe('resolveSafePaths — batch', () => {
-  it('resolves multiple valid paths', async () => {
-    const f2 = join(sandbox, 'second.txt');
-    await writeFile(f2, 'world');
-    const result = await resolveSafePaths(['real.txt', 'second.txt'], {
+describe("resolveSafePaths — batch", () => {
+  it("resolves multiple valid paths", async () => {
+    const f2 = join(sandbox, "second.txt");
+    await writeFile(f2, "world");
+    const canonicalF2 = await realpath(f2);
+    const result = await resolveSafePaths(["real.txt", "second.txt"], {
       projectRoot: sandbox,
     });
-    expect(result).toEqual([realFile, f2]);
+    expect(result).toEqual([canonicalRealFile, canonicalF2]);
   });
 
-  it('fails fast on the first bad path', async () => {
+  it("fails fast on the first bad path", async () => {
     await expect(
-      resolveSafePaths(['real.txt', '../etc/passwd'], { projectRoot: sandbox }),
-    ).rejects.toMatchObject({ code: 'PATH_TRAVERSAL' });
+      resolveSafePaths(["real.txt", "../etc/passwd"], { projectRoot: sandbox }),
+    ).rejects.toMatchObject({ code: "PATH_TRAVERSAL" });
   });
 });

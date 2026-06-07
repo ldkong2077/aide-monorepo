@@ -1,5 +1,3 @@
-// @aide/core - Shared infrastructure for all aide packages.
-
 export {
   AideError,
   ConfigError,
@@ -8,9 +6,24 @@ export {
   GraphError,
   MindError,
   type ErrorSeverity,
-} from './errors.js';
+} from "./errors.js";
 
-export { createLogger, silentLogger, type Logger, type LoggerOptions } from './logger.js';
+export {
+  resolveSafePath,
+  resolveSafePaths,
+  validatePathWithinRoot,
+  validateProjectPath,
+  isPathWithinRoot,
+  isPathWithinRootReal,
+  type SafePathOptions,
+} from "./path.js";
+
+export {
+  createLogger,
+  silentLogger,
+  type Logger,
+  type LoggerOptions,
+} from "./logger.js";
 
 export {
   CONFIG_FILENAME,
@@ -18,9 +31,14 @@ export {
   findConfigPath,
   loadConfig,
   generateDefaultConfigFile,
-} from './config.js';
+} from "./config.js";
 
-export { openDatabase, getSchemaVersion, DatabaseError, type DbOptions } from './db/index.js';
+export {
+  openDatabase,
+  getSchemaVersion,
+  DatabaseError,
+  type DbOptions,
+} from "./db/index.js";
 
 export {
   countTokens,
@@ -30,11 +48,13 @@ export {
   encodingForModel,
   DEFAULT_ENCODING,
   type TokenizerEncoding,
-} from './tokenizer.js';
+} from "./tokenizer.js";
+
+// Enums (must be exported as values, not types)
+export { TaskType, ChangeType } from "./types.js";
 
 export type {
-  // Enums and base types
-  TaskType,
+  // Base types
   RiskLevel,
   Severity,
   Verdict,
@@ -42,11 +62,11 @@ export type {
   TestFramework,
   RouteStrategy,
   HallucinationType,
-  ChangeType,
   // Interfaces
   ProviderConfig,
   ModelConfig,
   ChatMessage,
+  ToolCall,
   ChatCompletionRequest,
   ChatCompletionResponse,
   Choice,
@@ -65,6 +85,9 @@ export type {
   TestResult,
   VerifyOptions,
   VerificationReport,
+  RateLimitConfig,
+  LogFormat,
+  CorsConfig,
   ServerConfig,
   CostConfig,
   GuardConfig,
@@ -84,4 +107,4 @@ export type {
   TargetInstallOptions,
   InstallerTarget,
   MetricEntry,
-} from './types.js';
+} from "./types.js";

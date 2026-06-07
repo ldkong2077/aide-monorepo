@@ -7,12 +7,12 @@
  * and in `--print-config`'s help listing — keep it stable.
  */
 
-import { type AgentTarget, type Location, type TargetId } from './types.js';
-import { claudeTarget } from './claude.js';
-import { cursorTarget } from './cursor.js';
-import { codexTarget } from './codex.js';
-import { opencodeTarget } from './opencode.js';
-import { hermesTarget } from './hermes.js';
+import { type AgentTarget, type Location, type TargetId } from "./types.js";
+import { claudeTarget } from "./claude.js";
+import { cursorTarget } from "./cursor.js";
+import { codexTarget } from "./codex.js";
+import { opencodeTarget } from "./opencode.js";
+import { hermesTarget } from "./hermes.js";
 
 export const ALL_TARGETS: readonly AgentTarget[] = Object.freeze([
   claudeTarget,
@@ -38,7 +38,7 @@ export function listTargetIds(): TargetId[] {
  */
 export function detectAll(loc: Location): {
   target: AgentTarget;
-  detection: ReturnType<AgentTarget['detect']>;
+  detection: ReturnType<AgentTarget["detect"]>;
 }[] {
   return ALL_TARGETS.map((target) => ({
     target,
@@ -58,17 +58,19 @@ export function detectAll(loc: Location): {
  *   - csv list — `'claude,cursor'` etc. Unknown ids throw.
  */
 export function resolveTargetFlag(value: string, loc: Location): AgentTarget[] {
-  if (value === 'none') return [];
-  if (value === 'all') return [...ALL_TARGETS];
-  if (value === 'auto') {
-    const detected = detectAll(loc).filter(({ detection }) => detection.installed);
+  if (value === "none") return [];
+  if (value === "all") return [...ALL_TARGETS];
+  if (value === "auto") {
+    const detected = detectAll(loc).filter(
+      ({ detection }) => detection.installed,
+    );
     if (detected.length > 0) return detected.map(({ target }) => target);
-    const fallback = getTarget('claude');
+    const fallback = getTarget("claude");
     return fallback ? [fallback] : [];
   }
 
   const ids = value
-    .split(',')
+    .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
   const resolved: AgentTarget[] = [];
@@ -79,9 +81,9 @@ export function resolveTargetFlag(value: string, loc: Location): AgentTarget[] {
     else unknown.push(id);
   }
   if (unknown.length > 0) {
-    const known = listTargetIds().join(', ');
+    const known = listTargetIds().join(", ");
     throw new Error(
-      `Unknown --target id(s): ${unknown.join(', ')}. Known: ${known}, plus 'auto' / 'all' / 'none'.`,
+      `Unknown --target id(s): ${unknown.join(", ")}. Known: ${known}, plus 'auto' / 'all' / 'none'.`,
     );
   }
   return resolved;

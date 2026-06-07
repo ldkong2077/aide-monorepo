@@ -24,45 +24,51 @@
  */
 /* eslint-disable no-console */
 
-import { Command } from 'commander';
-import * as path from 'path';
-import * as fs from 'fs';
-import { fileURLToPath } from 'url';
-import { getCodeGraphDir, isInitialized } from '../directory.js';
+import { Command } from "commander";
+import * as path from "path";
+import * as fs from "fs";
+import { fileURLToPath } from "url";
+import { getCodeGraphDir, isInitialized } from "../directory.js";
 
 // ESM polyfill: __dirname is not defined in ES modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-import { createShimmerProgress } from '../ui/shimmer-progress.js';
-import { NODE_KINDS, type NodeKind } from '../types.js';
-import { getGlyphs } from '../ui/glyphs.js';
+import { createShimmerProgress } from "../ui/shimmer-progress.js";
+import { NODE_KINDS, type NodeKind } from "../types.js";
+import { getGlyphs } from "../ui/glyphs.js";
 
 import {
   buildNode25BlockBanner,
   buildNodeTooOldBanner,
   MIN_NODE_MAJOR,
-} from './node-version-check.js';
+} from "./node-version-check.js";
 
 // Lazy-load heavy modules (CodeGraph, runInstaller) to keep CLI startup fast.
-import type * as GraphIndex from '../index.js';
+import type * as GraphIndex from "../index.js";
 async function loadCodeGraph(): Promise<typeof GraphIndex> {
   try {
-    return await import('../index.js');
+    return await import("../index.js");
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error(`\x1b[31m${getGlyphs().err}\x1b[0m Failed to load CodeGraph modules.`);
-    console.error(`\n  Node: ${process.version}  Platform: ${process.platform} ${process.arch}`);
+    console.error(
+      `\x1b[31m${getGlyphs().err}\x1b[0m Failed to load CodeGraph modules.`,
+    );
+    console.error(
+      `\n  Node: ${process.version}  Platform: ${process.platform} ${process.arch}`,
+    );
     console.error(`\n  Error: ${msg}`);
-    console.error('\n  Try reinstalling with: npm install -g @colbymchenry/codegraph\n');
+    console.error(
+      "\n  Try reinstalling with: npm install -g @colbymchenry/codegraph\n",
+    );
     process.exit(1);
   }
 }
 
 // Dynamic import helper — tsc compiles import() to require() in CJS mode,
 // which fails for ESM-only packages. This bypasses the transformation.
- 
-import type * as ClackPrompts from '@clack/prompts';
-const importESM = new Function('specifier', 'return import(specifier)') as (
+
+import type * as ClackPrompts from "@clack/prompts";
+const importESM = new Function("specifier", "return import(specifier)") as (
   specifier: string,
 ) => Promise<typeof ClackPrompts>;
 
@@ -74,9 +80,9 @@ const importESM = new Function('specifier', 'return import(specifier)') as (
 // Hard-exit before any WASM work; allow override via env var for users
 // who patched V8 themselves or want to test a future fix.
 const nodeVersion = process.versions.node;
-const nodeMajor = parseInt(nodeVersion.split('.')[0] ?? '0', 10);
+const nodeMajor = parseInt(nodeVersion.split(".")[0] ?? "0", 10);
 if (nodeMajor >= 25) {
-  process.stderr.write(buildNode25BlockBanner(nodeVersion) + '\n');
+  process.stderr.write(buildNode25BlockBanner(nodeVersion) + "\n");
   if (!process.env.CODEGRAPH_ALLOW_UNSAFE_NODE) {
     process.exit(1);
   }
@@ -86,7 +92,7 @@ if (nodeMajor >= 25) {
 // install (unless engine-strict), so hard-block here to actually keep users off
 // unsupported versions. Mirrors the 25+ block above. See package.json `engines`.
 if (nodeMajor < MIN_NODE_MAJOR) {
-  process.stderr.write(buildNodeTooOldBanner(nodeVersion) + '\n');
+  process.stderr.write(buildNodeTooOldBanner(nodeVersion) + "\n");
   if (!process.env.CODEGRAPH_ALLOW_UNSAFE_NODE) {
     process.exit(1);
   }
@@ -95,10 +101,13 @@ if (nodeMajor < MIN_NODE_MAJOR) {
 
 // Check if running with no arguments - run installer
 if (process.argv.length === 2) {
-  import('../installer/index.js')
+  import("../installer/index.js")
     .then(({ runInstaller }) => runInstaller())
     .catch((err) => {
-      console.error('Installation failed:', err instanceof Error ? err.message : String(err));
+      console.error(
+        "Installation failed:",
+        err instanceof Error ? err.message : String(err),
+      );
       process.exit(1);
     });
 } else {
@@ -106,12 +115,12 @@ if (process.argv.length === 2) {
   main();
 }
 
-process.on('uncaughtException', (error) => {
-  console.error('[CodeGraph] Uncaught exception:', error);
+process.on("uncaughtException", (error) => {
+  console.error("[CodeGraph] Uncaught exception:", error);
 });
 
-process.on('unhandledRejection', (reason) => {
-  console.error('[CodeGraph] Unhandled rejection:', reason);
+process.on("unhandledRejection", (reason) => {
+  console.error("[CodeGraph] Unhandled rejection:", reason);
 });
 
 function main() {
@@ -119,7 +128,7 @@ function main() {
 
   // Version from package.json
   const packageJson = JSON.parse(
-    fs.readFileSync(path.join(__dirname, '..', '..', 'package.json'), 'utf-8'),
+    fs.readFileSync(path.join(__dirname, "..", "..", "package.json"), "utf-8"),
   );
 
   // =============================================================================
@@ -127,16 +136,16 @@ function main() {
   // =============================================================================
 
   const colors = {
-    reset: '\x1b[0m',
-    bold: '\x1b[1m',
-    dim: '\x1b[2m',
-    red: '\x1b[31m',
-    green: '\x1b[32m',
-    yellow: '\x1b[33m',
-    blue: '\x1b[34m',
-    cyan: '\x1b[36m',
-    white: '\x1b[37m',
-    gray: '\x1b[90m',
+    reset: "\x1b[0m",
+    bold: "\x1b[1m",
+    dim: "\x1b[2m",
+    red: "\x1b[31m",
+    green: "\x1b[32m",
+    yellow: "\x1b[33m",
+    blue: "\x1b[34m",
+    cyan: "\x1b[36m",
+    white: "\x1b[37m",
+    gray: "\x1b[90m",
   };
 
   const chalk = {
@@ -152,8 +161,8 @@ function main() {
   };
 
   program
-    .name('codegraph')
-    .description('Code intelligence and knowledge graph for any codebase')
+    .name("codegraph")
+    .description("Code intelligence and knowledge graph for any codebase")
     .version(packageJson.version);
 
   // =============================================================================
@@ -228,7 +237,7 @@ function main() {
     total: number;
     currentFile?: string;
   }) => void {
-    let lastPhase = '';
+    let lastPhase = "";
     let lastPct = -1;
     const startTime = Date.now();
 
@@ -247,13 +256,15 @@ function main() {
         if (pct >= lastPct + 5 || progress.current === progress.total) {
           lastPct = pct;
           console.log(
-            `[${elapsed}s]   ${progress.current}/${progress.total} (${pct}%)${progress.currentFile ? ` ${getGlyphs().dash} ${progress.currentFile}` : ''}`,
+            `[${elapsed}s]   ${progress.current}/${progress.total} (${pct}%)${progress.currentFile ? ` ${getGlyphs().dash} ${progress.currentFile}` : ""}`,
           );
         }
       } else if (progress.current > 0) {
         // Scanning phase (no total yet) — log periodically
         if (progress.current % 1000 === 0 || progress.current === 1) {
-          console.log(`[${elapsed}s]   ${formatNumber(progress.current)} files found`);
+          console.log(
+            `[${elapsed}s]   ${formatNumber(progress.current)} files found`,
+          );
         }
       }
     };
@@ -263,28 +274,28 @@ function main() {
    * Print success message
    */
   function success(message: string): void {
-    console.log(chalk.green(getGlyphs().ok) + ' ' + message);
+    console.log(chalk.green(getGlyphs().ok) + " " + message);
   }
 
   /**
    * Print error message
    */
   function error(message: string): void {
-    console.error(chalk.red(getGlyphs().err) + ' ' + message);
+    console.error(chalk.red(getGlyphs().err) + " " + message);
   }
 
   /**
    * Print info message
    */
   function info(message: string): void {
-    console.log(chalk.blue(getGlyphs().info) + ' ' + message);
+    console.log(chalk.blue(getGlyphs().info) + " " + message);
   }
 
   /**
    * Print warning message
    */
   function warn(message: string): void {
-    console.log(chalk.yellow(getGlyphs().warn) + ' ' + message);
+    console.log(chalk.yellow(getGlyphs().warn) + " " + message);
   }
 
   interface IndexResult {
@@ -294,7 +305,12 @@ function main() {
     filesErrored: number;
     nodesCreated: number;
     edgesCreated: number;
-    errors: { message: string; filePath?: string; severity: string; code?: string }[];
+    errors: {
+      message: string;
+      filePath?: string;
+      severity: string;
+      code?: string;
+    }[];
     durationMs: number;
   }
 
@@ -320,9 +336,10 @@ function main() {
     // multiple call sites), fall back to a generic message rather than
     // continuing to the misleading "No files found" branch or throwing.
     if (!result.success && !hasErrors && result.filesIndexed === 0) {
-      const generic = result.errors.find((e) => e.severity === 'error');
+      const generic = result.errors.find((e) => e.severity === "error");
       clack.log.error(
-        generic?.message ?? `Indexing failed ${getGlyphs().dash} no further details available`,
+        generic?.message ??
+          `Indexing failed ${getGlyphs().dash} no further details available`,
       );
       return;
     }
@@ -343,35 +360,38 @@ function main() {
         `Indexing failed ${getGlyphs().dash} all ${formatNumber(result.filesErrored)} files had errors`,
       );
     } else {
-      clack.log.warn('No files found to index');
+      clack.log.warn("No files found to index");
     }
 
     if (hasErrors) {
       const errorsByCode = new Map<string, number>();
       for (const err of result.errors) {
-        if (err.severity === 'error') {
-          const code = err.code || 'unknown';
+        if (err.severity === "error") {
+          const code = err.code || "unknown";
           errorsByCode.set(code, (errorsByCode.get(code) || 0) + 1);
         }
       }
 
       const codeLabels: Record<string, string> = {
-        parse_error: 'files failed to parse',
-        read_error: 'files could not be read',
-        size_exceeded: 'files exceeded size limit',
-        path_traversal: 'blocked paths',
-        unsupported_language: 'unsupported language',
-        parser_error: 'parser initialization failures',
+        parse_error: "files failed to parse",
+        read_error: "files could not be read",
+        size_exceeded: "files exceeded size limit",
+        path_traversal: "blocked paths",
+        unsupported_language: "unsupported language",
+        parser_error: "parser initialization failures",
       };
 
       const breakdown = Array.from(errorsByCode)
-        .map(([code, count]) => `${formatNumber(count)} ${codeLabels[code] || code}`)
-        .join('\n');
-      clack.note(breakdown, 'Error breakdown');
+        .map(
+          ([code, count]) =>
+            `${formatNumber(count)} ${codeLabels[code] || code}`,
+        )
+        .join("\n");
+      clack.note(breakdown, "Error breakdown");
 
       if (projectPath) {
         writeErrorLog(projectPath, result.errors);
-        clack.log.info('See .codegraph/errors.log for details');
+        clack.log.info("See .codegraph/errors.log for details");
       }
 
       if (result.filesIndexed > 0) {
@@ -380,7 +400,7 @@ function main() {
         );
       }
     } else if (projectPath) {
-      const logPath = path.join(projectPath, '.codegraph', 'errors.log');
+      const logPath = path.join(projectPath, ".codegraph", "errors.log");
       if (fs.existsSync(logPath)) {
         fs.unlinkSync(logPath);
       }
@@ -392,19 +412,27 @@ function main() {
    */
   function writeErrorLog(
     projectPath: string,
-    errors: { message: string; filePath?: string; severity: string; code?: string }[],
+    errors: {
+      message: string;
+      filePath?: string;
+      severity: string;
+      code?: string;
+    }[],
   ): void {
-    const cgDir = path.join(projectPath, '.codegraph');
+    const cgDir = path.join(projectPath, ".codegraph");
     if (!fs.existsSync(cgDir)) return;
 
-    const logPath = path.join(cgDir, 'errors.log');
+    const logPath = path.join(cgDir, "errors.log");
 
     // Group errors by file path
-    const errorsByFile = new Map<string, { message: string; code?: string }[]>();
+    const errorsByFile = new Map<
+      string,
+      { message: string; code?: string }[]
+    >();
     const noFileErrors: { message: string; code?: string }[] = [];
 
     for (const err of errors) {
-      if (err.severity !== 'error') continue;
+      if (err.severity !== "error") continue;
       if (err.filePath) {
         let list = errorsByFile.get(err.filePath);
         if (!list) {
@@ -420,7 +448,7 @@ function main() {
     const lines: string[] = [
       `CodeGraph Error Log - ${new Date().toISOString()}`,
       `${errorsByFile.size} files with errors`,
-      '',
+      "",
     ];
 
     for (const [filePath, fileErrors] of errorsByFile) {
@@ -433,7 +461,7 @@ function main() {
       lines.push(err.message);
     }
 
-    fs.writeFileSync(logPath, lines.join('\n') + '\n');
+    fs.writeFileSync(logPath, lines.join("\n") + "\n");
   }
 
   // =============================================================================
@@ -444,39 +472,51 @@ function main() {
    * codegraph init [path]
    */
   program
-    .command('init [path]')
-    .description('Initialize CodeGraph in a project directory')
-    .option('-i, --index', 'Run initial indexing after initialization')
-    .option('-v, --verbose', 'Show detailed worker lifecycle and memory info')
+    .command("init [path]")
+    .description("Initialize CodeGraph in a project directory")
+    .option("-i, --index", "Run initial indexing after initialization")
+    .option("-v, --verbose", "Show detailed worker lifecycle and memory info")
     .action(
-      async (pathArg: string | undefined, options: { index?: boolean; verbose?: boolean }) => {
+      async (
+        pathArg: string | undefined,
+        options: { index?: boolean; verbose?: boolean },
+      ) => {
         const projectPath = path.resolve(pathArg || process.cwd());
-        const clack = await importESM('@clack/prompts');
+        const clack = await importESM("@clack/prompts");
 
-        clack.intro('Initializing CodeGraph');
+        clack.intro("Initializing CodeGraph");
 
         try {
           if (isInitialized(projectPath)) {
             clack.log.warn(`Already initialized in ${projectPath}`);
-            clack.log.info('Use "codegraph index" to re-index or "codegraph sync" to update');
+            clack.log.info(
+              'Use "codegraph index" to re-index or "codegraph sync" to update',
+            );
             // Re-run agent surface wiring so re-running `init` is the
             // documented way to recover a project that's missing its
             // Cursor rules file (or future per-agent project surfaces).
             try {
-              const { wireProjectSurfacesForGlobalAgents } = await import('../installer/index.js');
-              for (const { target, file } of wireProjectSurfacesForGlobalAgents()) {
-                clack.log.success(`${target.displayName}: ${file.action} ${file.path}`);
+              const { wireProjectSurfacesForGlobalAgents } =
+                await import("../installer/index.js");
+              for (const {
+                target,
+                file,
+              } of wireProjectSurfacesForGlobalAgents()) {
+                clack.log.success(
+                  `${target.displayName}: ${file.action} ${file.path}`,
+                );
               }
             } catch {
               /* non-fatal */
             }
             try {
-              const { offerWatchFallback } = await import('../installer/index.js');
+              const { offerWatchFallback } =
+                await import("../installer/index.js");
               await offerWatchFallback(clack, projectPath);
             } catch {
               /* non-fatal */
             }
-            clack.outro('');
+            clack.outro("");
             return;
           }
 
@@ -489,13 +529,21 @@ function main() {
           // to actually prefer codegraph over native grep). Silent when
           // there's nothing to write.
           try {
-            const { wireProjectSurfacesForGlobalAgents } = await import('../installer/index.js');
-            for (const { target, file } of wireProjectSurfacesForGlobalAgents()) {
-              clack.log.success(`${target.displayName}: ${file.action} ${file.path}`);
+            const { wireProjectSurfacesForGlobalAgents } =
+              await import("../installer/index.js");
+            for (const {
+              target,
+              file,
+            } of wireProjectSurfacesForGlobalAgents()) {
+              clack.log.success(
+                `${target.displayName}: ${file.action} ${file.path}`,
+              );
             }
           } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
-            clack.log.warn(`Skipped wiring project-local agent surfaces: ${msg}`);
+            clack.log.warn(
+              `Skipped wiring project-local agent surfaces: ${msg}`,
+            );
           }
 
           if (options.index) {
@@ -507,7 +555,9 @@ function main() {
                 verbose: true,
               });
             } else {
-              process.stdout.write(`${colors.dim}${getGlyphs().rail}${colors.reset}\n`);
+              process.stdout.write(
+                `${colors.dim}${getGlyphs().rail}${colors.reset}\n`,
+              );
               const progress = createShimmerProgress();
               result = await cg.indexAll({
                 onProgress: progress.onProgress,
@@ -521,16 +571,19 @@ function main() {
           }
 
           try {
-            const { offerWatchFallback } = await import('../installer/index.js');
+            const { offerWatchFallback } =
+              await import("../installer/index.js");
             await offerWatchFallback(clack, projectPath);
           } catch {
             /* non-fatal */
           }
 
-          clack.outro('Done');
+          clack.outro("Done");
           cg.destroy();
         } catch (err) {
-          clack.log.error(`Failed: ${err instanceof Error ? err.message : String(err)}`);
+          clack.log.error(
+            `Failed: ${err instanceof Error ? err.message : String(err)}`,
+          );
           process.exit(1);
         }
       },
@@ -540,71 +593,80 @@ function main() {
    * codegraph uninit [path]
    */
   program
-    .command('uninit [path]')
-    .description('Remove CodeGraph from a project (deletes .codegraph/ directory)')
-    .option('-f, --force', 'Skip confirmation prompt')
-    .action(async (pathArg: string | undefined, options: { force?: boolean }) => {
-      const projectPath = resolveProjectPath(pathArg);
+    .command("uninit [path]")
+    .description(
+      "Remove CodeGraph from a project (deletes .codegraph/ directory)",
+    )
+    .option("-f, --force", "Skip confirmation prompt")
+    .action(
+      async (pathArg: string | undefined, options: { force?: boolean }) => {
+        const projectPath = resolveProjectPath(pathArg);
 
-      try {
-        if (!isInitialized(projectPath)) {
-          warn(`CodeGraph is not initialized in ${projectPath}`);
-          return;
-        }
-
-        if (!options.force) {
-          // Confirm with user
-          const readline = await import('readline');
-          const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-          const answer = await new Promise<string>((resolve) => {
-            rl.question(
-              chalk.yellow(
-                `${getGlyphs().warn} This will permanently delete all CodeGraph data. Continue? (y/N) `,
-              ),
-              resolve,
-            );
-          });
-          rl.close();
-
-          if (answer.toLowerCase() !== 'y') {
-            info('Cancelled');
+        try {
+          if (!isInitialized(projectPath)) {
+            warn(`CodeGraph is not initialized in ${projectPath}`);
             return;
           }
-        }
 
-        const { default: CodeGraph } = await loadCodeGraph();
-        const cg = CodeGraph.openSync(projectPath);
-        cg.uninitialize();
+          if (!options.force) {
+            // Confirm with user
+            const readline = await import("readline");
+            const rl = readline.createInterface({
+              input: process.stdin,
+              output: process.stdout,
+            });
+            const answer = await new Promise<string>((resolve) => {
+              rl.question(
+                chalk.yellow(
+                  `${getGlyphs().warn} This will permanently delete all CodeGraph data. Continue? (y/N) `,
+                ),
+                resolve,
+              );
+            });
+            rl.close();
 
-        // Clean up any git sync hooks we installed (no-op if none / not a repo).
-        try {
-          const { removeGitSyncHook } = await import('../sync/git-hooks.js');
-          const removed = removeGitSyncHook(projectPath);
-          if (removed.installed.length > 0) {
-            info(
-              `Removed git ${removed.installed.join(', ')} sync hook${removed.installed.length > 1 ? 's' : ''}`,
-            );
+            if (answer.toLowerCase() !== "y") {
+              info("Cancelled");
+              return;
+            }
           }
-        } catch {
-          /* non-fatal */
-        }
 
-        success(`Removed CodeGraph from ${projectPath}`);
-      } catch (err) {
-        error(`Failed to uninitialize: ${err instanceof Error ? err.message : String(err)}`);
-        process.exit(1);
-      }
-    });
+          const { default: CodeGraph } = await loadCodeGraph();
+          const cg = CodeGraph.openSync(projectPath);
+          cg.uninitialize();
+
+          // Clean up any git sync hooks we installed (no-op if none / not a repo).
+          try {
+            const { removeGitSyncHook } = await import("../sync/git-hooks.js");
+            const removed = removeGitSyncHook(projectPath);
+            if (removed.installed.length > 0) {
+              info(
+                `Removed git ${removed.installed.join(", ")} sync hook${removed.installed.length > 1 ? "s" : ""}`,
+              );
+            }
+          } catch {
+            /* non-fatal */
+          }
+
+          success(`Removed CodeGraph from ${projectPath}`);
+        } catch (err) {
+          error(
+            `Failed to uninitialize: ${err instanceof Error ? err.message : String(err)}`,
+          );
+          process.exit(1);
+        }
+      },
+    );
 
   /**
    * codegraph index [path]
    */
   program
-    .command('index [path]')
-    .description('Index all files in the project')
-    .option('-f, --force', 'Force full re-index even if already indexed')
-    .option('-q, --quiet', 'Suppress progress output')
-    .option('-v, --verbose', 'Show detailed worker lifecycle and memory info')
+    .command("index [path]")
+    .description("Index all files in the project")
+    .option("-f, --force", "Force full re-index even if already indexed")
+    .option("-q, --quiet", "Suppress progress output")
+    .option("-v, --verbose", "Show detailed worker lifecycle and memory info")
     .action(
       async (
         pathArg: string | undefined,
@@ -631,12 +693,12 @@ function main() {
             return;
           }
 
-          const clack = await importESM('@clack/prompts');
-          clack.intro('Indexing project');
+          const clack = await importESM("@clack/prompts");
+          clack.intro("Indexing project");
 
           if (options.force) {
             cg.clear();
-            clack.log.info('Cleared existing index');
+            clack.log.info("Cleared existing index");
           }
 
           let result: IndexResult;
@@ -647,7 +709,9 @@ function main() {
               verbose: true,
             });
           } else {
-            process.stdout.write(`${colors.dim}${getGlyphs().rail}${colors.reset}\n`);
+            process.stdout.write(
+              `${colors.dim}${getGlyphs().rail}${colors.reset}\n`,
+            );
             const progress = createShimmerProgress();
             result = await cg.indexAll({
               onProgress: progress.onProgress,
@@ -661,10 +725,12 @@ function main() {
             process.exit(1);
           }
 
-          clack.outro('Done');
+          clack.outro("Done");
           cg.destroy();
         } catch (err) {
-          error(`Failed to index: ${err instanceof Error ? err.message : String(err)}`);
+          error(
+            `Failed to index: ${err instanceof Error ? err.message : String(err)}`,
+          );
           process.exit(1);
         }
       },
@@ -674,213 +740,240 @@ function main() {
    * codegraph sync [path]
    */
   program
-    .command('sync [path]')
-    .description('Sync changes since last index')
-    .option('-q, --quiet', 'Suppress output (for git hooks)')
-    .action(async (pathArg: string | undefined, options: { quiet?: boolean }) => {
-      const projectPath = resolveProjectPath(pathArg);
+    .command("sync [path]")
+    .description("Sync changes since last index")
+    .option("-q, --quiet", "Suppress output (for git hooks)")
+    .action(
+      async (pathArg: string | undefined, options: { quiet?: boolean }) => {
+        const projectPath = resolveProjectPath(pathArg);
 
-      try {
-        if (!isInitialized(projectPath)) {
+        try {
+          if (!isInitialized(projectPath)) {
+            if (!options.quiet) {
+              error(`CodeGraph not initialized in ${projectPath}`);
+            }
+            process.exit(1);
+          }
+
+          const { default: CodeGraph } = await loadCodeGraph();
+          const cg = await CodeGraph.open(projectPath);
+
+          if (options.quiet) {
+            await cg.sync();
+            cg.destroy();
+            return;
+          }
+
+          const clack = await importESM("@clack/prompts");
+          clack.intro("Syncing CodeGraph");
+
+          process.stdout.write(
+            `${colors.dim}${getGlyphs().rail}${colors.reset}\n`,
+          );
+          const progress = createShimmerProgress();
+
+          const result = await cg.sync({
+            onProgress: progress.onProgress,
+          });
+
+          await progress.stop();
+
+          const totalChanges =
+            result.filesAdded + result.filesModified + result.filesRemoved;
+
+          if (totalChanges === 0) {
+            clack.log.info("Already up to date");
+          } else {
+            clack.log.success(
+              `Synced ${formatNumber(totalChanges)} changed files`,
+            );
+            const details: string[] = [];
+            if (result.filesAdded > 0)
+              details.push(`Added: ${result.filesAdded}`);
+            if (result.filesModified > 0)
+              details.push(`Modified: ${result.filesModified}`);
+            if (result.filesRemoved > 0)
+              details.push(`Removed: ${result.filesRemoved}`);
+            clack.log.info(
+              `${details.join(", ")} ${getGlyphs().dash} ${formatNumber(result.nodesUpdated)} nodes in ${formatDuration(result.durationMs)}`,
+            );
+          }
+
+          clack.outro("Done");
+          cg.destroy();
+        } catch (err) {
           if (!options.quiet) {
-            error(`CodeGraph not initialized in ${projectPath}`);
+            error(
+              `Failed to sync: ${err instanceof Error ? err.message : String(err)}`,
+            );
           }
           process.exit(1);
         }
-
-        const { default: CodeGraph } = await loadCodeGraph();
-        const cg = await CodeGraph.open(projectPath);
-
-        if (options.quiet) {
-          await cg.sync();
-          cg.destroy();
-          return;
-        }
-
-        const clack = await importESM('@clack/prompts');
-        clack.intro('Syncing CodeGraph');
-
-        process.stdout.write(`${colors.dim}${getGlyphs().rail}${colors.reset}\n`);
-        const progress = createShimmerProgress();
-
-        const result = await cg.sync({
-          onProgress: progress.onProgress,
-        });
-
-        await progress.stop();
-
-        const totalChanges = result.filesAdded + result.filesModified + result.filesRemoved;
-
-        if (totalChanges === 0) {
-          clack.log.info('Already up to date');
-        } else {
-          clack.log.success(`Synced ${formatNumber(totalChanges)} changed files`);
-          const details: string[] = [];
-          if (result.filesAdded > 0) details.push(`Added: ${result.filesAdded}`);
-          if (result.filesModified > 0) details.push(`Modified: ${result.filesModified}`);
-          if (result.filesRemoved > 0) details.push(`Removed: ${result.filesRemoved}`);
-          clack.log.info(
-            `${details.join(', ')} ${getGlyphs().dash} ${formatNumber(result.nodesUpdated)} nodes in ${formatDuration(result.durationMs)}`,
-          );
-        }
-
-        clack.outro('Done');
-        cg.destroy();
-      } catch (err) {
-        if (!options.quiet) {
-          error(`Failed to sync: ${err instanceof Error ? err.message : String(err)}`);
-        }
-        process.exit(1);
-      }
-    });
+      },
+    );
 
   /**
    * codegraph status [path]
    */
   program
-    .command('status [path]')
-    .description('Show index status and statistics')
-    .option('-j, --json', 'Output as JSON')
-    .action(async (pathArg: string | undefined, options: { json?: boolean }) => {
-      const projectPath = resolveProjectPath(pathArg);
+    .command("status [path]")
+    .description("Show index status and statistics")
+    .option("-j, --json", "Output as JSON")
+    .action(
+      async (pathArg: string | undefined, options: { json?: boolean }) => {
+        const projectPath = resolveProjectPath(pathArg);
 
-      try {
-        if (!isInitialized(projectPath)) {
-          if (options.json) {
-            console.log(JSON.stringify({ initialized: false, projectPath }));
+        try {
+          if (!isInitialized(projectPath)) {
+            if (options.json) {
+              console.log(JSON.stringify({ initialized: false, projectPath }));
+              return;
+            }
+            console.log(chalk.bold("\nCodeGraph Status\n"));
+            info(`Project: ${projectPath}`);
+            warn("Not initialized");
+            info('Run "codegraph init" to initialize');
             return;
           }
-          console.log(chalk.bold('\nCodeGraph Status\n'));
-          info(`Project: ${projectPath}`);
-          warn('Not initialized');
-          info('Run "codegraph init" to initialize');
-          return;
-        }
 
-        const { default: CodeGraph } = await loadCodeGraph();
-        const cg = await CodeGraph.open(projectPath);
-        const stats = cg.getStats();
-        const changes = cg.getChangedFiles();
-        const backend = cg.getBackend();
-        const journalMode = cg.getJournalMode();
+          const { default: CodeGraph } = await loadCodeGraph();
+          const cg = await CodeGraph.open(projectPath);
+          const stats = cg.getStats();
+          const changes = cg.getChangedFiles();
+          const backend = cg.getBackend();
+          const journalMode = cg.getJournalMode();
 
-        // JSON output mode
-        if (options.json) {
+          // JSON output mode
+          if (options.json) {
+            console.log(
+              JSON.stringify({
+                initialized: true,
+                projectPath,
+                fileCount: stats.fileCount,
+                nodeCount: stats.nodeCount,
+                edgeCount: stats.edgeCount,
+                dbSizeBytes: stats.dbSizeBytes,
+                backend,
+                journalMode,
+                nodesByKind: stats.nodesByKind,
+                languages: Object.entries(stats.filesByLanguage)
+                  .filter(([, count]) => count > 0)
+                  .map(([lang]) => lang),
+                pendingChanges: {
+                  added: changes.added.length,
+                  modified: changes.modified.length,
+                  removed: changes.removed.length,
+                },
+              }),
+            );
+            cg.destroy();
+            return;
+          }
+
+          console.log(chalk.bold("\nCodeGraph Status\n"));
+
+          // Project info
+          console.log(chalk.cyan("Project:"), projectPath);
+          console.log();
+
+          // Index stats
+          console.log(chalk.bold("Index Statistics:"));
+          console.log(`  Files:     ${formatNumber(stats.fileCount)}`);
+          console.log(`  Nodes:     ${formatNumber(stats.nodeCount)}`);
+          console.log(`  Edges:     ${formatNumber(stats.edgeCount)}`);
           console.log(
-            JSON.stringify({
-              initialized: true,
-              projectPath,
-              fileCount: stats.fileCount,
-              nodeCount: stats.nodeCount,
-              edgeCount: stats.edgeCount,
-              dbSizeBytes: stats.dbSizeBytes,
-              backend,
-              journalMode,
-              nodesByKind: stats.nodesByKind,
-              languages: Object.entries(stats.filesByLanguage)
-                .filter(([, count]) => count > 0)
-                .map(([lang]) => lang),
-              pendingChanges: {
-                added: changes.added.length,
-                modified: changes.modified.length,
-                removed: changes.removed.length,
-              },
-            }),
+            `  DB Size:   ${(stats.dbSizeBytes / 1024 / 1024).toFixed(2)} MB`,
           );
+          // Surface the active SQLite backend (node:sqlite — Node's built-in real
+          // SQLite, full WAL + FTS5, no native build).
+          const backendLabel = chalk.green(
+            `node:sqlite ${getGlyphs().dash} built-in (full WAL)`,
+          );
+          console.log(`  Backend:   ${backendLabel}`);
+          // Effective journal mode: 'wal' means concurrent reads never block on a
+          // writer; anything else means they can ("database is locked"). node:sqlite
+          // supports WAL everywhere, so a non-wal mode means the filesystem can't
+          // (network mounts, WSL2 /mnt). See issue #238.
+          const journalLabel =
+            journalMode === "wal"
+              ? chalk.green("wal")
+              : chalk.yellow(
+                  `${journalMode || "unknown"} ${getGlyphs().dash} WAL inactive; reads can block on writes`,
+                );
+          console.log(`  Journal:   ${journalLabel}`);
+          console.log();
+
+          // Node breakdown
+          console.log(chalk.bold("Nodes by Kind:"));
+          const nodesByKind = Object.entries(stats.nodesByKind)
+            .filter(([, count]) => count > 0)
+            .sort((a, b) => b[1] - a[1]);
+          for (const [kind, count] of nodesByKind) {
+            console.log(`  ${kind.padEnd(15)} ${formatNumber(count)}`);
+          }
+          console.log();
+
+          // Language breakdown
+          console.log(chalk.bold("Files by Language:"));
+          const filesByLang = Object.entries(stats.filesByLanguage)
+            .filter(([, count]) => count > 0)
+            .sort((a, b) => b[1] - a[1]);
+          for (const [lang, count] of filesByLang) {
+            console.log(`  ${lang.padEnd(15)} ${formatNumber(count)}`);
+          }
+          console.log();
+
+          // Pending changes
+          const totalChanges =
+            changes.added.length +
+            changes.modified.length +
+            changes.removed.length;
+          if (totalChanges > 0) {
+            console.log(chalk.bold("Pending Changes:"));
+            if (changes.added.length > 0) {
+              console.log(`  Added:     ${changes.added.length} files`);
+            }
+            if (changes.modified.length > 0) {
+              console.log(`  Modified:  ${changes.modified.length} files`);
+            }
+            if (changes.removed.length > 0) {
+              console.log(`  Removed:   ${changes.removed.length} files`);
+            }
+            info('Run "codegraph sync" to update the index');
+          } else {
+            success("Index is up to date");
+          }
+          console.log();
+
           cg.destroy();
-          return;
+        } catch (err) {
+          error(
+            `Failed to get status: ${err instanceof Error ? err.message : String(err)}`,
+          );
+          process.exit(1);
         }
-
-        console.log(chalk.bold('\nCodeGraph Status\n'));
-
-        // Project info
-        console.log(chalk.cyan('Project:'), projectPath);
-        console.log();
-
-        // Index stats
-        console.log(chalk.bold('Index Statistics:'));
-        console.log(`  Files:     ${formatNumber(stats.fileCount)}`);
-        console.log(`  Nodes:     ${formatNumber(stats.nodeCount)}`);
-        console.log(`  Edges:     ${formatNumber(stats.edgeCount)}`);
-        console.log(`  DB Size:   ${(stats.dbSizeBytes / 1024 / 1024).toFixed(2)} MB`);
-        // Surface the active SQLite backend (node:sqlite — Node's built-in real
-        // SQLite, full WAL + FTS5, no native build).
-        const backendLabel = chalk.green(`node:sqlite ${getGlyphs().dash} built-in (full WAL)`);
-        console.log(`  Backend:   ${backendLabel}`);
-        // Effective journal mode: 'wal' means concurrent reads never block on a
-        // writer; anything else means they can ("database is locked"). node:sqlite
-        // supports WAL everywhere, so a non-wal mode means the filesystem can't
-        // (network mounts, WSL2 /mnt). See issue #238.
-        const journalLabel =
-          journalMode === 'wal'
-            ? chalk.green('wal')
-            : chalk.yellow(
-                `${journalMode || 'unknown'} ${getGlyphs().dash} WAL inactive; reads can block on writes`,
-              );
-        console.log(`  Journal:   ${journalLabel}`);
-        console.log();
-
-        // Node breakdown
-        console.log(chalk.bold('Nodes by Kind:'));
-        const nodesByKind = Object.entries(stats.nodesByKind)
-          .filter(([, count]) => count > 0)
-          .sort((a, b) => b[1] - a[1]);
-        for (const [kind, count] of nodesByKind) {
-          console.log(`  ${kind.padEnd(15)} ${formatNumber(count)}`);
-        }
-        console.log();
-
-        // Language breakdown
-        console.log(chalk.bold('Files by Language:'));
-        const filesByLang = Object.entries(stats.filesByLanguage)
-          .filter(([, count]) => count > 0)
-          .sort((a, b) => b[1] - a[1]);
-        for (const [lang, count] of filesByLang) {
-          console.log(`  ${lang.padEnd(15)} ${formatNumber(count)}`);
-        }
-        console.log();
-
-        // Pending changes
-        const totalChanges =
-          changes.added.length + changes.modified.length + changes.removed.length;
-        if (totalChanges > 0) {
-          console.log(chalk.bold('Pending Changes:'));
-          if (changes.added.length > 0) {
-            console.log(`  Added:     ${changes.added.length} files`);
-          }
-          if (changes.modified.length > 0) {
-            console.log(`  Modified:  ${changes.modified.length} files`);
-          }
-          if (changes.removed.length > 0) {
-            console.log(`  Removed:   ${changes.removed.length} files`);
-          }
-          info('Run "codegraph sync" to update the index');
-        } else {
-          success('Index is up to date');
-        }
-        console.log();
-
-        cg.destroy();
-      } catch (err) {
-        error(`Failed to get status: ${err instanceof Error ? err.message : String(err)}`);
-        process.exit(1);
-      }
-    });
+      },
+    );
 
   /**
    * codegraph query <search>
    */
   program
-    .command('query <search>')
-    .description('Search for symbols in the codebase')
-    .option('-p, --path <path>', 'Project path')
-    .option('-l, --limit <number>', 'Maximum results', '10')
-    .option('-k, --kind <kind>', 'Filter by node kind (function, class, etc.)')
-    .option('-j, --json', 'Output as JSON')
+    .command("query <search>")
+    .description("Search for symbols in the codebase")
+    .option("-p, --path <path>", "Project path")
+    .option("-l, --limit <number>", "Maximum results", "10")
+    .option("-k, --kind <kind>", "Filter by node kind (function, class, etc.)")
+    .option("-j, --json", "Output as JSON")
     .action(
       async (
         search: string,
-        options: { path?: string; limit?: string; kind?: string; json?: boolean },
+        options: {
+          path?: string;
+          limit?: string;
+          kind?: string;
+          json?: boolean;
+        },
       ) => {
         const projectPath = resolveProjectPath(options.path);
 
@@ -893,7 +986,7 @@ function main() {
           const { default: CodeGraph } = await loadCodeGraph();
           const cg = await CodeGraph.open(projectPath);
 
-          const limit = parseInt(options.limit || '10', 10);
+          const limit = parseInt(options.limit || "10", 10);
           const kindFilter = options.kind
             ? (NODE_KINDS as readonly string[]).includes(options.kind)
               ? [options.kind as NodeKind]
@@ -915,10 +1008,15 @@ function main() {
               for (const result of results) {
                 const node = result.node;
                 const location = `${node.filePath}:${node.startLine}`;
-                const score = chalk.dim(`(${(result.score * 100).toFixed(0)}%)`);
+                const score = chalk.dim(
+                  `(${(result.score * 100).toFixed(0)}%)`,
+                );
 
                 console.log(
-                  chalk.cyan(node.kind.padEnd(12)) + chalk.white(node.name) + ' ' + score,
+                  chalk.cyan(node.kind.padEnd(12)) +
+                    chalk.white(node.name) +
+                    " " +
+                    score,
                 );
                 console.log(chalk.dim(`  ${location}`));
                 if (node.signature) {
@@ -931,7 +1029,9 @@ function main() {
 
           cg.destroy();
         } catch (err) {
-          error(`Search failed: ${err instanceof Error ? err.message : String(err)}`);
+          error(
+            `Search failed: ${err instanceof Error ? err.message : String(err)}`,
+          );
           process.exit(1);
         }
       },
@@ -941,15 +1041,15 @@ function main() {
    * codegraph files [path]
    */
   program
-    .command('files')
-    .description('Show project file structure from the index')
-    .option('-p, --path <path>', 'Project path')
-    .option('--filter <dir>', 'Filter to files under this directory')
-    .option('--pattern <glob>', 'Filter files matching this glob pattern')
-    .option('--format <format>', 'Output format (tree, flat, grouped)', 'tree')
-    .option('--max-depth <number>', 'Maximum directory depth for tree format')
-    .option('--no-metadata', 'Hide file metadata (language, symbol count)')
-    .option('-j, --json', 'Output as JSON')
+    .command("files")
+    .description("Show project file structure from the index")
+    .option("-p, --path <path>", "Project path")
+    .option("--filter <dir>", "Filter to files under this directory")
+    .option("--pattern <glob>", "Filter files matching this glob pattern")
+    .option("--format <format>", "Output format (tree, flat, grouped)", "tree")
+    .option("--max-depth <number>", "Maximum directory depth for tree format")
+    .option("--no-metadata", "Hide file metadata (language, symbol count)")
+    .option("-j, --json", "Output as JSON")
     .action(
       async (options: {
         path?: string;
@@ -982,7 +1082,8 @@ function main() {
           if (options.filter) {
             const filter = options.filter;
             files = files.filter(
-              (f) => f.path.startsWith(filter) || f.path.startsWith('./' + filter),
+              (f) =>
+                f.path.startsWith(filter) || f.path.startsWith("./" + filter),
             );
           }
 
@@ -993,7 +1094,7 @@ function main() {
           }
 
           if (files.length === 0) {
-            info('No files found matching the criteria.');
+            info("No files found matching the criteria.");
             cg.destroy();
             return;
           }
@@ -1012,14 +1113,18 @@ function main() {
           }
 
           const includeMetadata = options.metadata !== false;
-          const format = options.format || 'tree';
-          const maxDepth = options.maxDepth ? parseInt(options.maxDepth, 10) : undefined;
+          const format = options.format || "tree";
+          const maxDepth = options.maxDepth
+            ? parseInt(options.maxDepth, 10)
+            : undefined;
 
           // Format output
           switch (format) {
-            case 'flat':
+            case "flat":
               console.log(chalk.bold(`\nFiles (${files.length}):\n`));
-              for (const file of files.sort((a, b) => a.path.localeCompare(b.path))) {
+              for (const file of files.sort((a, b) =>
+                a.path.localeCompare(b.path),
+              )) {
                 if (includeMetadata) {
                   console.log(
                     `  ${file.path} ${chalk.dim(`(${file.language}, ${file.nodeCount} symbols)`)}`,
@@ -1030,20 +1135,28 @@ function main() {
               }
               break;
 
-            case 'grouped': {
-              console.log(chalk.bold(`\nFiles by Language (${files.length} total):\n`));
+            case "grouped": {
+              console.log(
+                chalk.bold(`\nFiles by Language (${files.length} total):\n`),
+              );
               const byLang = new Map<string, typeof files>();
               for (const file of files) {
                 const existing = byLang.get(file.language) || [];
                 existing.push(file);
                 byLang.set(file.language, existing);
               }
-              const sortedLangs = [...byLang.entries()].sort((a, b) => b[1].length - a[1].length);
+              const sortedLangs = [...byLang.entries()].sort(
+                (a, b) => b[1].length - a[1].length,
+              );
               for (const [lang, langFiles] of sortedLangs) {
                 console.log(chalk.cyan(`${lang} (${langFiles.length}):`));
-                for (const file of langFiles.sort((a, b) => a.path.localeCompare(b.path))) {
+                for (const file of langFiles.sort((a, b) =>
+                  a.path.localeCompare(b.path),
+                )) {
                   if (includeMetadata) {
-                    console.log(`  ${file.path} ${chalk.dim(`(${file.nodeCount} symbols)`)}`);
+                    console.log(
+                      `  ${file.path} ${chalk.dim(`(${file.nodeCount} symbols)`)}`,
+                    );
                   } else {
                     console.log(`  ${file.path}`);
                   }
@@ -1053,9 +1166,11 @@ function main() {
               break;
             }
 
-            case 'tree':
+            case "tree":
             default: {
-              console.log(chalk.bold(`\nProject Structure (${files.length} files):\n`));
+              console.log(
+                chalk.bold(`\nProject Structure (${files.length} files):\n`),
+              );
               printFileTree(files, includeMetadata, maxDepth, chalk);
               break;
             }
@@ -1064,7 +1179,9 @@ function main() {
           console.log();
           cg.destroy();
         } catch (err) {
-          error(`Failed to list files: ${err instanceof Error ? err.message : String(err)}`);
+          error(
+            `Failed to list files: ${err instanceof Error ? err.message : String(err)}`,
+          );
           process.exit(1);
         }
       },
@@ -1075,11 +1192,11 @@ function main() {
    */
   function globToRegex(pattern: string): RegExp {
     const escaped = pattern
-      .replace(/[.+^${}()|[\]\\]/g, '\\$&')
-      .replace(/\*\*/g, '{{GLOBSTAR}}')
-      .replace(/\*/g, '[^/]*')
-      .replace(/\?/g, '[^/]')
-      .replace(/\{\{GLOBSTAR\}\}/g, '.*');
+      .replace(/[.+^${}()|[\]\\]/g, "\\$&")
+      .replace(/\*\*/g, "{{GLOBSTAR}}")
+      .replace(/\*/g, "[^/]*")
+      .replace(/\?/g, "[^/]")
+      .replace(/\{\{GLOBSTAR\}\}/g, ".*");
     return new RegExp(escaped);
   }
 
@@ -1098,10 +1215,10 @@ function main() {
       file?: { language: string; nodeCount: number };
     }
 
-    const root: TreeNode = { name: '', children: new Map() };
+    const root: TreeNode = { name: "", children: new Map() };
 
     for (const file of files) {
-      const parts = file.path.split('/');
+      const parts = file.path.split("/");
       let current = root;
 
       for (let i = 0; i < parts.length; i++) {
@@ -1119,17 +1236,24 @@ function main() {
       }
     }
 
-    const renderNode = (node: TreeNode, prefix: string, isLast: boolean, depth: number): void => {
+    const renderNode = (
+      node: TreeNode,
+      prefix: string,
+      isLast: boolean,
+      depth: number,
+    ): void => {
       if (maxDepth !== undefined && depth > maxDepth) return;
 
       const glyphs = getGlyphs();
       const connector = isLast ? glyphs.treeLast : glyphs.treeBranch;
-      const childPrefix = isLast ? '    ' : glyphs.treePipe;
+      const childPrefix = isLast ? "    " : glyphs.treePipe;
 
       if (node.name) {
         let line = prefix + connector + node.name;
         if (node.file && includeMetadata) {
-          line += chalk.dim(` (${node.file.language}, ${node.file.nodeCount} symbols)`);
+          line += chalk.dim(
+            ` (${node.file.language}, ${node.file.nodeCount} symbols)`,
+          );
         }
         console.log(line);
       }
@@ -1149,20 +1273,24 @@ function main() {
       }
     };
 
-    renderNode(root, '', true, 0);
+    renderNode(root, "", true, 0);
   }
 
   /**
    * codegraph context <task>
    */
   program
-    .command('context <task>')
-    .description('Build context for a task (outputs markdown)')
-    .option('-p, --path <path>', 'Project path')
-    .option('-n, --max-nodes <number>', 'Maximum nodes to include', '50')
-    .option('-c, --max-code <number>', 'Maximum code blocks', '10')
-    .option('--no-code', 'Exclude code blocks')
-    .option('-f, --format <format>', 'Output format (markdown, json)', 'markdown')
+    .command("context <task>")
+    .description("Build context for a task (outputs markdown)")
+    .option("-p, --path <path>", "Project path")
+    .option("-n, --max-nodes <number>", "Maximum nodes to include", "50")
+    .option("-c, --max-code <number>", "Maximum code blocks", "10")
+    .option("--no-code", "Exclude code blocks")
+    .option(
+      "-f, --format <format>",
+      "Output format (markdown, json)",
+      "markdown",
+    )
     .action(
       async (
         task: string,
@@ -1186,10 +1314,10 @@ function main() {
           const cg = await CodeGraph.open(projectPath);
 
           const context = await cg.buildContext(task, {
-            maxNodes: parseInt(options.maxNodes || '50', 10),
-            maxCodeBlocks: parseInt(options.maxCode || '10', 10),
+            maxNodes: parseInt(options.maxNodes || "50", 10),
+            maxCodeBlocks: parseInt(options.maxCode || "10", 10),
             includeCode: options.code !== false,
-            format: options.format as 'markdown' | 'json',
+            format: options.format as "markdown" | "json",
           });
 
           // Output the context
@@ -1197,7 +1325,9 @@ function main() {
 
           cg.destroy();
         } catch (err) {
-          error(`Failed to build context: ${err instanceof Error ? err.message : String(err)}`);
+          error(
+            `Failed to build context: ${err instanceof Error ? err.message : String(err)}`,
+          );
           process.exit(1);
         }
       },
@@ -1207,38 +1337,49 @@ function main() {
    * codegraph serve
    */
   program
-    .command('serve')
-    .description('Start CodeGraph as an MCP server for AI assistants')
-    .option('-p, --path <path>', 'Project path (optional for MCP mode, uses rootUri from client)')
-    .option('--mcp', 'Run as MCP server (stdio transport)')
+    .command("serve")
+    .description("Start CodeGraph as an MCP server for AI assistants")
     .option(
-      '--no-watch',
-      'Disable the file watcher (no auto-sync; useful on slow filesystems like WSL2 /mnt drives)',
+      "-p, --path <path>",
+      "Project path (optional for MCP mode, uses rootUri from client)",
     )
-    .action(async (options: { path?: string; mcp?: boolean; watch?: boolean }) => {
-      const projectPath = options.path ? resolveProjectPath(options.path) : undefined;
+    .option("--mcp", "Run as MCP server (stdio transport)")
+    .option(
+      "--no-watch",
+      "Disable the file watcher (no auto-sync; useful on slow filesystems like WSL2 /mnt drives)",
+    )
+    .action(
+      async (options: { path?: string; mcp?: boolean; watch?: boolean }) => {
+        const projectPath = options.path
+          ? resolveProjectPath(options.path)
+          : undefined;
 
-      // Commander sets watch=false when --no-watch is passed. Route it through
-      // the same env-var chokepoint the watcher and MCP server already honor.
-      if (options.watch === false) {
-        process.env.CODEGRAPH_NO_WATCH = '1';
-      }
+        // Commander sets watch=false when --no-watch is passed. Route it through
+        // the same env-var chokepoint the watcher and MCP server already honor.
+        if (options.watch === false) {
+          process.env.CODEGRAPH_NO_WATCH = "1";
+        }
 
-      try {
-        if (options.mcp) {
-          // Start MCP server - it handles initialization lazily based on rootUri from client
-          const { MCPServer } = await import('../mcp/index.js');
-          const server = new MCPServer(projectPath);
-          await server.start();
-          // Server will run until terminated
-        } else {
-          // Default: show info about MCP mode.
-          // Use stderr so stdout stays clean for any piped/stdio usage.
-          console.error(chalk.bold('\nCodeGraph MCP Server\n'));
-          console.error(chalk.blue(getGlyphs().info) + ' Use --mcp flag to start the MCP server');
-          console.error('\nTo use with Claude Code, add to your MCP configuration:');
-          console.error(
-            chalk.dim(`
+        try {
+          if (options.mcp) {
+            // Start MCP server - it handles initialization lazily based on rootUri from client
+            const { MCPServer } = await import("../mcp/index.js");
+            const server = new MCPServer(projectPath);
+            await server.start();
+            // Server will run until terminated
+          } else {
+            // Default: show info about MCP mode.
+            // Use stderr so stdout stays clean for any piped/stdio usage.
+            console.error(chalk.bold("\nCodeGraph MCP Server\n"));
+            console.error(
+              chalk.blue(getGlyphs().info) +
+                " Use --mcp flag to start the MCP server",
+            );
+            console.error(
+              "\nTo use with Claude Code, add to your MCP configuration:",
+            );
+            console.error(
+              chalk.dim(`
 {
   "mcpServers": {
     "codegraph": {
@@ -1248,29 +1389,54 @@ function main() {
   }
 }
 `),
+            );
+            console.error("Available tools:");
+            console.error(
+              chalk.cyan("  codegraph_search") +
+                "    - Search for code symbols",
+            );
+            console.error(
+              chalk.cyan("  codegraph_context") +
+                "   - Build context for a task",
+            );
+            console.error(
+              chalk.cyan("  codegraph_callers") +
+                "   - Find callers of a symbol",
+            );
+            console.error(
+              chalk.cyan("  codegraph_callees") +
+                "   - Find what a symbol calls",
+            );
+            console.error(
+              chalk.cyan("  codegraph_impact") +
+                "    - Analyze impact of changes",
+            );
+            console.error(
+              chalk.cyan("  codegraph_node") + "      - Get symbol details",
+            );
+            console.error(
+              chalk.cyan("  codegraph_files") +
+                "     - Get project file structure",
+            );
+            console.error(
+              chalk.cyan("  codegraph_status") + "    - Get index status",
+            );
+          }
+        } catch (err) {
+          error(
+            `Failed to start server: ${err instanceof Error ? err.message : String(err)}`,
           );
-          console.error('Available tools:');
-          console.error(chalk.cyan('  codegraph_search') + '    - Search for code symbols');
-          console.error(chalk.cyan('  codegraph_context') + '   - Build context for a task');
-          console.error(chalk.cyan('  codegraph_callers') + '   - Find callers of a symbol');
-          console.error(chalk.cyan('  codegraph_callees') + '   - Find what a symbol calls');
-          console.error(chalk.cyan('  codegraph_impact') + '    - Analyze impact of changes');
-          console.error(chalk.cyan('  codegraph_node') + '      - Get symbol details');
-          console.error(chalk.cyan('  codegraph_files') + '     - Get project file structure');
-          console.error(chalk.cyan('  codegraph_status') + '    - Get index status');
+          process.exit(1);
         }
-      } catch (err) {
-        error(`Failed to start server: ${err instanceof Error ? err.message : String(err)}`);
-        process.exit(1);
-      }
-    });
+      },
+    );
 
   /**
    * codegraph unlock [path]
    */
   program
-    .command('unlock [path]')
-    .description('Remove a stale lock file that is blocking indexing')
+    .command("unlock [path]")
+    .description("Remove a stale lock file that is blocking indexing")
     .action(async (pathArg: string | undefined) => {
       const projectPath = resolveProjectPath(pathArg);
 
@@ -1280,7 +1446,10 @@ function main() {
           return;
         }
 
-        const lockPath = path.join(getCodeGraphDir(projectPath), 'codegraph.lock');
+        const lockPath = path.join(
+          getCodeGraphDir(projectPath),
+          "codegraph.lock",
+        );
 
         if (!fs.existsSync(lockPath)) {
           info(`No lock file found ${getGlyphs().dash} nothing to do`);
@@ -1288,9 +1457,11 @@ function main() {
         }
 
         fs.unlinkSync(lockPath);
-        success('Removed lock file. You can now run indexing again.');
+        success("Removed lock file. You can now run indexing again.");
       } catch (err) {
-        error(`Failed to remove lock: ${err instanceof Error ? err.message : String(err)}`);
+        error(
+          `Failed to remove lock: ${err instanceof Error ? err.message : String(err)}`,
+        );
         process.exit(1);
       }
     });
@@ -1306,14 +1477,17 @@ function main() {
    *   codegraph affected src/lib/components/Editor.svelte src/routes/+page.svelte
    */
   program
-    .command('affected [files...]')
-    .description('Find test files affected by changed source files')
-    .option('-p, --path <path>', 'Project path')
-    .option('--stdin', 'Read file list from stdin (one per line)')
-    .option('-d, --depth <number>', 'Max dependency traversal depth', '5')
-    .option('-f, --filter <glob>', 'Custom glob filter for test files (e.g. "e2e/*.spec.ts")')
-    .option('-j, --json', 'Output as JSON')
-    .option('-q, --quiet', 'Only output file paths, no decoration')
+    .command("affected [files...]")
+    .description("Find test files affected by changed source files")
+    .option("-p, --path <path>", "Project path")
+    .option("--stdin", "Read file list from stdin (one per line)")
+    .option("-d, --depth <number>", "Max dependency traversal depth", "5")
+    .option(
+      "-f, --filter <glob>",
+      'Custom glob filter for test files (e.g. "e2e/*.spec.ts")',
+    )
+    .option("-j, --json", "Output as JSON")
+    .option("-q, --quiet", "Only output file paths, no decoration")
     .action(
       async (
         fileArgs: string[],
@@ -1338,22 +1512,23 @@ function main() {
           const changedFiles: string[] = [...(fileArgs || [])];
 
           if (options.stdin) {
-            const stdinData = fs.readFileSync(0, 'utf-8');
+            const stdinData = fs.readFileSync(0, "utf-8");
             const stdinFiles = stdinData
-              .split('\n')
+              .split("\n")
               .map((f) => f.trim())
               .filter(Boolean);
             changedFiles.push(...stdinFiles);
           }
 
           if (changedFiles.length === 0) {
-            if (!options.quiet) info('No files provided. Use file arguments or --stdin.');
+            if (!options.quiet)
+              info("No files provided. Use file arguments or --stdin.");
             process.exit(0);
           }
 
           const { default: CodeGraph } = await loadCodeGraph();
           const cg = await CodeGraph.open(projectPath);
-          const maxDepth = parseInt(options.depth || '5', 10);
+          const maxDepth = parseInt(options.depth || "5", 10);
 
           // Common test file patterns
           const defaultTestPatterns = [
@@ -1370,10 +1545,10 @@ function main() {
           if (options.filter) {
             // Convert glob to regex: ** → .+, * → [^/]*, . → \.
             const regex = options.filter
-              .replace(/[+[\]{}()^$|\\]/g, '\\$&')
-              .replace(/\./g, '\\.')
-              .replace(/\*\*/g, '.+')
-              .replace(/\*/g, '[^/]*');
+              .replace(/[+[\]{}()^$|\\]/g, "\\$&")
+              .replace(/\./g, "\\.")
+              .replace(/\*\*/g, ".+")
+              .replace(/\*/g, "[^/]*");
             customFilter = new RegExp(regex);
           }
 
@@ -1394,7 +1569,9 @@ function main() {
             }
 
             // BFS through dependents
-            const queue: { file: string; depth: number }[] = [{ file, depth: 0 }];
+            const queue: { file: string; depth: number }[] = [
+              { file, depth: 0 },
+            ];
             const visited = new Set<string>();
             visited.add(file);
 
@@ -1436,11 +1613,13 @@ function main() {
             for (const t of sortedTests) console.log(t);
           } else {
             if (sortedTests.length === 0) {
-              info('No test files affected by the changed files.');
+              info("No test files affected by the changed files.");
             } else {
-              console.log(chalk.bold(`\nAffected test files (${sortedTests.length}):\n`));
+              console.log(
+                chalk.bold(`\nAffected test files (${sortedTests.length}):\n`),
+              );
               for (const t of sortedTests) {
-                console.log('  ' + chalk.cyan(t));
+                console.log("  " + chalk.cyan(t));
               }
               console.log();
             }
@@ -1448,7 +1627,9 @@ function main() {
 
           cg.destroy();
         } catch (err) {
-          error(`Affected analysis failed: ${err instanceof Error ? err.message : String(err)}`);
+          error(
+            `Affected analysis failed: ${err instanceof Error ? err.message : String(err)}`,
+          );
           process.exit(1);
         }
       },
@@ -1458,23 +1639,29 @@ function main() {
    * codegraph install
    */
   program
-    .command('install')
+    .command("install")
     .description(
-      'Install codegraph MCP server into one or more agents (Claude Code, Cursor, Codex CLI, opencode, Hermes Agent)',
+      "Install codegraph MCP server into one or more agents (Claude Code, Cursor, Codex CLI, opencode, Hermes Agent)",
     )
     .option(
-      '-t, --target <ids>',
+      "-t, --target <ids>",
       'Target agent(s): comma-separated ids, or "auto"|"all"|"none". Default: prompt',
     )
-    .option('-l, --location <where>', 'Install location: "global" or "local". Default: prompt')
     .option(
-      '-y, --yes',
-      'Non-interactive: defaults to --location=global --target=auto, auto-allow on',
+      "-l, --location <where>",
+      'Install location: "global" or "local". Default: prompt',
     )
-    .option('--no-permissions', 'Skip writing the auto-allow permissions list (Claude Code only)')
     .option(
-      '--print-config <id>',
-      'Print MCP config snippet for the named agent and exit (no file writes)',
+      "-y, --yes",
+      "Non-interactive: defaults to --location=global --target=auto, auto-allow on",
+    )
+    .option(
+      "--no-permissions",
+      "Skip writing the auto-allow permissions list (Claude Code only)",
+    )
+    .option(
+      "--print-config <id>",
+      "Print MCP config snippet for the named agent and exit (no file writes)",
     )
     .action(
       async (opts: {
@@ -1485,21 +1672,29 @@ function main() {
         printConfig?: string;
       }) => {
         if (opts.printConfig) {
-          const { getTarget, listTargetIds } = await import('../installer/targets/registry.js');
+          const { getTarget, listTargetIds } =
+            await import("../installer/targets/registry.js");
           const target = getTarget(opts.printConfig);
           if (!target) {
-            const known = listTargetIds().join(', ');
+            const known = listTargetIds().join(", ");
             error(`Unknown target "${opts.printConfig}". Known: ${known}.`);
             process.exit(1);
           }
-          const loc = opts.location === 'local' ? 'local' : 'global';
+          const loc = opts.location === "local" ? "local" : "global";
           process.stdout.write(target.printConfig(loc));
           return;
         }
 
-        const { runInstallerWithOptions } = await import('../installer/index.js');
-        if (opts.location && opts.location !== 'global' && opts.location !== 'local') {
-          error(`--location must be "global" or "local" (got "${opts.location}").`);
+        const { runInstallerWithOptions } =
+          await import("../installer/index.js");
+        if (
+          opts.location &&
+          opts.location !== "global" &&
+          opts.location !== "local"
+        ) {
+          error(
+            `--location must be "global" or "local" (got "${opts.location}").`,
+          );
           process.exit(1);
         }
         try {
@@ -1518,7 +1713,7 @@ function main() {
 
           await runInstallerWithOptions({
             target: opts.target,
-            location: opts.location as 'global' | 'local' | undefined,
+            location: opts.location as "global" | "local" | undefined,
             autoAllow,
             yes: opts.yes,
           });

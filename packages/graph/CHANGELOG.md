@@ -1,4 +1,4 @@
-# @aide/graph
+# @aide-dev/graph
 
 ## 1.1.0
 
@@ -43,12 +43,12 @@
   - Each package section lists the user-visible features shipped in v1.0 with
     cross-references to the underlying changesets.
   - Migration section at the end documents the two breaking changes:
-    `@aide/router` is now a re-export of `@aide/guard`, and `/metrics` is now
+    `@aide-dev/router` is now a re-export of `@aide-dev/guard`, and `/metrics` is now
     public (no auth required).
 
   ### TypeDoc API reference
-  - `typedoc.json` configured for two entry points (`@aide/core` and
-    `@aide/guard`), output to `docs/api/`.
+  - `typedoc.json` configured for two entry points (`@aide-dev/core` and
+    `@aide-dev/guard`), output to `docs/api/`.
   - `tsconfig.typedoc.json` is a dedicated non-emitting TypeScript config used
     by TypeDoc, so the doc generation is decoupled from the regular
     `tsc --build` invocation.
@@ -105,16 +105,16 @@
   - **36 warnings hand-fixed** in this commit:
     - 29 inline `import('...').Type` annotations converted to top-level
       `import type` declarations. This was a systemic pattern across
-      `@aide/graph` (extraction, directory, installer), `@aide/guard` (proxy),
-      `@aide/mcp-server` (resources), `@aide/cli` (bin), and `@aide/core`
+      `@aide-dev/graph` (extraction, directory, installer), `@aide-dev/guard` (proxy),
+      `@aide-dev/mcp-server` (resources), `@aide-dev/cli` (bin), and `@aide-dev/core`
       (config). All such annotations are now `import type { T } from '...'` at
       module top-level.
-    - 6 unused variables removed (`RouteStrategy` in `@aide/core`,
-      `RetryOptions` in `@aide/guard`, the `timeoutMs` left in
+    - 6 unused variables removed (`RouteStrategy` in `@aide-dev/core`,
+      `RetryOptions` in `@aide-dev/guard`, the `timeoutMs` left in
       `streamChatCompletion` after an earlier refactor, the `now` parameter on
       `TokenBucketRateLimiter.timeToFull`, the `makeRecorder` helper in
       `stream.test.ts`, the `config` parameter on `startMCPServer`).
-    - 1 `no-this-alias` rule violation in `@aide/core/src/metrics.ts` — the
+    - 1 `no-this-alias` rule violation in `@aide-dev/core/src/metrics.ts` — the
       `const collector = this;` pattern (used to capture the `MetricsCollector`
       instance for the timer's closure) was replaced with arrow-method syntax,
       which captures `this` lexically from the enclosing method body without

@@ -5,8 +5,8 @@
  * Outputs structured context ready to inject into Claude.
  */
 
-import * as fs from 'fs';
-import * as path from 'path';
+import * as fs from "fs";
+import * as path from "path";
 import {
   type Node,
   type Edge,
@@ -19,18 +19,18 @@ import {
   type BuildContextOptions,
   type FindRelevantContextOptions,
   type SearchResult,
-} from '../types.js';
-import { type QueryBuilder } from '../db/queries.js';
-import { type GraphTraverser } from '../graph/index.js';
-import { formatContextAsMarkdown, formatContextAsJson } from './formatter.js';
-import { logDebug } from '../errors.js';
-import { validatePathWithinRoot } from '../utils.js';
+} from "../types.js";
+import { type QueryBuilder } from "../db/queries.js";
+import { type GraphTraverser } from "../graph/index.js";
+import { formatContextAsMarkdown, formatContextAsJson } from "./formatter.js";
+import { logDebug } from "../errors.js";
+import { validatePathWithinRoot } from "../utils.js";
 import {
   isTestFile,
   extractSearchTerms,
   scorePathRelevance,
   getStemVariants,
-} from '../search/query-utils.js';
+} from "../search/query-utils.js";
 
 /**
  * Extract likely symbol names from a natural language query
@@ -49,7 +49,8 @@ function extractSymbolsFromQuery(query: string): string[] {
   const symbols = new Set<string>();
 
   // Extract CamelCase identifiers (2+ chars, starts with letter)
-  const camelCasePattern = /\b([A-Z][a-z]+(?:[A-Z][a-z]*)*|[a-z]+(?:[A-Z][a-z]*)+)\b/g;
+  const camelCasePattern =
+    /\b([A-Z][a-z]+(?:[A-Z][a-z]*)*|[a-z]+(?:[A-Z][a-z]*)+)\b/g;
   let match;
   while ((match = camelCasePattern.exec(query)) !== null) {
     if (match[1] && match[1].length >= 2) {
@@ -87,7 +88,7 @@ function extractSymbolsFromQuery(query: string): string[] {
     if (match[1]) {
       // Add both the full path and individual parts
       symbols.add(match[1]);
-      const parts = match[1].split('.');
+      const parts = match[1].split(".");
       for (const part of parts) {
         if (part.length >= 2) {
           symbols.add(part);
@@ -107,160 +108,160 @@ function extractSymbolsFromQuery(query: string): string[] {
 
   // Filter out common English words that aren't likely symbol names
   const commonWords = new Set([
-    'the',
-    'and',
-    'for',
-    'with',
-    'from',
-    'this',
-    'that',
-    'have',
-    'been',
-    'will',
-    'would',
-    'could',
-    'should',
-    'does',
-    'done',
-    'make',
-    'made',
-    'use',
-    'used',
-    'using',
-    'work',
-    'works',
-    'find',
-    'found',
-    'show',
-    'call',
-    'called',
-    'calling',
-    'get',
-    'set',
-    'add',
-    'all',
-    'any',
-    'how',
-    'what',
-    'when',
-    'where',
-    'which',
-    'who',
-    'why',
-    'not',
-    'but',
-    'are',
-    'was',
-    'were',
-    'has',
-    'had',
-    'its',
-    'can',
-    'did',
-    'may',
-    'also',
-    'into',
-    'than',
-    'then',
-    'them',
-    'each',
-    'other',
-    'some',
-    'such',
-    'only',
-    'same',
-    'about',
-    'after',
-    'before',
-    'between',
-    'through',
-    'during',
-    'without',
-    'again',
-    'further',
-    'once',
-    'here',
-    'there',
-    'both',
-    'just',
-    'more',
-    'most',
-    'very',
-    'being',
-    'having',
-    'doing',
-    'system',
-    'need',
-    'needs',
-    'want',
-    'wants',
-    'like',
-    'look',
-    'change',
-    'changes',
-    'changed',
-    'changing',
+    "the",
+    "and",
+    "for",
+    "with",
+    "from",
+    "this",
+    "that",
+    "have",
+    "been",
+    "will",
+    "would",
+    "could",
+    "should",
+    "does",
+    "done",
+    "make",
+    "made",
+    "use",
+    "used",
+    "using",
+    "work",
+    "works",
+    "find",
+    "found",
+    "show",
+    "call",
+    "called",
+    "calling",
+    "get",
+    "set",
+    "add",
+    "all",
+    "any",
+    "how",
+    "what",
+    "when",
+    "where",
+    "which",
+    "who",
+    "why",
+    "not",
+    "but",
+    "are",
+    "was",
+    "were",
+    "has",
+    "had",
+    "its",
+    "can",
+    "did",
+    "may",
+    "also",
+    "into",
+    "than",
+    "then",
+    "them",
+    "each",
+    "other",
+    "some",
+    "such",
+    "only",
+    "same",
+    "about",
+    "after",
+    "before",
+    "between",
+    "through",
+    "during",
+    "without",
+    "again",
+    "further",
+    "once",
+    "here",
+    "there",
+    "both",
+    "just",
+    "more",
+    "most",
+    "very",
+    "being",
+    "having",
+    "doing",
+    "system",
+    "need",
+    "needs",
+    "want",
+    "wants",
+    "like",
+    "look",
+    "change",
+    "changes",
+    "changed",
+    "changing",
     // Common English nouns/verbs that match thousands of unrelated code symbols
-    'layer',
-    'handle',
-    'handles',
-    'handling',
-    'incoming',
-    'outgoing',
-    'data',
-    'flow',
-    'flows',
-    'level',
-    'levels',
-    'request',
-    'requests',
-    'response',
-    'responses',
-    'implement',
-    'implements',
-    'implementation',
-    'interface',
-    'interfaces',
-    'class',
-    'classes',
-    'method',
-    'methods',
-    'trigger',
-    'triggers',
-    'affected',
-    'affect',
-    'affects',
-    'else',
-    'code',
-    'failing',
-    'failed',
-    'silently',
-    'decide',
-    'decides',
-    'return',
-    'returns',
-    'returned',
-    'take',
-    'takes',
-    'taken',
-    'check',
-    'checks',
-    'checked',
-    'create',
-    'creates',
-    'created',
-    'read',
-    'reads',
-    'write',
-    'writes',
-    'written',
-    'start',
-    'starts',
-    'stop',
-    'stops',
-    'run',
-    'runs',
-    'running',
+    "layer",
+    "handle",
+    "handles",
+    "handling",
+    "incoming",
+    "outgoing",
+    "data",
+    "flow",
+    "flows",
+    "level",
+    "levels",
+    "request",
+    "requests",
+    "response",
+    "responses",
+    "implement",
+    "implements",
+    "implementation",
+    "interface",
+    "interfaces",
+    "class",
+    "classes",
+    "method",
+    "methods",
+    "trigger",
+    "triggers",
+    "affected",
+    "affect",
+    "affects",
+    "else",
+    "code",
+    "failing",
+    "failed",
+    "silently",
+    "decide",
+    "decides",
+    "return",
+    "returns",
+    "returned",
+    "take",
+    "takes",
+    "taken",
+    "check",
+    "checks",
+    "checked",
+    "create",
+    "creates",
+    "created",
+    "read",
+    "reads",
+    "write",
+    "writes",
+    "written",
+    "start",
+    "starts",
+    "stop",
+    "stops",
+    "run",
+    "runs",
+    "running",
   ]);
 
   return Array.from(symbols).filter((s) => !commonWords.has(s.toLowerCase()));
@@ -279,7 +280,7 @@ const DEFAULT_BUILD_OPTIONS: Required<BuildContextOptions> = {
   maxCodeBlocks: 5, // Reduced from 10 - only show most relevant code
   maxCodeBlockSize: 1500, // Reduced from 2000
   includeCode: true,
-  format: 'markdown',
+  format: "markdown",
   searchLimit: 3, // Reduced from 5 - fewer entry points
   traversalDepth: 1, // Reduced from 2 - shallower graph expansion
   minScore: 0.3,
@@ -291,20 +292,20 @@ const DEFAULT_BUILD_OPTIONS: Required<BuildContextOptions> = {
  * they tell you something exists, not how it works.
  */
 const HIGH_VALUE_NODE_KINDS: NodeKind[] = [
-  'function',
-  'method',
-  'class',
-  'interface',
-  'type_alias',
-  'struct',
-  'trait',
-  'component',
-  'route',
-  'variable',
-  'constant',
-  'enum',
-  'module',
-  'namespace',
+  "function",
+  "method",
+  "class",
+  "interface",
+  "type_alias",
+  "struct",
+  "trait",
+  "component",
+  "route",
+  "variable",
+  "constant",
+  "enum",
+  "module",
+  "namespace",
 ];
 
 /**
@@ -330,7 +331,11 @@ export class ContextBuilder {
   private queries: QueryBuilder;
   private traverser: GraphTraverser;
 
-  constructor(projectRoot: string, queries: QueryBuilder, traverser: GraphTraverser) {
+  constructor(
+    projectRoot: string,
+    queries: QueryBuilder,
+    traverser: GraphTraverser,
+  ) {
     this.projectRoot = projectRoot;
     this.queries = queries;
     this.traverser = traverser;
@@ -358,9 +363,9 @@ export class ContextBuilder {
 
     // Parse input
     const query =
-      typeof input === 'string'
+      typeof input === "string"
         ? input
-        : `${input.title}${input.description ? `: ${input.description}` : ''}`;
+        : `${input.title}${input.description ? `: ${input.description}` : ""}`;
 
     // Find relevant context (semantic search + graph expansion)
     const subgraph = await this.findRelevantContext(query, {
@@ -375,7 +380,11 @@ export class ContextBuilder {
 
     // Extract code blocks for key nodes
     const codeBlocks = opts.includeCode
-      ? await this.extractCodeBlocks(subgraph, opts.maxCodeBlocks, opts.maxCodeBlockSize)
+      ? await this.extractCodeBlocks(
+          subgraph,
+          opts.maxCodeBlocks,
+          opts.maxCodeBlockSize,
+        )
       : [];
 
     // Get related files
@@ -390,7 +399,10 @@ export class ContextBuilder {
       edgeCount: subgraph.edges.length,
       fileCount: relatedFiles.length,
       codeBlockCount: codeBlocks.length,
-      totalCodeSize: codeBlocks.reduce((sum, block) => sum + block.content.length, 0),
+      totalCodeSize: codeBlocks.reduce(
+        (sum, block) => sum + block.content.length,
+        0,
+      ),
     };
 
     const context: TaskContext = {
@@ -404,9 +416,9 @@ export class ContextBuilder {
     };
 
     // Return formatted output or raw context
-    if (opts.format === 'markdown') {
+    if (opts.format === "markdown") {
       return formatContextAsMarkdown(context);
-    } else if (opts.format === 'json') {
+    } else if (opts.format === "json") {
       return formatContextAsJson(context);
     }
 
@@ -447,7 +459,10 @@ export class ContextBuilder {
 
     // Step 1: Extract potential symbol names from query
     const symbolsFromQuery = extractSymbolsFromQuery(query);
-    logDebug('Extracted symbols from query', { query, symbols: symbolsFromQuery });
+    logDebug("Extracted symbols from query", {
+      query,
+      symbols: symbolsFromQuery,
+    });
 
     // Step 2: Look up exact matches for extracted symbols
     let exactMatches: SearchResult[] = [];
@@ -456,7 +471,10 @@ export class ContextBuilder {
         // Get more results so we can apply co-location boosting before trimming
         exactMatches = this.queries.findNodesByExactName(symbolsFromQuery, {
           limit: Math.ceil(opts.searchLimit * 5),
-          kinds: opts.nodeKinds && opts.nodeKinds.length > 0 ? opts.nodeKinds : undefined,
+          kinds:
+            opts.nodeKinds && opts.nodeKinds.length > 0
+              ? opts.nodeKinds
+              : undefined,
         });
 
         // Co-location boost: when multiple extracted symbols appear in the same file,
@@ -472,10 +490,12 @@ export class ContextBuilder {
           }
           // Boost results in files where multiple query symbols co-occur
           exactMatches = exactMatches.map((r) => {
-            const symbolCount = fileSymbolCounts.get(r.node.filePath)?.size || 1;
+            const symbolCount =
+              fileSymbolCounts.get(r.node.filePath)?.size || 1;
             return {
               ...r,
-              score: symbolCount > 1 ? r.score + (symbolCount - 1) * 20 : r.score,
+              score:
+                symbolCount > 1 ? r.score + (symbolCount - 1) * 20 : r.score,
             };
           });
           exactMatches.sort((a, b) => b.score - a.score);
@@ -483,9 +503,9 @@ export class ContextBuilder {
 
         // Trim back to reasonable size
         exactMatches = exactMatches.slice(0, Math.ceil(opts.searchLimit * 2));
-        logDebug('Exact symbol matches', { count: exactMatches.length });
+        logDebug("Exact symbol matches", { count: exactMatches.length });
       } catch (error) {
-        logDebug('Exact symbol lookup failed', { error: String(error) });
+        logDebug("Exact symbol lookup failed", { error: String(error) });
       }
     }
 
@@ -495,13 +515,13 @@ export class ContextBuilder {
     // Also tries stem variants: "caching" → "cache" finds Cache, CacheBuilder.
     if (symbolsFromQuery.length > 0) {
       const definitionKinds: NodeKind[] = [
-        'class',
-        'interface',
-        'struct',
-        'trait',
-        'protocol',
-        'enum',
-        'type_alias',
+        "class",
+        "interface",
+        "struct",
+        "trait",
+        "protocol",
+        "enum",
+        "type_alias",
       ];
       // Expand symbols with stem variants for broader definition matching
       const expandedSymbols = new Set(symbolsFromQuery);
@@ -512,7 +532,8 @@ export class ContextBuilder {
       }
       for (const sym of expandedSymbols) {
         // Title-case the symbol: "REST" → "Rest", "bulk" → "Bulk", "allocation" → "Allocation"
-        const titleCased = sym.charAt(0).toUpperCase() + sym.slice(1).toLowerCase();
+        const titleCased =
+          sym.charAt(0).toUpperCase() + sym.slice(1).toLowerCase();
         if (titleCased === sym) continue; // already title-case (e.g., "Engine") — handled by exact match
         // Fetch more results since popular prefixes have many matches
         const prefixResults = this.queries.searchNodes(titleCased, {
@@ -525,7 +546,10 @@ export class ContextBuilder {
             // Favor shorter names: "AllocationService" (18 chars) over
             // "AllocationBalancingRoundMetrics" (31 chars). Core classes tend
             // to have concise names; test/helper classes are verbose.
-            const brevityBonus = Math.max(0, 10 - (r.node.name.length - titleCased.length) / 3);
+            const brevityBonus = Math.max(
+              0,
+              10 - (r.node.name.length - titleCased.length) / 3,
+            );
             matched.push({ ...r, score: r.score + 15 + brevityBonus });
           }
         }
@@ -551,7 +575,10 @@ export class ContextBuilder {
       if (searchTerms.length > 0) {
         // Search each term individually to get broader coverage,
         // then boost results that match multiple terms
-        const termResultsMap = new Map<string, { result: SearchResult; termHits: number }>();
+        const termResultsMap = new Map<
+          string,
+          { result: SearchResult; termHits: number }
+        >();
         // When no explicit kind filter is set, exclude imports — they flood FTS
         // results with qualified name matches (e.g., "REST" matches 445K import paths)
         // but are almost never what exploration queries want.
@@ -559,26 +586,26 @@ export class ContextBuilder {
           opts.nodeKinds && opts.nodeKinds.length > 0
             ? opts.nodeKinds
             : ([
-                'file',
-                'module',
-                'class',
-                'struct',
-                'interface',
-                'trait',
-                'protocol',
-                'function',
-                'method',
-                'property',
-                'field',
-                'variable',
-                'constant',
-                'enum',
-                'enum_member',
-                'type_alias',
-                'namespace',
-                'export',
-                'route',
-                'component',
+                "file",
+                "module",
+                "class",
+                "struct",
+                "interface",
+                "trait",
+                "protocol",
+                "function",
+                "method",
+                "property",
+                "field",
+                "variable",
+                "constant",
+                "enum",
+                "enum_member",
+                "type_alias",
+                "namespace",
+                "export",
+                "route",
+                "component",
               ] as NodeKind[]);
         for (const term of searchTerms) {
           const termResults = this.queries.searchNodes(term, {
@@ -604,9 +631,9 @@ export class ContextBuilder {
           .sort((a, b) => b.score - a.score)
           .slice(0, opts.searchLimit * 2);
       }
-      logDebug('Text search results', { count: textResults.length });
+      logDebug("Text search results", { count: textResults.length });
     } catch (error) {
-      logDebug('Text search failed', { query, error: String(error) });
+      logDebug("Text search failed", { query, error: String(error) });
     }
 
     // Step 4: Merge results, taking the max score when duplicates appear
@@ -638,7 +665,8 @@ export class ContextBuilder {
     }
 
     const queryLower = query.toLowerCase();
-    const isTestQuery = queryLower.includes('test') || queryLower.includes('spec');
+    const isTestQuery =
+      queryLower.includes("test") || queryLower.includes("spec");
 
     // Deprioritize test files early so they don't take multi-term boost slots
     if (!isTestQuery) {
@@ -662,7 +690,9 @@ export class ContextBuilder {
       // not three. Without this, stem variants inflate matchCount and give false
       // multi-term boosts to symbols matching one root word multiple times.
       const termGroups: string[][] = [];
-      const sorted = [...queryTermsForBoost].sort((a, b) => b.length - a.length);
+      const sorted = [...queryTermsForBoost].sort(
+        (a, b) => b.length - a.length,
+      );
       const assigned = new Set<string>();
       for (const term of sorted) {
         if (assigned.has(term)) continue;
@@ -690,7 +720,10 @@ export class ContextBuilder {
         // "search/" but NOT "elasticsearch/". The class name is checked
         // separately via substring match on the node name.
         const nameLower = result.node.name.toLowerCase();
-        const dirSegments = path.dirname(result.node.filePath).toLowerCase().split('/');
+        const dirSegments = path
+          .dirname(result.node.filePath)
+          .toLowerCase()
+          .split("/");
         let matchCount = 0;
         for (const group of termGroups) {
           const groupMatches = group.some((term) => {
@@ -719,22 +752,26 @@ export class ContextBuilder {
     // guaranteed slots so they don't compete with higher-scoring prefix matches.
     if (symbolsFromQuery.length > 0) {
       const camelDefinitionKinds: NodeKind[] = [
-        'class',
-        'interface',
-        'struct',
-        'trait',
-        'protocol',
-        'enum',
-        'type_alias',
+        "class",
+        "interface",
+        "struct",
+        "trait",
+        "protocol",
+        "enum",
+        "type_alias",
       ];
       const camelSearchedTerms = new Set<string>();
       const searchIdSet = new Set(searchResults.map((r) => r.node.id));
       // Track per-node term hits for multi-term boosting
-      const camelNodeTerms = new Map<string, { result: SearchResult; termCount: number }>();
+      const camelNodeTerms = new Map<
+        string,
+        { result: SearchResult; termCount: number }
+      >();
       const maxCamelPerTerm = Math.ceil(opts.searchLimit / 2);
 
       for (const sym of symbolsFromQuery) {
-        const titleCased = sym.charAt(0).toUpperCase() + sym.slice(1).toLowerCase();
+        const titleCased =
+          sym.charAt(0).toUpperCase() + sym.slice(1).toLowerCase();
         if (titleCased.length < 3) continue;
         const termKey = titleCased.toLowerCase();
         if (camelSearchedTerms.has(termKey)) continue;
@@ -763,8 +800,14 @@ export class ContextBuilder {
           if (isTestFile(r.node.filePath) && !isTestQuery) continue;
 
           const pathScore = scorePathRelevance(r.node.filePath, query);
-          const brevityBonus = Math.max(0, 6 - (name.length - titleCased.length) / 4);
-          termCandidates.push({ node: r.node, score: 8 + brevityBonus + pathScore });
+          const brevityBonus = Math.max(
+            0,
+            6 - (name.length - titleCased.length) / 4,
+          );
+          termCandidates.push({
+            node: r.node,
+            score: 8 + brevityBonus + pathScore,
+          });
         }
         termCandidates.sort((a, b) => b.score - a.score);
 
@@ -795,7 +838,8 @@ export class ContextBuilder {
         // Multi-term CamelCase matches are extremely relevant — a class matching
         // 3+ query terms in its name (e.g., ExtensionHostProcess) is almost
         // certainly what the user wants. Scale aggressively.
-        info.result.score = info.result.score * (1 + info.termCount) + (info.termCount - 1) * 30;
+        info.result.score =
+          info.result.score * (1 + info.termCount) + (info.termCount - 1) * 30;
         camelResults.push(info.result);
       }
       camelResults.sort((a, b) => b.score - a.score);
@@ -814,16 +858,23 @@ export class ContextBuilder {
       if (symbolsFromQuery.length >= 2) {
         // Collect ALL LIKE results per term (reusing findNodesByNameSubstring)
         // but without the CamelCase boundary or prefix exclusion filters.
-        const compoundTermMap = new Map<string, { node: Node; terms: Set<string> }>();
+        const compoundTermMap = new Map<
+          string,
+          { node: Node; terms: Set<string> }
+        >();
         for (const sym of symbolsFromQuery) {
-          const titleCased = sym.charAt(0).toUpperCase() + sym.slice(1).toLowerCase();
+          const titleCased =
+            sym.charAt(0).toUpperCase() + sym.slice(1).toLowerCase();
           if (titleCased.length < 3) continue;
 
-          const likeResults = this.queries.findNodesByNameSubstring(titleCased, {
-            limit: 200,
-            kinds: camelDefinitionKinds,
-            excludePrefix: false,
-          });
+          const likeResults = this.queries.findNodesByNameSubstring(
+            titleCased,
+            {
+              limit: 200,
+              kinds: camelDefinitionKinds,
+              excludePrefix: false,
+            },
+          );
 
           for (const r of likeResults) {
             if (searchIdSet.has(r.node.id)) continue;
@@ -832,7 +883,10 @@ export class ContextBuilder {
             if (entry) {
               entry.terms.add(titleCased);
             } else {
-              compoundTermMap.set(r.node.id, { node: r.node, terms: new Set([titleCased]) });
+              compoundTermMap.set(r.node.id, {
+                node: r.node,
+                terms: new Set([titleCased]),
+              });
             }
           }
         }
@@ -845,7 +899,8 @@ export class ContextBuilder {
             const brevityBonus = Math.max(0, 6 - entry.node.name.length / 8);
             compoundResults.push({
               node: entry.node,
-              score: 10 + (entry.terms.size - 1) * 20 + pathScore + brevityBonus,
+              score:
+                10 + (entry.terms.size - 1) * 20 + pathScore + brevityBonus,
             });
           }
         }
@@ -891,11 +946,11 @@ export class ContextBuilder {
     // ensures subclasses and superclasses always appear in results.
     // Budget: up to maxNodes/4 hierarchy nodes to avoid flooding.
     const typeHierarchyKinds = new Set<string>([
-      'class',
-      'interface',
-      'struct',
-      'trait',
-      'protocol',
+      "class",
+      "interface",
+      "struct",
+      "trait",
+      "protocol",
     ]);
     const maxHierarchyNodes = Math.ceil(opts.maxNodes / 4);
     let hierarchyNodesAdded = 0;
@@ -911,7 +966,10 @@ export class ContextBuilder {
         }
         for (const edge of hierarchy.edges) {
           const exists = edges.some(
-            (e) => e.source === edge.source && e.target === edge.target && e.kind === edge.kind,
+            (e) =>
+              e.source === edge.source &&
+              e.target === edge.target &&
+              e.kind === edge.kind,
           );
           if (!exists) {
             edges.push(edge);
@@ -938,7 +996,10 @@ export class ContextBuilder {
         for (const edge of siblingHierarchy.edges) {
           if (nodes.has(edge.source) && nodes.has(edge.target)) {
             const exists = edges.some(
-              (e) => e.source === edge.source && e.target === edge.target && e.kind === edge.kind,
+              (e) =>
+                e.source === edge.source &&
+                e.target === edge.target &&
+                e.kind === edge.kind,
             );
             if (!exists) {
               edges.push(edge);
@@ -952,9 +1013,15 @@ export class ContextBuilder {
     for (const result of filteredResults) {
       const traversalResult = this.traverser.traverseBFS(result.node.id, {
         maxDepth: opts.traversalDepth,
-        edgeKinds: opts.edgeKinds && opts.edgeKinds.length > 0 ? opts.edgeKinds : undefined,
-        nodeKinds: opts.nodeKinds && opts.nodeKinds.length > 0 ? opts.nodeKinds : undefined,
-        direction: 'both',
+        edgeKinds:
+          opts.edgeKinds && opts.edgeKinds.length > 0
+            ? opts.edgeKinds
+            : undefined,
+        nodeKinds:
+          opts.nodeKinds && opts.nodeKinds.length > 0
+            ? opts.nodeKinds
+            : undefined,
+        direction: "both",
         limit: Math.ceil(opts.maxNodes / Math.max(1, filteredResults.length)),
       });
 
@@ -968,7 +1035,10 @@ export class ContextBuilder {
       // Merge edges (avoid duplicates)
       for (const edge of traversalResult.edges) {
         const exists = edges.some(
-          (e) => e.source === edge.source && e.target === edge.target && e.kind === edge.kind,
+          (e) =>
+            e.source === edge.source &&
+            e.target === edge.target &&
+            e.kind === edge.kind,
         );
         if (!exists) {
           edges.push(edge);
@@ -1009,7 +1079,9 @@ export class ContextBuilder {
       }
 
       // Filter edges to only include kept nodes
-      finalEdges = edges.filter((e) => finalNodes.has(e.source) && finalNodes.has(e.target));
+      finalEdges = edges.filter(
+        (e) => finalNodes.has(e.source) && finalNodes.has(e.target),
+      );
     }
 
     // Per-file diversity cap: prevent any single file from monopolizing the
@@ -1077,16 +1149,26 @@ export class ContextBuilder {
     }
 
     // Re-filter edges after per-file and non-production caps
-    finalEdges = finalEdges.filter((e) => finalNodes.has(e.source) && finalNodes.has(e.target));
+    finalEdges = finalEdges.filter(
+      (e) => finalNodes.has(e.source) && finalNodes.has(e.target),
+    );
 
     // Edge recovery: BFS with many entry points leaves most nodes disconnected.
     // Discover edges between already-selected nodes to recover connectivity.
-    const recoveryKinds: EdgeKind[] = ['calls', 'extends', 'implements', 'references', 'overrides'];
+    const recoveryKinds: EdgeKind[] = [
+      "calls",
+      "extends",
+      "implements",
+      "references",
+      "overrides",
+    ];
     const recoveredEdges = this.queries.findEdgesBetweenNodes(
       [...finalNodes.keys()],
       recoveryKinds,
     );
-    const existingEdgeKeys = new Set(finalEdges.map((e) => `${e.source}:${e.target}:${e.kind}`));
+    const existingEdgeKeys = new Set(
+      finalEdges.map((e) => `${e.source}:${e.target}:${e.kind}`),
+    );
     for (const edge of recoveredEdges) {
       const key = `${edge.source}:${edge.target}:${edge.kind}`;
       if (!existingEdgeKeys.has(key)) {
@@ -1126,16 +1208,16 @@ export class ContextBuilder {
     }
 
     try {
-      const content = fs.readFileSync(filePath, 'utf-8');
-      const lines = content.split('\n');
+      const content = fs.readFileSync(filePath, "utf-8");
+      const lines = content.split("\n");
 
       // Extract lines (1-indexed to 0-indexed)
       const startIdx = Math.max(0, node.startLine - 1);
       const endIdx = Math.min(lines.length, node.endLine);
 
-      return lines.slice(startIdx, endIdx).join('\n');
+      return lines.slice(startIdx, endIdx).join("\n");
     } catch (error) {
-      logDebug('Failed to extract code from node', {
+      logDebug("Failed to extract code from node", {
         nodeId: node.id,
         filePath: node.filePath,
         error: String(error),
@@ -1177,7 +1259,7 @@ export class ContextBuilder {
     // Then: functions and methods
     for (const node of subgraph.nodes.values()) {
       if (!subgraph.roots.includes(node.id)) {
-        if (node.kind === 'function' || node.kind === 'method') {
+        if (node.kind === "function" || node.kind === "method") {
           priorityNodes.push(node);
         }
       }
@@ -1186,7 +1268,7 @@ export class ContextBuilder {
     // Then: classes
     for (const node of subgraph.nodes.values()) {
       if (!subgraph.roots.includes(node.id)) {
-        if (node.kind === 'class') {
+        if (node.kind === "class") {
           priorityNodes.push(node);
         }
       }
@@ -1202,7 +1284,9 @@ export class ContextBuilder {
         // comment in Python, Ruby, etc.); this renders inside a fenced
         // source block whose language varies.
         const truncated =
-          code.length > maxBlockSize ? code.slice(0, maxBlockSize) + '\n... (truncated) ...' : code;
+          code.length > maxBlockSize
+            ? code.slice(0, maxBlockSize) + "\n... (truncated) ..."
+            : code;
 
         blocks.push({
           content: truncated,
@@ -1232,7 +1316,11 @@ export class ContextBuilder {
   /**
    * Generate a summary of the context
    */
-  private generateSummary(_query: string, subgraph: Subgraph, entryPoints: Node[]): string {
+  private generateSummary(
+    _query: string,
+    subgraph: Subgraph,
+    entryPoints: Node[],
+  ): string {
     const nodeCount = subgraph.nodes.size;
     const edgeCount = subgraph.edges.length;
     const files = this.getRelatedFiles(subgraph);
@@ -1240,9 +1328,10 @@ export class ContextBuilder {
     const entryPointNames = entryPoints
       .slice(0, 3)
       .map((n) => n.name)
-      .join(', ');
+      .join(", ");
 
-    const remaining = entryPoints.length > 3 ? ` and ${entryPoints.length - 3} more` : '';
+    const remaining =
+      entryPoints.length > 3 ? ` and ${entryPoints.length - 3} more` : "";
 
     return (
       `Found ${nodeCount} relevant code symbols across ${files.length} files. ` +
@@ -1269,7 +1358,7 @@ export class ContextBuilder {
       const { node, score } = result;
 
       // If it's not an import/export, keep it as-is
-      if (node.kind !== 'import' && node.kind !== 'export') {
+      if (node.kind !== "import" && node.kind !== "export") {
         if (!seenIds.has(node.id)) {
           seenIds.add(node.id);
           resolved.push(result);
@@ -1280,7 +1369,7 @@ export class ContextBuilder {
       // For imports/exports, try to find what they reference
       // Imports have outgoing 'imports' edges to the definition
       // Exports have outgoing 'exports' edges to the definition
-      const edgeKind = node.kind === 'import' ? 'imports' : 'exports';
+      const edgeKind = node.kind === "import" ? "imports" : "exports";
       const outgoingEdges = this.queries.getOutgoingEdges(node.id, [edgeKind]);
 
       let foundDefinition = false;
@@ -1294,7 +1383,7 @@ export class ContextBuilder {
             score: score, // Preserve the original score
           });
           foundDefinition = true;
-          logDebug('Resolved import to definition', {
+          logDebug("Resolved import to definition", {
             import: node.name,
             definition: targetNode.name,
             kind: targetNode.kind,
@@ -1304,7 +1393,10 @@ export class ContextBuilder {
 
       // If we couldn't resolve the import, skip it (it's low-value on its own)
       if (!foundDefinition) {
-        logDebug('Skipping unresolved import', { name: node.name, file: node.filePath });
+        logDebug("Skipping unresolved import", {
+          name: node.name,
+          file: node.filePath,
+        });
       }
     }
 
@@ -1324,4 +1416,4 @@ export function createContextBuilder(
 }
 
 // Re-export formatter
-export { formatContextAsMarkdown, formatContextAsJson } from './formatter.js';
+export { formatContextAsMarkdown, formatContextAsJson } from "./formatter.js";

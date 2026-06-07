@@ -4,7 +4,7 @@
  */
 
 /** Error severity levels */
-export type ErrorSeverity = 'fatal' | 'error' | 'warning';
+export type ErrorSeverity = "fatal" | "error" | "warning";
 
 /** Base error class for all AIDE errors */
 export class AideError extends Error {
@@ -29,10 +29,10 @@ export class AideError extends Error {
     cause?: Error;
   }) {
     super(opts.message, opts.cause ? { cause: opts.cause } : undefined);
-    this.name = 'AideError';
+    this.name = "AideError";
     this.code = opts.code;
     this.recoverable = opts.recoverable ?? false;
-    this.severity = opts.severity ?? 'error';
+    this.severity = opts.severity ?? "error";
     this.context = opts.context;
     this.suggestion = opts.suggestion;
   }
@@ -44,7 +44,7 @@ export class AideError extends Error {
     if (this.context && Object.keys(this.context).length > 0) {
       lines.push(`  Context: ${JSON.stringify(this.context)}`);
     }
-    return lines.join('\n');
+    return lines.join("\n");
   }
 }
 
@@ -61,12 +61,12 @@ export class ConfigError extends AideError {
   ) {
     super({
       message,
-      code: 'CONFIG_ERROR',
+      code: "CONFIG_ERROR",
       recoverable: opts?.recoverable ?? true,
-      severity: 'error',
+      severity: "error",
       ...opts,
     });
-    this.name = 'ConfigError';
+    this.name = "ConfigError";
   }
 
   static notFound(path: string): ConfigError {
@@ -78,10 +78,13 @@ export class ConfigError extends AideError {
   }
 
   static invalidField(field: string, reason: string): ConfigError {
-    return new ConfigError(`Invalid configuration field "${field}": ${reason}`, {
-      recoverable: true,
-      suggestion: `Check the "${field}" field in your aide.config.yaml file.`,
-    });
+    return new ConfigError(
+      `Invalid configuration field "${field}": ${reason}`,
+      {
+        recoverable: true,
+        suggestion: `Check the "${field}" field in your aide.config.yaml file.`,
+      },
+    );
   }
 }
 
@@ -98,12 +101,12 @@ export class GuardError extends AideError {
   ) {
     super({
       message,
-      code: 'GUARD_ERROR',
+      code: "GUARD_ERROR",
       recoverable: opts?.recoverable ?? false,
-      severity: 'error',
+      severity: "error",
       ...opts,
     });
-    this.name = 'GuardError';
+    this.name = "GuardError";
   }
 
   static verificationFailed(file: string, reason: string): GuardError {
@@ -135,12 +138,12 @@ export class RouteError extends AideError {
   ) {
     super({
       message,
-      code: 'ROUTE_ERROR',
+      code: "ROUTE_ERROR",
       recoverable: opts?.recoverable ?? true,
-      severity: 'error',
+      severity: "error",
       ...opts,
     });
-    this.name = 'RouteError';
+    this.name = "RouteError";
   }
 
   static providerUnavailable(provider: string): RouteError {
@@ -153,7 +156,8 @@ export class RouteError extends AideError {
   static noRouteAvailable(taskType: string): RouteError {
     return new RouteError(`No route available for task type "${taskType}"`, {
       recoverable: false,
-      suggestion: 'Ensure at least one provider is enabled and has models configured.',
+      suggestion:
+        "Ensure at least one provider is enabled and has models configured.",
     });
   }
 }
@@ -171,25 +175,27 @@ export class GraphError extends AideError {
   ) {
     super({
       message,
-      code: 'GRAPH_ERROR',
+      code: "GRAPH_ERROR",
       recoverable: opts?.recoverable ?? false,
-      severity: 'error',
+      severity: "error",
       ...opts,
     });
-    this.name = 'GraphError';
+    this.name = "GraphError";
   }
 
   static notInitialized(projectDir: string): GraphError {
     return new GraphError(`CodeGraph is not initialized in ${projectDir}`, {
       recoverable: true,
-      suggestion: 'Run "aide init" or "aide index" to initialize the code graph.',
+      suggestion:
+        'Run "aide init" or "aide index" to initialize the code graph.',
     });
   }
 
   static unsupportedLanguage(language: string): GraphError {
     return new GraphError(`Unsupported language: ${language}`, {
       recoverable: false,
-      suggestion: 'Supported languages: typescript, javascript, python, go, rust, java.',
+      suggestion:
+        "Supported languages: typescript, javascript, python, go, rust, java.",
     });
   }
 }
@@ -207,12 +213,12 @@ export class MindError extends AideError {
   ) {
     super({
       message,
-      code: 'MIND_ERROR',
+      code: "MIND_ERROR",
       recoverable: opts?.recoverable ?? true,
-      severity: 'error',
+      severity: "error",
       ...opts,
     });
-    this.name = 'MindError';
+    this.name = "MindError";
   }
 
   static modelNotConfigured(model: string): MindError {

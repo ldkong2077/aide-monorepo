@@ -49,12 +49,16 @@
  * For multi-process deployments, point each process at its own file
  * (override `dbPath` in `LLMCacheConfig`).
  */
-import Database, { type Database as DatabaseType } from 'better-sqlite3';
-import { createHash, randomUUID } from 'node:crypto';
-import * as fs from 'node:fs';
-import * as path from 'node:path';
-import * as os from 'node:os';
-import type { ChatCompletionRequest, ChatCompletionResponse, ChatMessage } from '../types.js';
+import Database, { type Database as DatabaseType } from "better-sqlite3";
+import { createHash, randomUUID } from "node:crypto";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import * as os from "node:os";
+import type {
+  ChatCompletionRequest,
+  ChatCompletionResponse,
+  ChatMessage,
+} from "../types.js";
 
 // ==================== Public types ====================
 
@@ -163,21 +167,21 @@ export const DEFAULT_CACHE_TRACK_HITS = true;
  *                     clone it if a caller asks for more
  */
 const CACHE_AFFECTING_KEYS = [
-  'model',
-  'messages',
-  'temperature',
-  'top_p',
-  'max_tokens',
-  'frequency_penalty',
-  'presence_penalty',
-  'stop',
-  'tools',
-  'tool_choice',
-  'response_format',
+  "model",
+  "messages",
+  "temperature",
+  "top_p",
+  "max_tokens",
+  "frequency_penalty",
+  "presence_penalty",
+  "stop",
+  "tools",
+  "tool_choice",
+  "response_format",
 ] as const;
 
 function canonicalise(value: unknown): unknown {
-  if (value === null || typeof value !== 'object') return value;
+  if (value === null || typeof value !== "object") return value;
   if (Array.isArray(value)) return value.map(canonicalise);
   // Object: sort keys for determinism
   const sorted: Record<string, unknown> = {};
@@ -198,19 +202,27 @@ export function computeRequestHash(
   messages: ChatMessage[],
   options?: Pick<
     ChatCompletionRequest,
-    'temperature' | 'top_p' | 'max_tokens' | 'frequency_penalty' | 'presence_penalty' | 'stop' | 'tools' | 'tool_choice' | 'response_format'
+    | "temperature"
+    | "top_p"
+    | "max_tokens"
+    | "frequency_penalty"
+    | "presence_penalty"
+    | "stop"
+    | "tools"
+    | "tool_choice"
+    | "response_format"
   >,
 ): string {
   const payload: Record<string, unknown> = { model, messages };
   if (options) {
     for (const key of CACHE_AFFECTING_KEYS) {
-      if (key === 'model' || key === 'messages') continue;
+      if (key === "model" || key === "messages") continue;
       const v = options[key as keyof typeof options];
       if (v !== undefined) payload[key] = v;
     }
   }
   const json = JSON.stringify(canonicalise(payload));
-  return createHash('sha256').update(json).digest('hex');
+  return createHash("sha256").update(json).digest("hex");
 }
 
 // ==================== Implementation ====================
@@ -271,18 +283,23 @@ export class LLMCache {
     if (config.dbPath) {
       dbPath = config.dbPath;
     } else if (process.env.CODESHIELD_HOME) {
-      dbPath = path.resolve(process.env.CODESHIELD_HOME, 'data', 'llm-cache.db');
+      dbPath = path.resolve(
+        process.env.CODESHIELD_HOME,
+        "data",
+        "llm-cache.db",
+      );
     } else {
       const homeDir = os.homedir();
-      const homeDataDir = path.join(homeDir, '.codeshield', 'data');
+      const homeDataDir = path.join(homeDir, ".codeshield", "data");
       try {
-        if (!fs.existsSync(homeDataDir)) fs.mkdirSync(homeDataDir, { recursive: true });
-        const probe = path.join(homeDataDir, '.write-test');
-        fs.writeFileSync(probe, 'test');
+        if (!fs.existsSync(homeDataDir))
+          fs.mkdirSync(homeDataDir, { recursive: true });
+        const probe = path.join(homeDataDir, ".write-test");
+        fs.writeFileSync(probe, "test");
         fs.unlinkSync(probe);
-        dbPath = path.join(homeDataDir, 'llm-cache.db');
+        dbPath = path.join(homeDataDir, "llm-cache.db");
       } catch {
-        dbPath = path.resolve(process.cwd(), 'data', 'llm-cache.db');
+        dbPath = path.resolve(process.cwd(), "data", "llm-cache.db");
       }
     }
 
@@ -291,8 +308,8 @@ export class LLMCache {
     if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir, { recursive: true });
 
     this.db = new Database(dbPath);
-    this.db.pragma('journal_mode = WAL');
-    this.db.pragma('synchronous = NORMAL');
+    this.db.pragma("journal_mode = WAL");
+    this.db.pragma("synchronous = NORMAL");
 
     this.initialiseSchema();
     this.initialiseStatements();
@@ -345,9 +362,15 @@ export class LLMCache {
       SET hit_count = hit_count + 1, last_accessed_at = ?
       WHERE key = ?
     `);
-    this.stmtDeleteByKey = this.db.prepare<[string]>(`DELETE FROM cache_entries WHERE key = ?`);
-    this.stmtDeleteByModel = this.db.prepare<[string]>(`DELETE FROM cache_entries WHERE model = ?`);
-    this.stmtCount = this.db.prepare<[], CountRow>(`SELECT COUNT(*) AS c FROM cache_entries`);
+    this.stmtDeleteByKey = this.db.prepare<[string]>(
+      `DELETE FROM cache_entries WHERE key = ?`,
+    );
+    this.stmtDeleteByModel = this.db.prepare<[string]>(
+      `DELETE FROM cache_entries WHERE model = ?`,
+    );
+    this.stmtCount = this.db.prepare<[], CountRow>(
+      `SELECT COUNT(*) AS c FROM cache_entries`,
+    );
     this.stmtCountByModel = this.db.prepare<[string], CountRow>(
       `SELECT COUNT(*) AS c FROM cache_entries WHERE model = ?`,
     );
@@ -440,7 +463,11 @@ export class LLMCache {
     model: string,
     requestHash: string,
     response: ChatCompletionResponse,
-    options: { ttlMs?: number; promptTokens?: number; completionTokens?: number } = {},
+    options: {
+      ttlMs?: number;
+      promptTokens?: number;
+      completionTokens?: number;
+    } = {},
   ): void {
     try {
       // Enforce size cap before insert to keep the cache bounded.
@@ -578,7 +605,7 @@ export class LLMCache {
       // Use the connection's own filename so stats reflect the path
       // the consumer actually opened (not the default).
       const name = this.db.name;
-      if (name && name !== ':memory:' && fs.existsSync(name)) {
+      if (name && name !== ":memory:" && fs.existsSync(name)) {
         bytesOnDisk = fs.statSync(name).size;
       }
     } catch {
@@ -612,21 +639,6 @@ export class LLMCache {
   }
 }
 
-// ==================== Internal row shape ====================
-
-interface CacheRow {
-  key: string;
-  model: string;
-  request_hash: string;
-  response_json: string;
-  prompt_tokens: number | null;
-  completion_tokens: number | null;
-  hit_count: number;
-  created_at: number;
-  last_accessed_at: number;
-  expires_at: number;
-}
-
 // ==================== Factory ====================
 
 /**
@@ -651,7 +663,11 @@ export async function withCache(
   model: string,
   request: ChatCompletionRequest,
   fetcher: () => Promise<ChatCompletionResponse>,
-): Promise<{ response: ChatCompletionResponse; fromCache: boolean; requestHash: string }> {
+): Promise<{
+  response: ChatCompletionResponse;
+  fromCache: boolean;
+  requestHash: string;
+}> {
   const hash = computeRequestHash(model, request.messages, request);
   const hit = cache.lookup(model, hash);
   if (hit) {

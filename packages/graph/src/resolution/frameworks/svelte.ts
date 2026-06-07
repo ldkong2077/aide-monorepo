@@ -5,55 +5,60 @@
  * store auto-subscriptions, and SvelteKit route/module patterns.
  */
 
-import { type Node } from '../../types.js';
-import { type FrameworkResolver, type UnresolvedRef, type ResolvedRef, type ResolutionContext } from '../types.js';
+import { type Node } from "../../types.js";
+import {
+  type FrameworkResolver,
+  type UnresolvedRef,
+  type ResolvedRef,
+  type ResolutionContext,
+} from "../types.js";
 
 /**
  * Svelte 5 runes — compiler-provided, not user code
  */
 const SVELTE_RUNES = new Set([
-  '$state',
-  '$state.raw',
-  '$state.snapshot',
-  '$derived',
-  '$derived.by',
-  '$effect',
-  '$effect.pre',
-  '$effect.root',
-  '$effect.tracking',
-  '$props',
-  '$bindable',
-  '$inspect',
-  '$host',
+  "$state",
+  "$state.raw",
+  "$state.snapshot",
+  "$derived",
+  "$derived.by",
+  "$effect",
+  "$effect.pre",
+  "$effect.root",
+  "$effect.tracking",
+  "$props",
+  "$bindable",
+  "$inspect",
+  "$host",
 ]);
 
 /**
  * SvelteKit framework-provided module prefixes
  */
 const SVELTEKIT_MODULE_PREFIXES = [
-  '$app/navigation',
-  '$app/stores',
-  '$app/environment',
-  '$app/forms',
-  '$app/paths',
-  '$env/static/private',
-  '$env/static/public',
-  '$env/dynamic/private',
-  '$env/dynamic/public',
+  "$app/navigation",
+  "$app/stores",
+  "$app/environment",
+  "$app/forms",
+  "$app/paths",
+  "$env/static/private",
+  "$env/static/public",
+  "$env/dynamic/private",
+  "$env/dynamic/public",
 ];
 
 export const svelteResolver: FrameworkResolver = {
-  name: 'svelte',
-  languages: ['svelte'],
+  name: "svelte",
+  languages: ["svelte"],
 
   detect(context: ResolutionContext): boolean {
     // Check for svelte or @sveltejs/kit in package.json
-    const packageJson = context.readFile('package.json');
+    const packageJson = context.readFile("package.json");
     if (packageJson) {
       try {
         const pkg = JSON.parse(packageJson);
         const deps = { ...pkg.dependencies, ...pkg.devDependencies };
-        if (deps.svelte || deps['@sveltejs/kit']) {
+        if (deps.svelte || deps["@sveltejs/kit"]) {
           return true;
         }
       } catch {
@@ -63,7 +68,7 @@ export const svelteResolver: FrameworkResolver = {
 
     // Check for .svelte files in project
     const allFiles = context.getAllFiles();
-    return allFiles.some((f) => f.endsWith('.svelte'));
+    return allFiles.some((f) => f.endsWith(".svelte"));
   },
 
   resolve(ref: UnresolvedRef, context: ResolutionContext): ResolvedRef | null {
@@ -76,33 +81,43 @@ export const svelteResolver: FrameworkResolver = {
         original: ref,
         targetNodeId: ref.fromNodeId,
         confidence: 1.0,
-        resolvedBy: 'framework',
+        resolvedBy: "framework",
       };
     }
 
     // Pattern 2: Store auto-subscriptions ($storeName)
-    if (ref.referenceName.startsWith('$') && !ref.referenceName.startsWith('$$')) {
+    if (
+      ref.referenceName.startsWith("$") &&
+      !ref.referenceName.startsWith("$$")
+    ) {
       const storeName = ref.referenceName.substring(1);
       const storeNode = context
         .getNodesByName(storeName)
-        .find((n) => n.kind === 'variable' || n.kind === 'constant');
+        .find((n) => n.kind === "variable" || n.kind === "constant");
       if (storeNode) {
         return {
           original: ref,
           targetNodeId: storeNode.id,
           confidence: 0.85,
-          resolvedBy: 'framework',
+          resolvedBy: "framework",
         };
       }
     }
 
     // Pattern 3: SvelteKit module imports ($app/*, $env/*, $lib/*)
-    if (ref.referenceKind === 'imports' && ref.referenceName.startsWith('$')) {
+    if (ref.referenceKind === "imports" && ref.referenceName.startsWith("$")) {
       // $lib/* resolves to src/lib/* — try to find the target file
-      if (ref.referenceName.startsWith('$lib/')) {
-        const libPath = ref.referenceName.replace('$lib/', 'src/lib/');
+      if (ref.referenceName.startsWith("$lib/")) {
+        const libPath = ref.referenceName.replace("$lib/", "src/lib/");
         // Try common extensions
-        for (const ext of ['', '.ts', '.js', '.svelte', '/index.ts', '/index.js']) {
+        for (const ext of [
+          "",
+          ".ts",
+          ".js",
+          ".svelte",
+          "/index.ts",
+          "/index.js",
+        ]) {
           const fullPath = libPath + ext;
           if (context.fileExists(fullPath)) {
             const nodes = context.getNodesInFile(fullPath);
@@ -111,7 +126,7 @@ export const svelteResolver: FrameworkResolver = {
                 original: ref,
                 targetNodeId: nodes[0].id,
                 confidence: 0.9,
-                resolvedBy: 'framework',
+                resolvedBy: "framework",
               };
             }
           }
@@ -119,25 +134,29 @@ export const svelteResolver: FrameworkResolver = {
       }
 
       // $app/* and $env/* are framework-provided
-      if (SVELTEKIT_MODULE_PREFIXES.some((prefix) => ref.referenceName.startsWith(prefix))) {
+      if (
+        SVELTEKIT_MODULE_PREFIXES.some((prefix) =>
+          ref.referenceName.startsWith(prefix),
+        )
+      ) {
         return {
           original: ref,
           targetNodeId: ref.fromNodeId,
           confidence: 1.0,
-          resolvedBy: 'framework',
+          resolvedBy: "framework",
         };
       }
     }
 
     // Pattern 4: Component references (PascalCase) — resolve to .svelte files
-    if (isPascalCase(ref.referenceName) && ref.referenceKind === 'calls') {
+    if (isPascalCase(ref.referenceName) && ref.referenceKind === "calls") {
       const result = resolveComponent(ref.referenceName, ref.filePath, context);
       if (result) {
         return {
           original: ref,
           targetNodeId: result,
           confidence: 0.8,
-          resolvedBy: 'framework',
+          resolvedBy: "framework",
         };
       }
     }
@@ -150,7 +169,7 @@ export const svelteResolver: FrameworkResolver = {
     const now = Date.now();
 
     // Detect SvelteKit route files
-    const fileName = filePath.split(/[/\\]/).pop() || '';
+    const fileName = filePath.split(/[/\\]/).pop() || "";
     const routeMatch = getSvelteKitRouteInfo(fileName);
 
     if (routeMatch) {
@@ -161,7 +180,7 @@ export const svelteResolver: FrameworkResolver = {
       if (routePath) {
         nodes.push({
           id: `route:${filePath}:${routePath}:1`,
-          kind: 'route',
+          kind: "route",
           name: routePath,
           qualifiedName: `${filePath}::route:${routePath}`,
           filePath,
@@ -169,7 +188,7 @@ export const svelteResolver: FrameworkResolver = {
           endLine: 1,
           startColumn: 0,
           endColumn: 0,
-          language: filePath.endsWith('.svelte') ? 'svelte' : 'typescript',
+          language: filePath.endsWith(".svelte") ? "svelte" : "typescript",
           updatedAt: now,
         });
       }
@@ -189,7 +208,8 @@ function isRuneReference(name: string): boolean {
   // Rune method calls come through as the base rune name
   // e.g. $state.raw -> the call is to "$state" with ".raw" accessed as property
   // Check if it's a base rune that has sub-methods
-  if (name === '$state' || name === '$derived' || name === '$effect') return true;
+  if (name === "$state" || name === "$derived" || name === "$effect")
+    return true;
 
   return false;
 }
@@ -211,12 +231,12 @@ function resolveComponent(
 ): string | null {
   // Look for component nodes by name
   const candidates = context.getNodesByName(name);
-  const components = candidates.filter((n) => n.kind === 'component');
+  const components = candidates.filter((n) => n.kind === "component");
 
   if (components.length === 0) return null;
 
   // Prefer same directory
-  const fromDir = fromFile.substring(0, fromFile.lastIndexOf('/'));
+  const fromDir = fromFile.substring(0, fromFile.lastIndexOf("/"));
   const sameDir = components.filter((n) => n.filePath.startsWith(fromDir));
   if (sameDir.length > 0) return sameDir[0].id;
 
@@ -227,19 +247,19 @@ function resolveComponent(
  * SvelteKit route file patterns
  */
 const SVELTEKIT_ROUTE_FILES: Record<string, string> = {
-  '+page.svelte': 'page',
-  '+page.ts': 'page-load',
-  '+page.js': 'page-load',
-  '+page.server.ts': 'page-server-load',
-  '+page.server.js': 'page-server-load',
-  '+layout.svelte': 'layout',
-  '+layout.ts': 'layout-load',
-  '+layout.js': 'layout-load',
-  '+layout.server.ts': 'layout-server-load',
-  '+layout.server.js': 'layout-server-load',
-  '+server.ts': 'api-endpoint',
-  '+server.js': 'api-endpoint',
-  '+error.svelte': 'error-page',
+  "+page.svelte": "page",
+  "+page.ts": "page-load",
+  "+page.js": "page-load",
+  "+page.server.ts": "page-server-load",
+  "+page.server.js": "page-server-load",
+  "+layout.svelte": "layout",
+  "+layout.ts": "layout-load",
+  "+layout.js": "layout-load",
+  "+layout.server.ts": "layout-server-load",
+  "+layout.server.js": "layout-server-load",
+  "+server.ts": "api-endpoint",
+  "+server.js": "api-endpoint",
+  "+error.svelte": "error-page",
 };
 
 /**
@@ -254,28 +274,28 @@ function getSvelteKitRouteInfo(fileName: string): string | null {
  */
 function filePathToSvelteKitRoute(filePath: string): string | null {
   // Normalize to forward slashes
-  const normalized = filePath.replace(/\\/g, '/');
+  const normalized = filePath.replace(/\\/g, "/");
 
   // Find the routes directory
-  const routesIndex = normalized.indexOf('/routes/');
+  const routesIndex = normalized.indexOf("/routes/");
   if (routesIndex === -1) return null;
 
   // Extract the path after routes/
-  const afterRoutes = normalized.substring(routesIndex + '/routes/'.length);
+  const afterRoutes = normalized.substring(routesIndex + "/routes/".length);
 
   // Remove the file name
-  const lastSlash = afterRoutes.lastIndexOf('/');
-  const dirPath = lastSlash === -1 ? '' : afterRoutes.substring(0, lastSlash);
+  const lastSlash = afterRoutes.lastIndexOf("/");
+  const dirPath = lastSlash === -1 ? "" : afterRoutes.substring(0, lastSlash);
 
   // Convert SvelteKit param syntax [param] to :param
   const route =
-    '/' +
+    "/" +
     dirPath
-      .replace(/\[\.\.\.([^\]]+)\]/g, '*$1') // [...rest] -> *rest
-      .replace(/\[{2}([^\]]+)\]{2}/g, ':$1?') // [[optional]] -> :optional?
-      .replace(/\[([^\]]+)\]/g, ':$1'); // [param] -> :param
+      .replace(/\[\.\.\.([^\]]+)\]/g, "*$1") // [...rest] -> *rest
+      .replace(/\[{2}([^\]]+)\]{2}/g, ":$1?") // [[optional]] -> :optional?
+      .replace(/\[([^\]]+)\]/g, ":$1"); // [param] -> :param
 
-  if (route === '/') return '/';
+  if (route === "/") return "/";
   // Remove trailing slash
-  return route.replace(/\/$/, '');
+  return route.replace(/\/$/, "");
 }

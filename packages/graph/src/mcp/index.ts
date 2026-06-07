@@ -15,12 +15,17 @@
  * ```
  */
 
-import * as path from 'path';
-import CodeGraph, { findNearestCodeGraphRoot } from '../index.js';
-import { watchDisabledReason } from '../sync/index.js';
-import { StdioTransport, type JsonRpcRequest, type JsonRpcNotification, ErrorCodes } from './transport.js';
-import { tools, ToolHandler } from './tools.js';
-import { SERVER_INSTRUCTIONS } from './server-instructions.js';
+import * as path from "path";
+import CodeGraph, { findNearestCodeGraphRoot } from "../index.js";
+import { watchDisabledReason } from "../sync/index.js";
+import {
+  StdioTransport,
+  type JsonRpcRequest,
+  type JsonRpcNotification,
+  ErrorCodes,
+} from "./transport.js";
+import { tools, ToolHandler } from "./tools.js";
+import { SERVER_INSTRUCTIONS } from "./server-instructions.js";
 
 /**
  * Convert a file:// URI to a filesystem path.
@@ -31,13 +36,13 @@ function fileUriToPath(uri: string): string {
     const url = new URL(uri);
     let filePath = decodeURIComponent(url.pathname);
     // On Windows, file:///C:/path produces pathname /C:/path — strip leading /
-    if (process.platform === 'win32' && /^\/[a-zA-Z]:/.test(filePath)) {
+    if (process.platform === "win32" && /^\/[a-zA-Z]:/.test(filePath)) {
       filePath = filePath.slice(1);
     }
     return path.resolve(filePath);
   } catch {
     // Fallback for non-standard URIs
-    return uri.replace(/^file:\/\/\/?/, '');
+    return uri.replace(/^file:\/\/\/?/, "");
   }
 }
 
@@ -45,14 +50,14 @@ function fileUriToPath(uri: string): string {
  * MCP Server Info
  */
 const SERVER_INFO = {
-  name: 'codegraph',
-  version: '0.1.0',
+  name: "codegraph",
+  version: "0.1.0",
 };
 
 /**
  * MCP Protocol Version
  */
-const PROTOCOL_VERSION = '2024-11-05';
+const PROTOCOL_VERSION = "2024-11-05";
 
 /**
  * How long to wait for the client's `roots/list` response before giving up
@@ -66,11 +71,11 @@ const ROOTS_LIST_TIMEOUT_MS = 5000;
  * Returns null if the result is empty or malformed.
  */
 function firstRootPath(result: unknown): string | null {
-  if (!result || typeof result !== 'object') return null;
+  if (!result || typeof result !== "object") return null;
   const roots = (result as { roots?: unknown }).roots;
   if (!Array.isArray(roots) || roots.length === 0) return null;
   const first = roots[0] as { uri?: unknown };
-  if (typeof first?.uri !== 'string') return null;
+  if (typeof first?.uri !== "string") return null;
   return fileUriToPath(first.uri);
 }
 
@@ -115,13 +120,13 @@ export class MCPServer {
     this.transport.start(this.handleMessage.bind(this));
 
     // Keep the process running
-    process.on('SIGINT', () => this.stop());
-    process.on('SIGTERM', () => this.stop());
+    process.on("SIGINT", () => this.stop());
+    process.on("SIGTERM", () => this.stop());
 
     // When the parent process (Claude Code) exits, stdin closes.
     // Detect this and shut down gracefully to prevent orphaned processes.
-    process.stdin.on('end', () => this.stop());
-    process.stdin.on('close', () => this.stop());
+    process.stdin.on("end", () => this.stop());
+    process.stdin.on("close", () => this.stop());
   }
 
   /**
@@ -155,7 +160,9 @@ export class MCPServer {
     } catch (err) {
       // Log the error so transient failures are diagnosable (see issue #47)
       const msg = err instanceof Error ? err.message : String(err);
-      process.stderr.write(`[CodeGraph MCP] Failed to open project at ${resolvedRoot}: ${msg}\n`);
+      process.stderr.write(
+        `[CodeGraph MCP] Failed to open project at ${resolvedRoot}: ${msg}\n`,
+      );
     }
   }
 
@@ -188,7 +195,9 @@ export class MCPServer {
     if (!this.projectPath && !this.rootsAttempted) {
       this.rootsAttempted = true;
       this.initPromise = (
-        this.clientSupportsRoots ? this.initFromRoots() : this.tryInitializeDefault(process.cwd())
+        this.clientSupportsRoots
+          ? this.initFromRoots()
+          : this.tryInitializeDefault(process.cwd())
       ).finally(() => {
         this.initPromise = null;
       });
@@ -235,13 +244,17 @@ export class MCPServer {
   private async initFromRoots(): Promise<void> {
     let target = process.cwd();
     try {
-      const result = await this.transport.request('roots/list', undefined, ROOTS_LIST_TIMEOUT_MS);
+      const result = await this.transport.request(
+        "roots/list",
+        undefined,
+        ROOTS_LIST_TIMEOUT_MS,
+      );
       const rootPath = firstRootPath(result);
       if (rootPath) {
         target = rootPath;
       } else {
         process.stderr.write(
-          '[CodeGraph MCP] Client returned no workspace roots; falling back to process cwd.\n',
+          "[CodeGraph MCP] Client returned no workspace roots; falling back to process cwd.\n",
         );
       }
     } catch (err) {
@@ -263,7 +276,9 @@ export class MCPServer {
     // When the watcher is intentionally disabled (e.g. WSL2 /mnt drives, or
     // CODEGRAPH_NO_WATCH=1), say so explicitly and tell the user how to keep
     // the graph fresh — otherwise the silent staleness is hard to diagnose.
-    const disabledReason = watchDisabledReason(this.projectPath ?? process.cwd());
+    const disabledReason = watchDisabledReason(
+      this.projectPath ?? process.cwd(),
+    );
     if (disabledReason) {
       process.stderr.write(
         `[CodeGraph MCP] File watcher disabled — ${disabledReason}. ` +
@@ -281,18 +296,20 @@ export class MCPServer {
         }
       },
       onSyncError: (err) => {
-        process.stderr.write(`[CodeGraph MCP] Auto-sync error: ${err.message}\n`);
+        process.stderr.write(
+          `[CodeGraph MCP] Auto-sync error: ${err.message}\n`,
+        );
       },
     });
 
     if (started) {
       process.stderr.write(
-        '[CodeGraph MCP] File watcher active — graph will auto-sync on changes\n',
+        "[CodeGraph MCP] File watcher active — graph will auto-sync on changes\n",
       );
     } else {
       // start() can also return false when recursive fs.watch isn't supported.
       process.stderr.write(
-        '[CodeGraph MCP] File watcher unavailable on this platform — run `codegraph sync` to refresh the graph after changes.\n',
+        "[CodeGraph MCP] File watcher unavailable on this platform — run `codegraph sync` to refresh the graph after changes.\n",
       );
     }
   }
@@ -315,35 +332,37 @@ export class MCPServer {
   /**
    * Handle incoming JSON-RPC messages
    */
-  private async handleMessage(message: JsonRpcRequest | JsonRpcNotification): Promise<void> {
+  private async handleMessage(
+    message: JsonRpcRequest | JsonRpcNotification,
+  ): Promise<void> {
     // Check if it's a request (has id) or notification (no id)
-    const isRequest = 'id' in message;
+    const isRequest = "id" in message;
 
     switch (message.method) {
-      case 'initialize':
+      case "initialize":
         if (isRequest) {
           await this.handleInitialize(message);
         }
         break;
 
-      case 'initialized':
+      case "initialized":
         // Notification that client has finished initialization
         // No action needed - the client is ready
         break;
 
-      case 'tools/list':
+      case "tools/list":
         if (isRequest) {
           await this.handleToolsList(message);
         }
         break;
 
-      case 'tools/call':
+      case "tools/call":
         if (isRequest) {
           await this.handleToolsCall(message);
         }
         break;
 
-      case 'ping':
+      case "ping":
         if (isRequest) {
           this.transport.sendResult(message.id, {});
         }
@@ -446,7 +465,11 @@ export class MCPServer {
     };
 
     if (!params?.name) {
-      this.transport.sendError(request.id, ErrorCodes.InvalidParams, 'Missing tool name');
+      this.transport.sendError(
+        request.id,
+        ErrorCodes.InvalidParams,
+        "Missing tool name",
+      );
       return;
     }
 
@@ -456,7 +479,11 @@ export class MCPServer {
     // Validate tool exists
     const tool = tools.find((t) => t.name === toolName);
     if (!tool) {
-      this.transport.sendError(request.id, ErrorCodes.InvalidParams, `Unknown tool: ${toolName}`);
+      this.transport.sendError(
+        request.id,
+        ErrorCodes.InvalidParams,
+        `Unknown tool: ${toolName}`,
+      );
       return;
     }
 
@@ -471,5 +498,5 @@ export class MCPServer {
 }
 
 // Export for use in CLI
-export { StdioTransport } from './transport.js';
-export { tools, ToolHandler } from './tools.js';
+export { StdioTransport } from "./transport.js";
+export { tools, ToolHandler } from "./tools.js";

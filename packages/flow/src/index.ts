@@ -1,5 +1,5 @@
 /**
- * @aide/flow - Complete development workflow orchestration
+ * @aide-dev/flow - Complete development workflow orchestration
  *
  * This package provides the Flow module for AIDE, which orchestrates
  * the complete development workflow from idea to working code.
@@ -23,25 +23,21 @@ export type {
   FlowProgress,
   FlowReport,
   FlowOptions,
-} from './types.js';
+} from "./types.js";
 
 // Core Engine
 export {
   createFlow,
+  getNextStep,
   calculateProgress,
   generateReport,
   saveFlowState,
   loadFlowState,
   listFlowStates,
-} from './engine.js';
+} from "./engine.js";
 
 // Task Executor
-export {
-  executeTask,
-} from './executor.js';
+export { executeTask } from "./executor.js";
 
 // Progress Tracker
-export {
-  ProgressTracker,
-  createProgressTracker,
-} from './tracker.js';
+export { ProgressTracker, createProgressTracker } from "./tracker.js";

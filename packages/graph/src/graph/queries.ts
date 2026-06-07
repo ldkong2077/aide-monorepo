@@ -4,9 +4,15 @@
  * Higher-level query functions built on top of traversal algorithms.
  */
 
-import { type Node, type Edge, type Context, type Subgraph, type EdgeKind } from '../types.js';
-import { type QueryBuilder } from '../db/queries.js';
-import { GraphTraverser } from './traversal.js';
+import {
+  type Node,
+  type Edge,
+  type Context,
+  type Subgraph,
+  type EdgeKind,
+} from "../types.js";
+import { type QueryBuilder } from "../db/queries.js";
+import { GraphTraverser } from "./traversal.js";
 
 /**
  * Graph query manager for complex queries
@@ -47,7 +53,7 @@ export class GraphQueryManager {
     const incomingRefs: { node: Node; edge: Edge }[] = [];
     for (const edge of incomingEdges) {
       // Skip containment edges (already in ancestors)
-      if (edge.kind === 'contains') {
+      if (edge.kind === "contains") {
         continue;
       }
       const node = this.queries.getNodeById(edge.source);
@@ -61,7 +67,7 @@ export class GraphQueryManager {
     const outgoingRefs: { node: Node; edge: Edge }[] = [];
     for (const edge of outgoingEdges) {
       // Skip containment edges (already in children)
-      if (edge.kind === 'contains') {
+      if (edge.kind === "contains") {
         continue;
       }
       const node = this.queries.getNodeById(edge.target);
@@ -72,7 +78,7 @@ export class GraphQueryManager {
 
     // Get type information (type_of, returns edges)
     const types: Node[] = [];
-    const typeEdgeKinds: EdgeKind[] = ['type_of', 'returns'];
+    const typeEdgeKinds: EdgeKind[] = ["type_of", "returns"];
     for (const kind of typeEdgeKinds) {
       const typeEdges = this.queries.getOutgoingEdges(nodeId, [kind]);
       for (const edge of typeEdges) {
@@ -85,9 +91,11 @@ export class GraphQueryManager {
 
     // Get relevant imports
     const imports: Node[] = [];
-    const fileNode = ancestors.find((a) => a.kind === 'file');
+    const fileNode = ancestors.find((a) => a.kind === "file");
     if (fileNode) {
-      const importEdges = this.queries.getOutgoingEdges(fileNode.id, ['imports']);
+      const importEdges = this.queries.getOutgoingEdges(fileNode.id, [
+        "imports",
+      ]);
       for (const edge of importEdges) {
         const importNode = this.queries.getNodeById(edge.target);
         if (importNode) {
@@ -117,14 +125,14 @@ export class GraphQueryManager {
    */
   getFileDependencies(filePath: string): string[] {
     const nodes = this.queries.getNodesByFile(filePath);
-    const fileNode = nodes.find((n) => n.kind === 'file');
+    const fileNode = nodes.find((n) => n.kind === "file");
 
     if (!fileNode) {
       return [];
     }
 
     const dependencies = new Set<string>();
-    const importEdges = this.queries.getOutgoingEdges(fileNode.id, ['imports']);
+    const importEdges = this.queries.getOutgoingEdges(fileNode.id, ["imports"]);
 
     for (const edge of importEdges) {
       const targetNode = this.queries.getNodeById(edge.target);
@@ -149,9 +157,11 @@ export class GraphQueryManager {
     const dependents = new Set<string>();
 
     // Check file-level incoming import edges (file:X imports file:Y)
-    const fileNode = nodes.find((n) => n.kind === 'file');
+    const fileNode = nodes.find((n) => n.kind === "file");
     if (fileNode) {
-      const incomingFileEdges = this.queries.getIncomingEdges(fileNode.id, ['imports']);
+      const incomingFileEdges = this.queries.getIncomingEdges(fileNode.id, [
+        "imports",
+      ]);
       for (const edge of incomingFileEdges) {
         const sourceNode = this.queries.getNodeById(edge.source);
         if (sourceNode && sourceNode.filePath !== filePath) {
@@ -163,7 +173,9 @@ export class GraphQueryManager {
     // Also check node-level imports of exported symbols
     for (const node of nodes) {
       if (node.isExported) {
-        const incomingEdges = this.queries.getIncomingEdges(node.id, ['imports']);
+        const incomingEdges = this.queries.getIncomingEdges(node.id, [
+          "imports",
+        ]);
         for (const edge of incomingEdges) {
           const sourceNode = this.queries.getNodeById(edge.source);
           if (sourceNode && sourceNode.filePath !== filePath) {
@@ -196,23 +208,23 @@ export class GraphQueryManager {
   findByQualifiedName(pattern: string): Node[] {
     // Convert glob pattern to regex
     const regexPattern = pattern
-      .replace(/[.+^${}()|[\]\\]/g, '\\$&')
-      .replace(/\*/g, '.*')
-      .replace(/\?/g, '.');
+      .replace(/[.+^${}()|[\]\\]/g, "\\$&")
+      .replace(/\*/g, ".*")
+      .replace(/\?/g, ".");
 
     const regex = new RegExp(`^${regexPattern}$`);
 
     // This is inefficient for large graphs - would need FTS index on qualified_name
     // For now, use kind-based filtering if possible
     const allNodes: Node[] = [];
-    const kinds: Node['kind'][] = [
-      'class',
-      'function',
-      'method',
-      'interface',
-      'type_alias',
-      'variable',
-      'constant',
+    const kinds: Node["kind"][] = [
+      "class",
+      "function",
+      "method",
+      "interface",
+      "type_alias",
+      "variable",
+      "constant",
     ];
 
     for (const kind of kinds) {
@@ -239,8 +251,8 @@ export class GraphQueryManager {
     const structure = new Map<string, string[]>();
 
     for (const file of files) {
-      const parts = file.path.split('/');
-      const dir = parts.slice(0, -1).join('/') || '.';
+      const parts = file.path.split("/");
+      const dir = parts.slice(0, -1).join("/") || ".";
 
       if (!structure.has(dir)) {
         structure.set(dir, []);
@@ -313,9 +325,9 @@ export class GraphQueryManager {
     const incomingEdges = this.queries.getIncomingEdges(nodeId);
     const outgoingEdges = this.queries.getOutgoingEdges(nodeId);
 
-    const callEdges = outgoingEdges.filter((e) => e.kind === 'calls');
-    const callerEdges = incomingEdges.filter((e) => e.kind === 'calls');
-    const containsEdges = outgoingEdges.filter((e) => e.kind === 'contains');
+    const callEdges = outgoingEdges.filter((e) => e.kind === "calls");
+    const callerEdges = incomingEdges.filter((e) => e.kind === "calls");
+    const containsEdges = outgoingEdges.filter((e) => e.kind === "contains");
 
     const ancestors = this.traverser.getAncestors(nodeId);
 
@@ -335,8 +347,8 @@ export class GraphQueryManager {
    * @param kinds - Node kinds to check (default: functions, methods, classes)
    * @returns Array of unreferenced nodes
    */
-  findDeadCode(kinds?: Node['kind'][]): Node[] {
-    const targetKinds = kinds || ['function', 'method', 'class'];
+  findDeadCode(kinds?: Node["kind"][]): Node[] {
+    const targetKinds = kinds || ["function", "method", "class"];
     const deadCode: Node[] = [];
 
     for (const kind of targetKinds) {
@@ -350,7 +362,7 @@ export class GraphQueryManager {
         const incomingEdges = this.queries.getIncomingEdges(node.id);
 
         // Filter out containment edges
-        const references = incomingEdges.filter((e) => e.kind !== 'contains');
+        const references = incomingEdges.filter((e) => e.kind !== "contains");
 
         if (references.length === 0) {
           deadCode.push(node);
@@ -368,24 +380,27 @@ export class GraphQueryManager {
    * @param includeEdges - Whether to include edges between matching nodes
    * @returns Subgraph containing matching nodes
    */
-  getFilteredSubgraph(filter: (node: Node) => boolean, includeEdges = true): Subgraph {
+  getFilteredSubgraph(
+    filter: (node: Node) => boolean,
+    includeEdges = true,
+  ): Subgraph {
     const nodes = new Map<string, Node>();
     const edges: Edge[] = [];
 
     // Get all nodes of common kinds
-    const kinds: Node['kind'][] = [
-      'file',
-      'module',
-      'class',
-      'struct',
-      'interface',
-      'trait',
-      'function',
-      'method',
-      'variable',
-      'constant',
-      'enum',
-      'type_alias',
+    const kinds: Node["kind"][] = [
+      "file",
+      "module",
+      "class",
+      "struct",
+      "interface",
+      "trait",
+      "function",
+      "method",
+      "variable",
+      "constant",
+      "enum",
+      "type_alias",
     ];
 
     for (const kind of kinds) {

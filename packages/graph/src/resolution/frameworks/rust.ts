@@ -4,14 +4,24 @@
  * Handles Actix-web, Rocket, Axum, and common Rust patterns.
  */
 
-import { type Node } from '../../types.js';
-import { type FrameworkResolver, type UnresolvedRef, type ResolvedRef, type ResolutionContext } from '../types.js';
-import { stripCommentsForRegex } from '../strip-comments.js';
-import { getCargoWorkspaceCrateMap } from './cargo-workspace.js';
+import { type Node } from "../../types.js";
+import {
+  type FrameworkResolver,
+  type UnresolvedRef,
+  type ResolvedRef,
+  type ResolutionContext,
+} from "../types.js";
+import { stripCommentsForRegex } from "../strip-comments.js";
+import { getCargoWorkspaceCrateMap } from "./cargo-workspace.js";
 
-const cargoWorkspaceMapCache = new WeakMap<ResolutionContext, Map<string, string>>();
+const cargoWorkspaceMapCache = new WeakMap<
+  ResolutionContext,
+  Map<string, string>
+>();
 
-function getCachedCargoWorkspaceCrateMap(context: ResolutionContext): Map<string, string> {
+function getCachedCargoWorkspaceCrateMap(
+  context: ResolutionContext,
+): Map<string, string> {
   const cached = cargoWorkspaceMapCache.get(context);
   if (cached) return cached;
   const map = getCargoWorkspaceCrateMap(context);
@@ -20,50 +30,71 @@ function getCachedCargoWorkspaceCrateMap(context: ResolutionContext): Map<string
 }
 
 export const rustResolver: FrameworkResolver = {
-  name: 'rust',
-  languages: ['rust'],
+  name: "rust",
+  languages: ["rust"],
 
   detect(context: ResolutionContext): boolean {
     // Check for Cargo.toml (Rust project signature)
-    return context.fileExists('Cargo.toml');
+    return context.fileExists("Cargo.toml");
   },
 
   resolve(ref: UnresolvedRef, context: ResolutionContext): ResolvedRef | null {
     // Pattern 1: Handler references
-    if (ref.referenceName.endsWith('_handler') || ref.referenceName.startsWith('handle_')) {
-      const result = resolveByNameAndKind(ref.referenceName, FUNCTION_KINDS, HANDLER_DIRS, context);
+    if (
+      ref.referenceName.endsWith("_handler") ||
+      ref.referenceName.startsWith("handle_")
+    ) {
+      const result = resolveByNameAndKind(
+        ref.referenceName,
+        FUNCTION_KINDS,
+        HANDLER_DIRS,
+        context,
+      );
       if (result) {
         return {
           original: ref,
           targetNodeId: result,
           confidence: 0.8,
-          resolvedBy: 'framework',
+          resolvedBy: "framework",
         };
       }
     }
 
     // Pattern 2: Service/Repository trait implementations
-    if (ref.referenceName.endsWith('Service') || ref.referenceName.endsWith('Repository')) {
-      const result = resolveByNameAndKind(ref.referenceName, SERVICE_KINDS, SERVICE_DIRS, context);
+    if (
+      ref.referenceName.endsWith("Service") ||
+      ref.referenceName.endsWith("Repository")
+    ) {
+      const result = resolveByNameAndKind(
+        ref.referenceName,
+        SERVICE_KINDS,
+        SERVICE_DIRS,
+        context,
+      );
       if (result) {
         return {
           original: ref,
           targetNodeId: result,
           confidence: 0.8,
-          resolvedBy: 'framework',
+          resolvedBy: "framework",
         };
       }
     }
 
     // Pattern 3: Struct references (PascalCase)
     if (/^[A-Z][a-zA-Z]+$/.test(ref.referenceName)) {
-      const result = resolveByNameAndKind(ref.referenceName, STRUCT_KINDS, MODEL_DIRS, context);
+      const result = resolveByNameAndKind(
+        ref.referenceName,
+        STRUCT_KINDS,
+        MODEL_DIRS,
+        context,
+      );
       if (result) {
         return {
           original: ref,
           targetNodeId: result,
           confidence: 0.7,
-          resolvedBy: 'framework',
+          resolvedBy: "framework",
         };
       }
     }
@@ -81,7 +112,7 @@ export const rustResolver: FrameworkResolver = {
           original: ref,
           targetNodeId: result.targetId,
           confidence: result.fromWorkspace ? 0.95 : 0.6,
-          resolvedBy: 'framework',
+          resolvedBy: "framework",
         };
       }
     }
@@ -90,11 +121,11 @@ export const rustResolver: FrameworkResolver = {
   },
 
   extract(filePath, content) {
-    if (!filePath.endsWith('.rs')) return { nodes: [], references: [] };
+    if (!filePath.endsWith(".rs")) return { nodes: [], references: [] };
     const nodes: Node[] = [];
     const references: UnresolvedRef[] = [];
     const now = Date.now();
-    const safe = stripCommentsForRegex(content, 'rust');
+    const safe = stripCommentsForRegex(content, "rust");
 
     // Actix-web / Rocket attribute: #[get("/path")] fn handler(..)
     // Capture the method, path, and the fn identifier that follows.
@@ -103,12 +134,12 @@ export const rustResolver: FrameworkResolver = {
     let match: RegExpExecArray | null;
     while ((match = attrRegex.exec(safe)) !== null) {
       const [, method, routePath] = match;
-      const line = safe.slice(0, match.index).split('\n').length;
+      const line = safe.slice(0, match.index).split("\n").length;
       const upper = method.toUpperCase();
 
       const routeNode: Node = {
         id: `route:${filePath}:${line}:${upper}:${routePath}`,
-        kind: 'route',
+        kind: "route",
         name: `${upper} ${routePath}`,
         qualifiedName: `${filePath}::route:${routePath}`,
         filePath,
@@ -116,7 +147,7 @@ export const rustResolver: FrameworkResolver = {
         endLine: line,
         startColumn: 0,
         endColumn: match[0].length,
-        language: 'rust',
+        language: "rust",
         updatedAt: now,
       };
       nodes.push(routeNode);
@@ -127,25 +158,26 @@ export const rustResolver: FrameworkResolver = {
         references.push({
           fromNodeId: routeNode.id,
           referenceName: fnMatch[1],
-          referenceKind: 'references',
+          referenceKind: "references",
           line,
           column: 0,
           filePath,
-          language: 'rust',
+          language: "rust",
         });
       }
     }
 
     // Axum: .route("/path", get(handler))
-    const axumRegex = /\.route\s*\(\s*"([^"]+)"\s*,\s*(get|post|put|patch|delete)\s*\(\s*(\w+)/g;
+    const axumRegex =
+      /\.route\s*\(\s*"([^"]+)"\s*,\s*(get|post|put|patch|delete)\s*\(\s*(\w+)/g;
     while ((match = axumRegex.exec(safe)) !== null) {
       const [, routePath, method, handler] = match;
-      const line = safe.slice(0, match.index).split('\n').length;
+      const line = safe.slice(0, match.index).split("\n").length;
       const upper = method.toUpperCase();
 
       const routeNode: Node = {
         id: `route:${filePath}:${line}:${upper}:${routePath}`,
-        kind: 'route',
+        kind: "route",
         name: `${upper} ${routePath}`,
         qualifiedName: `${filePath}::route:${routePath}`,
         filePath,
@@ -153,7 +185,7 @@ export const rustResolver: FrameworkResolver = {
         endLine: line,
         startColumn: 0,
         endColumn: match[0].length,
-        language: 'rust',
+        language: "rust",
         updatedAt: now,
       };
       nodes.push(routeNode);
@@ -161,11 +193,11 @@ export const rustResolver: FrameworkResolver = {
       references.push({
         fromNodeId: routeNode.id,
         referenceName: handler,
-        referenceKind: 'references',
+        referenceKind: "references",
         line,
         column: 0,
         filePath,
-        language: 'rust',
+        language: "rust",
       });
     }
 
@@ -174,13 +206,26 @@ export const rustResolver: FrameworkResolver = {
 };
 
 // Directory patterns
-const HANDLER_DIRS = ['/handlers/', '/handler/', '/api/', '/routes/', '/controllers/'];
-const SERVICE_DIRS = ['/services/', '/service/', '/repository/', '/domain/'];
-const MODEL_DIRS = ['/models/', '/model/', '/entities/', '/entity/', '/domain/', '/types/'];
+const HANDLER_DIRS = [
+  "/handlers/",
+  "/handler/",
+  "/api/",
+  "/routes/",
+  "/controllers/",
+];
+const SERVICE_DIRS = ["/services/", "/service/", "/repository/", "/domain/"];
+const MODEL_DIRS = [
+  "/models/",
+  "/model/",
+  "/entities/",
+  "/entity/",
+  "/domain/",
+  "/types/",
+];
 
-const FUNCTION_KINDS = new Set(['function']);
-const SERVICE_KINDS = new Set(['struct', 'trait']);
-const STRUCT_KINDS = new Set(['struct']);
+const FUNCTION_KINDS = new Set(["function"]);
+const SERVICE_KINDS = new Set(["struct", "trait"]);
+const STRUCT_KINDS = new Set(["struct"]);
 
 /**
  * Resolve a symbol by name using indexed queries instead of scanning all files.
@@ -213,13 +258,18 @@ interface ModuleResolution {
   fromWorkspace: boolean;
 }
 
-function resolveModule(name: string, context: ResolutionContext): ModuleResolution | null {
+function resolveModule(
+  name: string,
+  context: ResolutionContext,
+): ModuleResolution | null {
   // Rust modules can be either mod.rs in a directory or name.rs
   const localPaths = [`src/${name}.rs`, `src/${name}/mod.rs`];
 
   const workspaceCrates = getCachedCargoWorkspaceCrateMap(context);
   const cratePath = workspaceCrates.get(name);
-  const workspacePaths = cratePath ? [`${cratePath}/src/lib.rs`, `${cratePath}/src/main.rs`] : [];
+  const workspacePaths = cratePath
+    ? [`${cratePath}/src/lib.rs`, `${cratePath}/src/main.rs`]
+    : [];
 
   const candidates: { path: string; fromWorkspace: boolean }[] = [
     ...localPaths.map((path) => ({ path, fromWorkspace: false })),
@@ -229,7 +279,7 @@ function resolveModule(name: string, context: ResolutionContext): ModuleResoluti
   for (const { path: modPath, fromWorkspace } of candidates) {
     if (!context.fileExists(modPath)) continue;
     const nodes = context.getNodesInFile(modPath);
-    const modNode = nodes.find((n) => n.kind === 'module');
+    const modNode = nodes.find((n) => n.kind === "module");
     if (modNode) return { targetId: modNode.id, fromWorkspace };
     if (nodes.length > 0) return { targetId: nodes[0].id, fromWorkspace };
   }

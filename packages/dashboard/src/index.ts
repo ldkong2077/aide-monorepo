@@ -1,5 +1,5 @@
 /**
- * @aide/dashboard - Visual workflow progress tracking
+ * @aide-dev/dashboard - Visual workflow progress tracking
  *
  * This package provides the Dashboard module for AIDE, which visualizes
  * workflow progress, task status, verification results, and cost tracking.
@@ -23,16 +23,10 @@ export type {
   CostSummary,
   DashboardData,
   DashboardOptions,
-} from './types.js';
+} from "./types.js";
 
 // Data Layer
-export {
-  DataCollector,
-  createDataCollector,
-} from './data.js';
+export { DataCollector, createDataCollector } from "./data.js";
 
 // API Layer
-export {
-  DashboardAPI,
-  createDashboardAPI,
-} from './api.js';
+export { DashboardAPI, createDashboardAPI } from "./api.js";

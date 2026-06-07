@@ -1,5 +1,5 @@
 /**
- * @aide/guard — Graceful shutdown helper for the Fastify proxy server.
+ * @aide-dev/guard — Graceful shutdown helper for the Fastify proxy server.
  *
  * The previous CLI wiring listened to SIGINT only, which is the signal a
  * human presses Ctrl+C to send. Container orchestrators (k8s, systemd,
@@ -11,8 +11,8 @@
  * Returns a cleanup function that removes the installed listeners, which
  * is what unit tests use to avoid leaking handlers between cases.
  */
-import type { FastifyInstance } from 'fastify';
-import { readiness } from './readiness.js';
+import type { FastifyInstance } from "fastify";
+import { readiness } from "./readiness.js";
 
 export interface GracefulShutdownOptions {
   /** Signals to handle. Default: SIGINT and SIGTERM. */
@@ -32,7 +32,7 @@ export function installGracefulShutdown(
   server: FastifyInstance,
   opts: GracefulShutdownOptions = {},
 ): ShutdownCleanup {
-  const signals = opts.signals ?? (['SIGINT', 'SIGTERM'] as const);
+  const signals = opts.signals ?? (["SIGINT", "SIGTERM"] as const);
   const log =
     opts.logger ??
     ((msg: string) => {
@@ -67,7 +67,7 @@ export function installGracefulShutdown(
       .close()
       .then(() => {
         clearTimeout(watchdog);
-        log('Server closed cleanly.');
+        log("Server closed cleanly.");
         onExit(0);
       })
       .catch((e: unknown) => {

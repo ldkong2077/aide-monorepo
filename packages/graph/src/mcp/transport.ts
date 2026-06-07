@@ -4,13 +4,13 @@
  * Handles JSON-RPC 2.0 communication over stdin/stdout for MCP protocol.
  */
 
-import * as readline from 'readline';
+import * as readline from "readline";
 
 /**
  * JSON-RPC 2.0 Request
  */
 export interface JsonRpcRequest {
-  jsonrpc: '2.0';
+  jsonrpc: "2.0";
   id: string | number;
   method: string;
   params?: unknown;
@@ -20,7 +20,7 @@ export interface JsonRpcRequest {
  * JSON-RPC 2.0 Response
  */
 export interface JsonRpcResponse {
-  jsonrpc: '2.0';
+  jsonrpc: "2.0";
   id: string | number | null;
   result?: unknown;
   error?: JsonRpcError;
@@ -39,7 +39,7 @@ export interface JsonRpcError {
  * JSON-RPC 2.0 Notification (no id, no response expected)
  */
 export interface JsonRpcNotification {
-  jsonrpc: '2.0';
+  jsonrpc: "2.0";
   method: string;
   params?: unknown;
 }
@@ -53,7 +53,9 @@ export const ErrorCodes = {
   InternalError: -32603,
 } as const;
 
-export type MessageHandler = (message: JsonRpcRequest | JsonRpcNotification) => Promise<void>;
+export type MessageHandler = (
+  message: JsonRpcRequest | JsonRpcNotification,
+) => Promise<void>;
 
 /**
  * Stdio Transport for MCP
@@ -86,11 +88,11 @@ export class StdioTransport {
       terminal: false,
     });
 
-    this.rl.on('line', async (line) => {
+    this.rl.on("line", async (line) => {
       await this.handleLine(line);
     });
 
-    this.rl.on('close', () => {
+    this.rl.on("close", () => {
       process.exit(0);
     });
   }
@@ -101,7 +103,7 @@ export class StdioTransport {
   stop(): void {
     // Fail any in-flight server-initiated requests so their awaiters don't hang.
     for (const { reject } of this.pending.values()) {
-      reject(new Error('Transport stopped'));
+      reject(new Error("Transport stopped"));
     }
     this.pending.clear();
     if (this.rl) {
@@ -118,12 +120,20 @@ export class StdioTransport {
    * when the client didn't pass one in `initialize` (see issue #196). Rejects
    * on timeout so callers can fall back rather than hang forever.
    */
-  request(method: string, params?: unknown, timeoutMs = 5000): Promise<unknown> {
+  request(
+    method: string,
+    params?: unknown,
+    timeoutMs = 5000,
+  ): Promise<unknown> {
     const id = `cg-srv-${this.nextRequestId++}`;
     return new Promise<unknown>((resolve, reject) => {
       const timer = setTimeout(() => {
         this.pending.delete(id);
-        reject(new Error(`Timed out after ${timeoutMs}ms waiting for "${method}" response`));
+        reject(
+          new Error(
+            `Timed out after ${timeoutMs}ms waiting for "${method}" response`,
+          ),
+        );
       }, timeoutMs);
       // Don't let a pending request keep the process alive on shutdown.
       timer.unref?.();
@@ -137,7 +147,9 @@ export class StdioTransport {
           reject(error);
         },
       });
-      process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id, method, params }) + '\n');
+      process.stdout.write(
+        JSON.stringify({ jsonrpc: "2.0", id, method, params }) + "\n",
+      );
     });
   }
 
@@ -146,7 +158,7 @@ export class StdioTransport {
    */
   send(response: JsonRpcResponse): void {
     const json = JSON.stringify(response);
-    process.stdout.write(json + '\n');
+    process.stdout.write(json + "\n");
   }
 
   /**
@@ -154,11 +166,11 @@ export class StdioTransport {
    */
   notify(method: string, params?: unknown): void {
     const notification: JsonRpcNotification = {
-      jsonrpc: '2.0',
+      jsonrpc: "2.0",
       method,
       params,
     };
-    process.stdout.write(JSON.stringify(notification) + '\n');
+    process.stdout.write(JSON.stringify(notification) + "\n");
   }
 
   /**
@@ -166,7 +178,7 @@ export class StdioTransport {
    */
   sendResult(id: string | number, result: unknown): void {
     this.send({
-      jsonrpc: '2.0',
+      jsonrpc: "2.0",
       id,
       result,
     });
@@ -175,9 +187,14 @@ export class StdioTransport {
   /**
    * Send an error response
    */
-  sendError(id: string | number | null, code: number, message: string, data?: unknown): void {
+  sendError(
+    id: string | number | null,
+    code: number,
+    message: string,
+    data?: unknown,
+  ): void {
     this.send({
-      jsonrpc: '2.0',
+      jsonrpc: "2.0",
       id,
       error: { code, message, data },
     });
@@ -194,7 +211,7 @@ export class StdioTransport {
     try {
       parsed = JSON.parse(trimmed);
     } catch {
-      this.sendError(null, ErrorCodes.ParseError, 'Parse error: invalid JSON');
+      this.sendError(null, ErrorCodes.ParseError, "Parse error: invalid JSON");
       return;
     }
 
@@ -203,10 +220,10 @@ export class StdioTransport {
     // used to be dropped as "Invalid Request" because they carry no method.
     const obj = parsed as Record<string, unknown>;
     if (
-      obj?.jsonrpc === '2.0' &&
-      typeof obj.method !== 'string' &&
-      'id' in obj &&
-      ('result' in obj || 'error' in obj)
+      obj?.jsonrpc === "2.0" &&
+      typeof obj.method !== "string" &&
+      "id" in obj &&
+      ("result" in obj || "error" in obj)
     ) {
       this.handleResponse(obj);
       return;
@@ -217,17 +234,19 @@ export class StdioTransport {
       this.sendError(
         null,
         ErrorCodes.InvalidRequest,
-        'Invalid Request: not a valid JSON-RPC 2.0 message',
+        "Invalid Request: not a valid JSON-RPC 2.0 message",
       );
       return;
     }
 
     if (this.messageHandler) {
       try {
-        await this.messageHandler(parsed as JsonRpcRequest | JsonRpcNotification);
+        await this.messageHandler(
+          parsed as JsonRpcRequest | JsonRpcNotification,
+        );
       } catch (err) {
         const message = parsed as JsonRpcRequest;
-        if ('id' in message) {
+        if ("id" in message) {
           this.sendError(
             message.id,
             ErrorCodes.InternalError,
@@ -248,9 +267,9 @@ export class StdioTransport {
     const pending = this.pending.get(id);
     if (!pending) return;
     this.pending.delete(id);
-    if ('error' in msg && msg.error) {
+    if ("error" in msg && msg.error) {
       const err = msg.error as { message?: string };
-      pending.reject(new Error(err.message || 'Request failed'));
+      pending.reject(new Error(err.message || "Request failed"));
     } else {
       pending.resolve(msg.result);
     }
@@ -260,10 +279,10 @@ export class StdioTransport {
    * Check if message is a valid JSON-RPC 2.0 message
    */
   private isValidMessage(msg: unknown): boolean {
-    if (typeof msg !== 'object' || msg === null) return false;
+    if (typeof msg !== "object" || msg === null) return false;
     const obj = msg as Record<string, unknown>;
-    if (obj.jsonrpc !== '2.0') return false;
-    if (typeof obj.method !== 'string') return false;
+    if (obj.jsonrpc !== "2.0") return false;
+    if (typeof obj.method !== "string") return false;
     return true;
   }
 }

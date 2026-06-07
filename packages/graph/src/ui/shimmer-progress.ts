@@ -1,16 +1,16 @@
-import { Worker } from 'worker_threads';
-import * as path from 'path';
-import { fileURLToPath } from 'url';
+import { Worker } from "worker_threads";
+import * as path from "path";
+import { fileURLToPath } from "url";
 
 // ESM polyfill: __dirname is not defined in ES modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const PHASE_NAMES: Record<string, string> = {
-  scanning: 'Scanning files',
-  parsing: 'Parsing code',
-  storing: 'Storing data',
-  resolving: 'Resolving refs',
+  scanning: "Scanning files",
+  parsing: "Parsing code",
+  storing: "Storing data",
+  resolving: "Resolving refs",
 };
 
 export interface IndexProgress {
@@ -25,9 +25,9 @@ export interface ShimmerProgress {
 }
 
 export function createShimmerProgress(): ShimmerProgress {
-  let lastPhase = '';
+  let lastPhase = "";
 
-  const workerPath = path.join(__dirname, 'shimmer-worker.js');
+  const workerPath = path.join(__dirname, "shimmer-worker.js");
   const worker = new Worker(workerPath, {
     workerData: { startTime: Date.now() },
   });
@@ -37,7 +37,7 @@ export function createShimmerProgress(): ShimmerProgress {
       const phaseName = PHASE_NAMES[progress.phase] || progress.phase;
 
       if (progress.phase !== lastPhase && lastPhase) {
-        worker.postMessage({ type: 'finish-phase' });
+        worker.postMessage({ type: "finish-phase" });
       }
       lastPhase = progress.phase;
 
@@ -50,7 +50,7 @@ export function createShimmerProgress(): ShimmerProgress {
       }
 
       worker.postMessage({
-        type: 'update',
+        type: "update",
         phase: progress.phase,
         phaseName,
         percent,
@@ -64,14 +64,14 @@ export function createShimmerProgress(): ShimmerProgress {
           worker.terminate().then(() => resolve());
         }, 2000);
 
-        worker.on('message', (msg: { type: string }) => {
-          if (msg.type === 'stopped') {
+        worker.on("message", (msg: { type: string }) => {
+          if (msg.type === "stopped") {
             clearTimeout(timeout);
             worker.terminate().then(() => resolve());
           }
         });
 
-        worker.postMessage({ type: 'stop' });
+        worker.postMessage({ type: "stop" });
       });
     },
   };

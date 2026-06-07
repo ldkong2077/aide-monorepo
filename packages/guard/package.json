@@ -1,10 +1,28 @@
 {
-  "name": "@aide/guard",
+  "name": "@aide-dev/guard",
   "version": "1.1.0",
   "description": "CodeShield verification pipeline",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "license": "MIT",
+  "files": [
+    "dist",
+    "README.md",
+    "package.json"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ldkong2077/aide-monorepo.git",
+    "directory": "packages/guard"
+  },
+  "bugs": {
+    "url": "https://github.com/ldkong2077/aide-monorepo/issues"
+  },
+  "homepage": "https://github.com/ldkong2077/aide-monorepo/tree/main/packages/guard#readme",
+  "publishConfig": {
+    "access": "public"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -18,10 +36,11 @@
     "test:watch": "vitest"
   },
   "devDependencies": {
-    "typescript": "^5.7.0",
-    "vitest": "^3.0.0"
+    "typescript": "^5.8.0",
+    "vitest": "^3.1.0"
   },
   "dependencies": {
+    "@aide-dev/core": "workspace:*",
     "@anthropic-ai/sdk": "^0.100.1",
     "@fastify/cors": "^11.0.0",
     "@fastify/http-proxy": "^11.0.0",
@@ -29,5 +48,8 @@
     "ioredis": "^5.11.0",
     "openai": "^6.0.0",
     "prom-client": "^15.1.3"
+  },
+  "engines": {
+    "node": ">=20.0.0"
   }
 }

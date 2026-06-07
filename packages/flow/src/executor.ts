@@ -3,7 +3,7 @@
  * Executes individual tasks from the plan.
  */
 
-import type { TaskResult, VerificationResult } from './types.js';
+import type { TaskResult, VerificationResult } from "./types.js";
 
 /** Implementation task interface */
 interface ImplementationTask {
@@ -14,7 +14,7 @@ interface ImplementationTask {
   dependencies: string[];
   verification: string[];
   estimatedTime: string;
-  priority: 'high' | 'medium' | 'low';
+  priority: "high" | "medium" | "low";
 }
 
 /** Execute a single task */
@@ -24,33 +24,33 @@ export async function executeTask(
 ): Promise<TaskResult> {
   const result: TaskResult = {
     taskId: task.id,
-    status: 'running',
+    status: "running",
     startedAt: new Date().toISOString(),
   };
 
   try {
     // Step 1: Create files
-    console.log(`  📁 Creating files for task ${task.id}...`);
+    console.info(`  📁 Creating files for task ${task.id}...`);
     await createTaskFiles(task, outputDir);
 
     // Step 2: Run verification steps
-    console.log(`  🔍 Running verification for task ${task.id}...`);
+    console.info(`  🔍 Running verification for task ${task.id}...`);
     const verification = await verifyTask(task, outputDir);
     result.verificationResult = verification;
 
     // Step 3: Check verification result
-    if (verification.verdict === 'REJECT') {
-      result.status = 'failed';
-      result.error = `Verification failed: ${verification.issues.join(', ')}`;
+    if (verification.verdict === "REJECT") {
+      result.status = "failed";
+      result.error = `Verification failed: ${verification.issues.join(", ")}`;
     } else {
-      result.status = 'completed';
+      result.status = "completed";
       result.output = `Task ${task.id} completed successfully`;
     }
 
     result.completedAt = new Date().toISOString();
     return result;
   } catch (error) {
-    result.status = 'failed';
+    result.status = "failed";
     result.error = error instanceof Error ? error.message : String(error);
     result.completedAt = new Date().toISOString();
     return result;
@@ -62,8 +62,8 @@ async function createTaskFiles(
   task: ImplementationTask,
   outputDir: string,
 ): Promise<void> {
-  const fs = await import('node:fs/promises');
-  const path = await import('node:path');
+  const fs = await import("node:fs/promises");
+  const path = await import("node:path");
 
   for (const filePath of task.files) {
     const fullPath = path.join(outputDir, filePath);
@@ -75,7 +75,7 @@ async function createTaskFiles(
     // Check if file already exists
     try {
       await fs.access(fullPath);
-      console.log(`    ℹ️  File ${filePath} already exists, skipping`);
+      console.info(`    ℹ️  File ${filePath} already exists, skipping`);
       continue;
     } catch {
       // File doesn't exist, create it
@@ -83,35 +83,35 @@ async function createTaskFiles(
 
     // Create file based on extension
     const ext = path.extname(filePath).toLowerCase();
-    let content = '';
+    let content = "";
 
     switch (ext) {
-      case '.ts':
-      case '.tsx':
+      case ".ts":
+      case ".tsx":
         content = generateTypeScriptFile(filePath);
         break;
-      case '.js':
-      case '.jsx':
+      case ".js":
+      case ".jsx":
         content = generateJavaScriptFile(filePath);
         break;
-      case '.json':
+      case ".json":
         content = generateJsonFile(filePath);
         break;
-      case '.md':
+      case ".md":
         content = generateMarkdownFile(filePath);
         break;
-      case '.css':
+      case ".css":
         content = generateCssFile(filePath);
         break;
-      case '.html':
+      case ".html":
         content = generateHtmlFile(filePath);
         break;
       default:
         content = `// ${filePath}\n// TODO: Implement this file\n`;
     }
 
-    await fs.writeFile(fullPath, content, 'utf-8');
-    console.log(`    ✅ Created ${filePath}`);
+    await fs.writeFile(fullPath, content, "utf-8");
+    console.info(`    ✅ Created ${filePath}`);
   }
 }
 
@@ -121,15 +121,15 @@ async function verifyTask(
   outputDir: string,
 ): Promise<VerificationResult> {
   const result: VerificationResult = {
-    verdict: 'TRUST',
+    verdict: "TRUST",
     confidence: 0.8,
     issues: [],
     suggestions: [],
   };
 
   // Check if files exist
-  const fs = await import('node:fs/promises');
-  const path = await import('node:path');
+  const fs = await import("node:fs/promises");
+  const path = await import("node:path");
 
   for (const filePath of task.files) {
     const fullPath = path.join(outputDir, filePath);
@@ -137,36 +137,40 @@ async function verifyTask(
       await fs.access(fullPath);
     } catch {
       result.issues.push(`File ${filePath} does not exist`);
-      result.verdict = 'REVIEW';
+      result.verdict = "REVIEW";
       result.confidence = 0.5;
     }
   }
 
   // Run verification steps
   for (const step of task.verification) {
-    if (step.includes('npm run build')) {
+    if (step.includes("npm run build")) {
       // Check if package.json exists
-      const packageJsonPath = path.join(outputDir, 'package.json');
+      const packageJsonPath = path.join(outputDir, "package.json");
       try {
         await fs.access(packageJsonPath);
       } catch {
-        result.issues.push('package.json not found for build verification');
-        result.verdict = 'REVIEW';
+        result.issues.push("package.json not found for build verification");
+        result.verdict = "REVIEW";
       }
     }
 
-    if (step.includes('npm run test')) {
+    if (step.includes("npm run test")) {
       // Check if test files exist
-      const testFiles = task.files.filter((f: string) => f.includes('.test.') || f.includes('.spec.'));
+      const testFiles = task.files.filter(
+        (f: string) => f.includes(".test.") || f.includes(".spec."),
+      );
       if (testFiles.length === 0) {
-        result.suggestions.push('Consider adding test files for better verification');
+        result.suggestions.push(
+          "Consider adding test files for better verification",
+        );
       }
     }
   }
 
   // If no issues, mark as TRUST
   if (result.issues.length === 0) {
-    result.verdict = 'TRUST';
+    result.verdict = "TRUST";
     result.confidence = 0.9;
   }
 
@@ -175,10 +179,10 @@ async function verifyTask(
 
 /** Generate TypeScript file content */
 function generateTypeScriptFile(filePath: string): string {
-  const fileName = filePath.split('/').pop() || '';
-  const name = fileName.replace(/\.(ts|tsx)$/, '').replace(/-/g, '_');
+  const fileName = filePath.split("/").pop() || "";
+  const name = fileName.replace(/\.(ts|tsx)$/, "").replace(/-/g, "_");
 
-  if (filePath.includes('types') || filePath.includes('type')) {
+  if (filePath.includes("types") || filePath.includes("type")) {
     return `/**
  * ${name} type definitions
  */
@@ -191,7 +195,7 @@ export interface ${toPascalCase(name)} {
 `;
   }
 
-  if (filePath.includes('test') || filePath.includes('spec')) {
+  if (filePath.includes("test") || filePath.includes("spec")) {
     return `import { describe, it, expect } from 'vitest';
 
 describe('${name}', () => {
@@ -215,8 +219,8 @@ export function ${toCamelCase(name)}(): void {
 
 /** Generate JavaScript file content */
 function generateJavaScriptFile(filePath: string): string {
-  const fileName = filePath.split('/').pop() || '';
-  const name = fileName.replace(/\.(js|jsx)$/, '').replace(/-/g, '_');
+  const fileName = filePath.split("/").pop() || "";
+  const name = fileName.replace(/\.(js|jsx)$/, "").replace(/-/g, "_");
 
   return `/**
  * ${name}
@@ -231,31 +235,35 @@ export function ${toCamelCase(name)}() {
 
 /** Generate JSON file content */
 function generateJsonFile(filePath: string): string {
-  const fileName = filePath.split('/').pop() || '';
+  const fileName = filePath.split("/").pop() || "";
 
-  if (fileName === 'package.json') {
-    return JSON.stringify({
-      name: 'my-project',
-      version: '0.1.0',
-      description: 'A new project',
-      main: 'index.js',
-      scripts: {
-        dev: 'vite',
-        build: 'tsc && vite build',
-        test: 'vitest',
+  if (fileName === "package.json") {
+    return JSON.stringify(
+      {
+        name: "my-project",
+        version: "0.1.0",
+        description: "A new project",
+        main: "index.js",
+        scripts: {
+          dev: "vite",
+          build: "tsc && vite build",
+          test: "vitest",
+        },
+        dependencies: {},
+        devDependencies: {},
       },
-      dependencies: {},
-      devDependencies: {},
-    }, null, 2);
+      null,
+      2,
+    );
   }
 
-  return '{}';
+  return "{}";
 }
 
 /** Generate Markdown file content */
 function generateMarkdownFile(filePath: string): string {
-  const fileName = filePath.split('/').pop() || '';
-  const name = fileName.replace(/\.md$/, '').replace(/-/g, ' ');
+  const fileName = filePath.split("/").pop() || "";
+  const name = fileName.replace(/\.md$/, "").replace(/-/g, " ");
 
   return `# ${toPascalCase(name)}
 
@@ -286,7 +294,7 @@ function generateCssFile(filePath: string): string {
 }
 
 /** Generate HTML file content */
-function generateHtmlFile(filePath: string): string {
+function generateHtmlFile(_filePath: string): string {
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -305,8 +313,8 @@ function generateHtmlFile(filePath: string): string {
 function toPascalCase(str: string): string {
   return str
     .split(/[-_\s]+/)
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join('');
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join("");
 }
 
 /** Convert string to camelCase */

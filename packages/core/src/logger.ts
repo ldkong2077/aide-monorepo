@@ -3,10 +3,17 @@
  * Wraps pino for structured logging across all packages.
  */
 
-import pino from 'pino';
+import pino from "pino";
 
 /** Log levels */
-export type LogLevel = 'fatal' | 'error' | 'warn' | 'info' | 'debug' | 'trace' | 'silent';
+export type LogLevel =
+  | "fatal"
+  | "error"
+  | "warn"
+  | "info"
+  | "debug"
+  | "trace"
+  | "silent";
 
 /** Logger options */
 export interface LoggerOptions {
@@ -32,11 +39,11 @@ export interface Logger {
 }
 
 /** Global log level - can be changed at runtime */
-let globalLevel: LogLevel = 'info';
+let globalLevel: LogLevel = "info";
 
 /** Detect if running in development mode */
 function isDev(): boolean {
-  return process.env.NODE_ENV !== 'production' && process.env.AIDE_DEV !== '0';
+  return process.env.NODE_ENV !== "production" && process.env.AIDE_DEV !== "0";
 }
 
 /**
@@ -50,26 +57,30 @@ export function createLogger(opts: LoggerOptions = {}): Logger {
 
   if (pretty) {
     transports.push({
-      target: 'pino-pretty',
+      target: "pino-pretty",
       options: {
         colorize: true,
-        translateTime: 'SYS:HH:MM:ss',
-        ignore: 'pid,hostname',
-        ...(opts.module ? { messageKey: 'msg' } : {}),
+        translateTime: "SYS:HH:MM:ss",
+        ignore: "pid,hostname",
+        ...(opts.module ? { messageKey: "msg" } : {}),
       },
     });
   }
 
   if (opts.file) {
     transports.push({
-      target: 'pino/file',
+      target: "pino/file",
       options: { destination: opts.file },
     });
   }
 
   const pinoOpts: pino.LoggerOptions = {
     level,
-    ...(transports.length > 0 ? { transport: { targets: transports } } : pretty ? {} : {}),
+    ...(transports.length > 0
+      ? { transport: { targets: transports } }
+      : pretty
+        ? {}
+        : {}),
   };
 
   const base = pino(pinoOpts);
@@ -110,7 +121,7 @@ let defaultLoggerInstance: Logger | null = null;
 
 export function getDefaultLogger(): Logger {
   if (!defaultLoggerInstance) {
-    defaultLoggerInstance = createLogger({ module: 'aide' });
+    defaultLoggerInstance = createLogger({ module: "aide" });
   }
   return defaultLoggerInstance;
 }

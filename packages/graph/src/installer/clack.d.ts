@@ -5,7 +5,7 @@
  * with moduleResolution "node". We declare the subset we use here.
  */
 
-declare module '@clack/prompts' {
+declare module "@clack/prompts" {
   export function intro(title?: string): void;
   export function outro(message?: string): void;
   export function cancel(message?: string): void;

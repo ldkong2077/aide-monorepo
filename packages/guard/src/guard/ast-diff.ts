@@ -3,8 +3,8 @@
  * 基于AST的代码差异分析，检测结构性变更并评估风险
  */
 
-import type { DiffChange, DiffResult, RiskLevel, Language } from '../types.js';
-import { ChangeType } from '../types.js';
+import type { DiffChange, DiffResult, RiskLevel, Language } from "../types.js";
+import { ChangeType } from "../types.js";
 
 /**
  * AST节点（简化表示）
@@ -36,19 +36,25 @@ export class ASTDiffAnalyzer {
   /**
    * 分析两个版本代码之间的差异
    */
-  analyzeDiff(beforeContent: string, afterContent: string, filePath: string): DiffResult {
+  analyzeDiff(
+    beforeContent: string,
+    afterContent: string,
+    filePath: string,
+  ): DiffResult {
     const language = this.detectLanguage(filePath);
     const beforeAST = this.parseToAST(beforeContent, language);
     const afterAST = this.parseToAST(afterContent, language);
 
     const changes = this.extractStructuralChanges(beforeAST, afterAST);
-    const classifiedChanges = changes.map((c) => this.classifyChange(c, filePath));
+    const classifiedChanges = changes.map((c) =>
+      this.classifyChange(c, filePath),
+    );
     const riskScore = this.computeRiskScore(classifiedChanges);
     const summary = this.generateDiffSummary({
       filePath: filePath,
       changes: classifiedChanges,
       riskScore: riskScore,
-      summary: '',
+      summary: "",
     });
 
     return {
@@ -67,31 +73,31 @@ export class ASTDiffAnalyzer {
     try {
       // 尝试使用tree-sitter进行解析
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const Parser = require('tree-sitter');
+      const Parser = require("tree-sitter");
       const parser = new Parser();
 
       switch (language) {
-        case 'python': {
+        case "python": {
           // eslint-disable-next-line @typescript-eslint/no-require-imports
-          const Python = require('tree-sitter-python');
+          const Python = require("tree-sitter-python");
           parser.setLanguage(Python);
           break;
         }
-        case 'typescript': {
+        case "typescript": {
           // eslint-disable-next-line @typescript-eslint/no-require-imports
-          const TypeScript = require('tree-sitter-typescript').typescript;
+          const TypeScript = require("tree-sitter-typescript").typescript;
           parser.setLanguage(TypeScript);
           break;
         }
-        case 'javascript': {
+        case "javascript": {
           // eslint-disable-next-line @typescript-eslint/no-require-imports
-          const JavaScript = require('tree-sitter-javascript');
+          const JavaScript = require("tree-sitter-javascript");
           parser.setLanguage(JavaScript);
           break;
         }
-        case 'go': {
+        case "go": {
           // eslint-disable-next-line @typescript-eslint/no-require-imports
-          const Go = require('tree-sitter-go');
+          const Go = require("tree-sitter-go");
           parser.setLanguage(Go);
           break;
         }
@@ -111,7 +117,10 @@ export class ASTDiffAnalyzer {
   /**
    * 提取结构性变更
    */
-  extractStructuralChanges(beforeAST: ASTNode, afterAST: ASTNode): DiffChange[] {
+  extractStructuralChanges(
+    beforeAST: ASTNode,
+    afterAST: ASTNode,
+  ): DiffChange[] {
     const changes: DiffChange[] = [];
 
     // 提取前后AST中的函数定义
@@ -123,12 +132,12 @@ export class ASTDiffAnalyzer {
       if (!beforeFunctions.has(name)) {
         changes.push({
           type: ChangeType.NEW_FUNCTION,
-          risk: 'medium',
+          risk: "medium",
           reason: `新增函数: ${name}`,
-          file: '',
+          file: "",
           location: `L${node.startPosition.row + 1}-${node.endPosition.row + 1}`,
-          before: '',
-          after: node.text || '',
+          before: "",
+          after: node.text || "",
         });
       }
     }
@@ -138,12 +147,12 @@ export class ASTDiffAnalyzer {
       if (!afterFunctions.has(name)) {
         changes.push({
           type: ChangeType.DELETED_FUNCTION,
-          risk: 'high',
+          risk: "high",
           reason: `删除函数: ${name}`,
-          file: '',
+          file: "",
           location: `L${node.startPosition.row + 1}-${node.endPosition.row + 1}`,
-          before: node.text || '',
-          after: '',
+          before: node.text || "",
+          after: "",
         });
       }
     }
@@ -152,7 +161,11 @@ export class ASTDiffAnalyzer {
     for (const [name, afterNode] of afterFunctions) {
       const beforeNode = beforeFunctions.get(name);
       if (beforeNode) {
-        const sigChanges = this.detectSignatureChanges(beforeNode, afterNode, name);
+        const sigChanges = this.detectSignatureChanges(
+          beforeNode,
+          afterNode,
+          name,
+        );
         changes.push(...sigChanges);
       }
     }
@@ -162,7 +175,10 @@ export class ASTDiffAnalyzer {
     const afterControlFlow = this.extractControlFlow(afterAST);
 
     // 检测控制流变更
-    const flowChanges = this.detectControlFlowChanges(beforeControlFlow, afterControlFlow);
+    const flowChanges = this.detectControlFlowChanges(
+      beforeControlFlow,
+      afterControlFlow,
+    );
     changes.push(...flowChanges);
 
     // 检测导出/公开API变更
@@ -192,17 +208,17 @@ export class ASTDiffAnalyzer {
 
     // 根据变更类型设置风险等级
     const riskMapping: Record<ChangeType, RiskLevel> = {
-      SIGNATURE_CHANGE: 'critical',
-      LOGIC_CHANGE: 'high',
-      API_CHANGE: 'critical',
-      GUARD_REMOVED: 'critical',
-      NEW_FUNCTION: 'medium',
-      DELETED_FUNCTION: 'high',
-      REFACTOR: 'medium',
-      COSMETIC: 'low',
+      SIGNATURE_CHANGE: "critical",
+      LOGIC_CHANGE: "high",
+      API_CHANGE: "critical",
+      GUARD_REMOVED: "critical",
+      NEW_FUNCTION: "medium",
+      DELETED_FUNCTION: "high",
+      REFACTOR: "medium",
+      COSMETIC: "low",
     };
 
-    classified.risk = riskMapping[change.type] || 'medium';
+    classified.risk = riskMapping[change.type] || "medium";
     return classified;
   }
 
@@ -261,14 +277,14 @@ export class ASTDiffAnalyzer {
 
     // 变更类型描述映射
     const typeDescriptions: Record<ChangeType, string> = {
-      SIGNATURE_CHANGE: '函数签名变更',
-      LOGIC_CHANGE: '控制流变更',
-      API_CHANGE: '公开API变更',
-      GUARD_REMOVED: '守卫条件移除',
-      NEW_FUNCTION: '新增函数',
-      DELETED_FUNCTION: '删除函数',
-      REFACTOR: '重构/重命名',
-      COSMETIC: '格式化/注释变更',
+      SIGNATURE_CHANGE: "函数签名变更",
+      LOGIC_CHANGE: "控制流变更",
+      API_CHANGE: "公开API变更",
+      GUARD_REMOVED: "守卫条件移除",
+      NEW_FUNCTION: "新增函数",
+      DELETED_FUNCTION: "删除函数",
+      REFACTOR: "重构/重命名",
+      COSMETIC: "格式化/注释变更",
     };
 
     for (const [type, count] of typeCounts) {
@@ -276,15 +292,15 @@ export class ASTDiffAnalyzer {
     }
 
     // 列出关键变更
-    const criticalChanges = changes.filter((c) => c.risk === 'critical');
+    const criticalChanges = changes.filter((c) => c.risk === "critical");
     if (criticalChanges.length > 0) {
-      parts.push('  关键变更:');
+      parts.push("  关键变更:");
       for (const change of criticalChanges.slice(0, 5)) {
         parts.push(`    🔴 ${change.reason}`);
       }
     }
 
-    return parts.join('\n');
+    return parts.join("\n");
   }
 
   // ==================== 私有辅助方法 ====================
@@ -293,20 +309,20 @@ export class ASTDiffAnalyzer {
    * 根据文件路径检测语言
    */
   private detectLanguage(filePath: string): Language {
-    const ext = filePath.split('.').pop()?.toLowerCase();
+    const ext = filePath.split(".").pop()?.toLowerCase();
     switch (ext) {
-      case 'py':
-        return 'python';
-      case 'ts':
-      case 'tsx':
-        return 'typescript';
-      case 'js':
-      case 'jsx':
-        return 'javascript';
-      case 'go':
-        return 'go';
+      case "py":
+        return "python";
+      case "ts":
+      case "tsx":
+        return "typescript";
+      case "js":
+      case "jsx":
+        return "javascript";
+      case "go":
+        return "go";
       default:
-        return 'unknown';
+        return "unknown";
     }
   }
 
@@ -345,7 +361,7 @@ export class ASTDiffAnalyzer {
    * 基于文本分析构建简化的AST
    */
   private buildFallbackAST(code: string): ASTNode {
-    const lines = code.split('\n');
+    const lines = code.split("\n");
     const children: ASTNode[] = [];
 
     const funcPatterns = [
@@ -367,7 +383,7 @@ export class ASTDiffAnalyzer {
       }
       if (funcName) {
         children.push({
-          type: 'function_definition',
+          type: "function_definition",
           startPosition: { row: i, column: 0 },
           endPosition: { row: i, column: line.length },
           children: [],
@@ -377,7 +393,7 @@ export class ASTDiffAnalyzer {
     }
 
     return {
-      type: 'program',
+      type: "program",
       startPosition: { row: 0, column: 0 },
       endPosition: { row: lines.length - 1, column: 0 },
       children,
@@ -393,11 +409,11 @@ export class ASTDiffAnalyzer {
     const traverse = (node: ASTNode) => {
       // 匹配各种语言的函数定义节点类型
       const functionTypes = [
-        'function_definition', // Python, Go
-        'function_declaration', // JavaScript/TypeScript
-        'arrow_function', // JavaScript/TypeScript
-        'method_definition', // JavaScript/TypeScript 类方法
-        'function_expression', // JavaScript/TypeScript
+        "function_definition", // Python, Go
+        "function_declaration", // JavaScript/TypeScript
+        "arrow_function", // JavaScript/TypeScript
+        "method_definition", // JavaScript/TypeScript 类方法
+        "function_expression", // JavaScript/TypeScript
       ];
 
       if (functionTypes.includes(node.type)) {
@@ -423,9 +439,9 @@ export class ASTDiffAnalyzer {
     // 从子节点中查找函数名
     for (const child of node.children) {
       if (
-        child.type === 'identifier' ||
-        child.type === 'name' ||
-        child.type === 'property_identifier'
+        child.type === "identifier" ||
+        child.type === "name" ||
+        child.type === "property_identifier"
       ) {
         return child.text || null;
       }
@@ -452,8 +468,8 @@ export class ASTDiffAnalyzer {
     name: string,
   ): DiffChange[] {
     const changes: DiffChange[] = [];
-    const beforeText = beforeNode.text || '';
-    const afterText = afterNode.text || '';
+    const beforeText = beforeNode.text || "";
+    const afterText = afterNode.text || "";
 
     // 提取参数列表
     const beforeParams = this.extractParameters(beforeText);
@@ -463,12 +479,12 @@ export class ASTDiffAnalyzer {
     if (beforeParams !== afterParams) {
       changes.push({
         type: ChangeType.SIGNATURE_CHANGE,
-        risk: 'critical',
+        risk: "critical",
         reason: `函数签名变更: ${name} 参数从 (${beforeParams}) 变为 (${afterParams})`,
-        file: '',
+        file: "",
         location: `L${afterNode.startPosition.row + 1}`,
-        before: beforeText.split('\n')[0],
-        after: afterText.split('\n')[0],
+        before: beforeText.split("\n")[0],
+        after: afterText.split("\n")[0],
       });
     }
 
@@ -478,12 +494,12 @@ export class ASTDiffAnalyzer {
     if (beforeReturn !== afterReturn) {
       changes.push({
         type: ChangeType.SIGNATURE_CHANGE,
-        risk: 'critical',
-        reason: `函数返回类型变更: ${name} 从 ${beforeReturn || 'void'} 变为 ${afterReturn || 'void'}`,
-        file: '',
+        risk: "critical",
+        reason: `函数返回类型变更: ${name} 从 ${beforeReturn || "void"} 变为 ${afterReturn || "void"}`,
+        file: "",
         location: `L${afterNode.startPosition.row + 1}`,
-        before: beforeText.split('\n')[0],
-        after: afterText.split('\n')[0],
+        before: beforeText.split("\n")[0],
+        after: afterText.split("\n")[0],
       });
     }
 
@@ -495,14 +511,16 @@ export class ASTDiffAnalyzer {
    */
   private extractParameters(funcText: string): string {
     const match = /\(([^)]*)\)/.exec(funcText);
-    return match ? match[1].replace(/\s+/g, ' ').trim() : '';
+    return match ? match[1].replace(/\s+/g, " ").trim() : "";
   }
 
   /**
    * 提取返回类型
    */
   private extractReturnType(funcText: string): string {
-    const tsMatch = /\)\s*:\s*([A-Za-z_]\w*(?:<[^>]*>)?(?:\[\])?)/.exec(funcText);
+    const tsMatch = /\)\s*:\s*([A-Za-z_]\w*(?:<[^>]*>)?(?:\[\])?)/.exec(
+      funcText,
+    );
     if (tsMatch) return tsMatch[1];
 
     const pyMatch = /\)\s*->\s*(\w+)/.exec(funcText);
@@ -511,7 +529,7 @@ export class ASTDiffAnalyzer {
     const goMatch = /\)\s*([A-Za-z_*]+)\s*\{/.exec(funcText);
     if (goMatch) return goMatch[1];
 
-    return '';
+    return "";
   }
 
   /**
@@ -520,16 +538,16 @@ export class ASTDiffAnalyzer {
   private extractControlFlow(ast: ASTNode): ASTNode[] {
     const controlFlowNodes: ASTNode[] = [];
     const controlFlowTypes = [
-      'if_statement',
-      'if_expression',
-      'for_statement',
-      'for_expression',
-      'for_in_statement',
-      'while_statement',
-      'switch_statement',
-      'match_expression',
-      'try_statement',
-      'try_expression',
+      "if_statement",
+      "if_expression",
+      "for_statement",
+      "for_expression",
+      "for_in_statement",
+      "while_statement",
+      "switch_statement",
+      "match_expression",
+      "try_statement",
+      "try_expression",
     ];
 
     const traverse = (node: ASTNode) => {
@@ -548,7 +566,10 @@ export class ASTDiffAnalyzer {
   /**
    * 检测控制流变更
    */
-  private detectControlFlowChanges(beforeFlow: ASTNode[], afterFlow: ASTNode[]): DiffChange[] {
+  private detectControlFlowChanges(
+    beforeFlow: ASTNode[],
+    afterFlow: ASTNode[],
+  ): DiffChange[] {
     const changes: DiffChange[] = [];
 
     // 简化比较：比较控制流节点的文本
@@ -560,12 +581,12 @@ export class ASTDiffAnalyzer {
       if (!beforeTexts.has(node.text?.trim())) {
         changes.push({
           type: ChangeType.LOGIC_CHANGE,
-          risk: 'high',
+          risk: "high",
           reason: `新增控制流结构: ${node.type}`,
-          file: '',
+          file: "",
           location: `L${node.startPosition.row + 1}-${node.endPosition.row + 1}`,
-          before: '',
-          after: node.text || '',
+          before: "",
+          after: node.text || "",
         });
       }
     }
@@ -575,12 +596,12 @@ export class ASTDiffAnalyzer {
       if (!afterTexts.has(node.text?.trim())) {
         changes.push({
           type: ChangeType.LOGIC_CHANGE,
-          risk: 'high',
+          risk: "high",
           reason: `移除控制流结构: ${node.type}`,
-          file: '',
+          file: "",
           location: `L${node.startPosition.row + 1}-${node.endPosition.row + 1}`,
-          before: node.text || '',
-          after: '',
+          before: node.text || "",
+          after: "",
         });
       }
     }
@@ -591,7 +612,10 @@ export class ASTDiffAnalyzer {
   /**
    * 检测导出/公开API变更
    */
-  private detectExportChanges(beforeAST: ASTNode, afterAST: ASTNode): DiffChange[] {
+  private detectExportChanges(
+    beforeAST: ASTNode,
+    afterAST: ASTNode,
+  ): DiffChange[] {
     const changes: DiffChange[] = [];
 
     const beforeExports = this.extractExports(beforeAST);
@@ -602,12 +626,12 @@ export class ASTDiffAnalyzer {
       if (!beforeExports.has(name)) {
         changes.push({
           type: ChangeType.API_CHANGE,
-          risk: 'critical',
+          risk: "critical",
           reason: `新增公开导出: ${name}`,
-          file: '',
+          file: "",
           location: `L${node.startPosition.row + 1}`,
-          before: '',
-          after: node.text || '',
+          before: "",
+          after: node.text || "",
         });
       }
     }
@@ -617,12 +641,12 @@ export class ASTDiffAnalyzer {
       if (!afterExports.has(name)) {
         changes.push({
           type: ChangeType.API_CHANGE,
-          risk: 'critical',
+          risk: "critical",
           reason: `移除公开导出: ${name}`,
-          file: '',
+          file: "",
           location: `L${node.startPosition.row + 1}`,
-          before: node.text || '',
-          after: '',
+          before: node.text || "",
+          after: "",
         });
       }
     }
@@ -638,18 +662,21 @@ export class ASTDiffAnalyzer {
 
     const traverse = (node: ASTNode) => {
       // JavaScript/TypeScript export
-      if (node.type === 'export_statement' || node.type === 'export_default_declaration') {
+      if (
+        node.type === "export_statement" ||
+        node.type === "export_default_declaration"
+      ) {
         const name = this.extractExportName(node);
         if (name) exports.set(name, node);
       }
 
       // Python: 没有显式export，但__all__变量控制导出
-      if (node.type === 'assignment' && node.text?.includes('__all__')) {
-        exports.set('__all__', node);
+      if (node.type === "assignment" && node.text?.includes("__all__")) {
+        exports.set("__all__", node);
       }
 
       // Go: 大写开头的标识符即为导出
-      if (node.type === 'function_definition' && node.text) {
+      if (node.type === "function_definition" && node.text) {
         const nameMatch = /func\s+([A-Z]\w*)/.exec(node.text);
         if (nameMatch) {
           exports.set(nameMatch[1], node);
@@ -682,7 +709,10 @@ export class ASTDiffAnalyzer {
   /**
    * 检测守卫条件移除
    */
-  private detectGuardRemovals(beforeAST: ASTNode, afterAST: ASTNode): DiffChange[] {
+  private detectGuardRemovals(
+    beforeAST: ASTNode,
+    afterAST: ASTNode,
+  ): DiffChange[] {
     const changes: DiffChange[] = [];
 
     const beforeGuards = this.extractGuardConditions(beforeAST);
@@ -693,12 +723,12 @@ export class ASTDiffAnalyzer {
       if (!afterGuards.has(key)) {
         changes.push({
           type: ChangeType.GUARD_REMOVED,
-          risk: 'critical',
+          risk: "critical",
           reason: `守卫条件被移除: ${key}`,
-          file: '',
+          file: "",
           location: `L${node.startPosition.row + 1}`,
-          before: node.text || '',
-          after: '',
+          before: node.text || "",
+          after: "",
         });
       }
     }
@@ -713,7 +743,7 @@ export class ASTDiffAnalyzer {
     const guards = new Map<string, ASTNode>();
 
     const traverse = (node: ASTNode) => {
-      if (node.type === 'if_statement' && node.text) {
+      if (node.type === "if_statement" && node.text) {
         const text = node.text;
         // 检测常见的守卫模式
         const guardPatterns = [
@@ -728,7 +758,7 @@ export class ASTDiffAnalyzer {
 
         for (const pattern of guardPatterns) {
           if (pattern.test(text)) {
-            const key = text.split('\n')[0].trim().substring(0, 100);
+            const key = text.split("\n")[0].trim().substring(0, 100);
             guards.set(key, node);
             break;
           }
@@ -747,7 +777,10 @@ export class ASTDiffAnalyzer {
   /**
    * 检测重构/重命名
    */
-  private detectRefactoring(beforeAST: ASTNode, afterAST: ASTNode): DiffChange[] {
+  private detectRefactoring(
+    beforeAST: ASTNode,
+    afterAST: ASTNode,
+  ): DiffChange[] {
     const changes: DiffChange[] = [];
 
     // 简化实现：检测函数名变更
@@ -774,19 +807,19 @@ export class ASTDiffAnalyzer {
         if (beforeNode && afterNode) {
           // 简单的文本相似度检查
           const similarity = this.computeTextSimilarity(
-            beforeNode.text || '',
-            afterNode.text || '',
+            beforeNode.text || "",
+            afterNode.text || "",
           );
 
           if (similarity > 0.7) {
             changes.push({
               type: ChangeType.REFACTOR,
-              risk: 'medium',
+              risk: "medium",
               reason: `可能的重命名: ${deletedNames[i]} → ${addedNames[i]}`,
-              file: '',
+              file: "",
               location: `L${afterNode.startPosition.row + 1}`,
-              before: beforeNode.text?.split('\n')[0] || '',
-              after: afterNode.text?.split('\n')[0] || '',
+              before: beforeNode.text?.split("\n")[0] || "",
+              after: afterNode.text?.split("\n")[0] || "",
             });
           }
         }
@@ -799,7 +832,10 @@ export class ASTDiffAnalyzer {
   /**
    * 检测格式化/注释变更
    */
-  private detectCosmeticChanges(beforeAST: ASTNode, afterAST: ASTNode): DiffChange[] {
+  private detectCosmeticChanges(
+    beforeAST: ASTNode,
+    afterAST: ASTNode,
+  ): DiffChange[] {
     const changes: DiffChange[] = [];
 
     // 提取注释节点
@@ -811,12 +847,12 @@ export class ASTDiffAnalyzer {
     if (commentDiff > 0) {
       changes.push({
         type: ChangeType.COSMETIC,
-        risk: 'low',
+        risk: "low",
         reason: `注释变更: ${commentDiff}处增减`,
-        file: '',
-        location: '',
-        before: '',
-        after: '',
+        file: "",
+        location: "",
+        before: "",
+        after: "",
       });
     }
 
@@ -828,7 +864,12 @@ export class ASTDiffAnalyzer {
    */
   private extractComments(ast: ASTNode): ASTNode[] {
     const comments: ASTNode[] = [];
-    const commentTypes = ['comment', 'line_comment', 'block_comment', 'comment_block'];
+    const commentTypes = [
+      "comment",
+      "line_comment",
+      "block_comment",
+      "comment_block",
+    ];
 
     const traverse = (node: ASTNode) => {
       if (commentTypes.includes(node.type)) {

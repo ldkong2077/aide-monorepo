@@ -16,28 +16,28 @@
  * (e.g. the search query parser).
  */
 export const NODE_KINDS = [
-  'file',
-  'module',
-  'class',
-  'struct',
-  'interface',
-  'trait',
-  'protocol',
-  'function',
-  'method',
-  'property',
-  'field',
-  'variable',
-  'constant',
-  'enum',
-  'enum_member',
-  'type_alias',
-  'namespace',
-  'parameter',
-  'import',
-  'export',
-  'route',
-  'component',
+  "file",
+  "module",
+  "class",
+  "struct",
+  "interface",
+  "trait",
+  "protocol",
+  "function",
+  "method",
+  "property",
+  "field",
+  "variable",
+  "constant",
+  "enum",
+  "enum_member",
+  "type_alias",
+  "namespace",
+  "parameter",
+  "import",
+  "export",
+  "route",
+  "component",
 ] as const;
 
 export type NodeKind = (typeof NODE_KINDS)[number];
@@ -46,50 +46,50 @@ export type NodeKind = (typeof NODE_KINDS)[number];
  * Types of edges (relationships) between nodes
  */
 export type EdgeKind =
-  | 'contains' // Parent contains child (file→class, class→method)
-  | 'calls' // Function/method calls another
-  | 'imports' // File imports from another
-  | 'exports' // File exports a symbol
-  | 'extends' // Class/interface extends another
-  | 'implements' // Class implements interface
-  | 'references' // Generic reference to another symbol
-  | 'type_of' // Variable/parameter has type
-  | 'returns' // Function returns type
-  | 'instantiates' // Creates instance of class
-  | 'overrides' // Method overrides parent method
-  | 'decorates'; // Decorator applied to symbol
+  | "contains" // Parent contains child (file→class, class→method)
+  | "calls" // Function/method calls another
+  | "imports" // File imports from another
+  | "exports" // File exports a symbol
+  | "extends" // Class/interface extends another
+  | "implements" // Class implements interface
+  | "references" // Generic reference to another symbol
+  | "type_of" // Variable/parameter has type
+  | "returns" // Function returns type
+  | "instantiates" // Creates instance of class
+  | "overrides" // Method overrides parent method
+  | "decorates"; // Decorator applied to symbol
 
 /**
  * Supported programming languages. See NODE_KINDS for why this is a
  * runtime-iterable const array.
  */
 export const LANGUAGES = [
-  'typescript',
-  'javascript',
-  'tsx',
-  'jsx',
-  'python',
-  'go',
-  'rust',
-  'java',
-  'c',
-  'cpp',
-  'csharp',
-  'php',
-  'ruby',
-  'swift',
-  'kotlin',
-  'dart',
-  'svelte',
-  'vue',
-  'liquid',
-  'pascal',
-  'scala',
-  'lua',
-  'luau',
-  'yaml',
-  'twig',
-  'unknown',
+  "typescript",
+  "javascript",
+  "tsx",
+  "jsx",
+  "python",
+  "go",
+  "rust",
+  "java",
+  "c",
+  "cpp",
+  "csharp",
+  "php",
+  "ruby",
+  "swift",
+  "kotlin",
+  "dart",
+  "svelte",
+  "vue",
+  "liquid",
+  "pascal",
+  "scala",
+  "lua",
+  "luau",
+  "yaml",
+  "twig",
+  "unknown",
 ] as const;
 
 export type Language = (typeof LANGUAGES)[number];
@@ -139,7 +139,7 @@ export interface Node {
   signature?: string;
 
   /** Visibility modifier */
-  visibility?: 'public' | 'private' | 'protected' | 'internal';
+  visibility?: "public" | "private" | "protected" | "internal";
 
   /** Whether symbol is exported */
   isExported?: boolean;
@@ -186,7 +186,7 @@ export interface Edge {
   column?: number;
 
   /** How this edge was created */
-  provenance?: 'tree-sitter' | 'scip' | 'heuristic';
+  provenance?: "tree-sitter" | "scip" | "heuristic";
 }
 
 /**
@@ -259,7 +259,7 @@ export interface ExtractionError {
   column?: number;
 
   /** Error severity */
-  severity: 'error' | 'warning';
+  severity: "error" | "warning";
 
   /** Error code for categorization */
   code?: string;
@@ -324,7 +324,7 @@ export interface TraversalOptions {
   nodeKinds?: NodeKind[];
 
   /** Direction of traversal */
-  direction?: 'outgoing' | 'incoming' | 'both';
+  direction?: "outgoing" | "incoming" | "both";
 
   /** Maximum nodes to return */
   limit?: number;
@@ -499,7 +499,7 @@ export interface BuildContextOptions {
   includeCode?: boolean;
 
   /** Output format (default: 'markdown') */
-  format?: 'markdown' | 'json';
+  format?: "markdown" | "json";
 
   /** Number of semantic search results (default: 5) */
   searchLimit?: number;

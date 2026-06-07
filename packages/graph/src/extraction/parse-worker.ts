@@ -5,10 +5,14 @@
  * stays unblocked and the UI animation renders smoothly.
  */
 
-import { parentPort } from 'worker_threads';
-import { extractFromSource } from './tree-sitter.js';
-import { detectLanguage, loadGrammarsForLanguages, resetParser } from './grammars.js';
-import type { Language, ExtractionResult } from '../types.js';
+import { parentPort } from "worker_threads";
+import { extractFromSource } from "./tree-sitter.js";
+import {
+  detectLanguage,
+  loadGrammarsForLanguages,
+  resetParser,
+} from "./grammars.js";
+import type { Language, ExtractionResult } from "../types.js";
 
 // Emscripten prints `Aborted()` (and a follow-up RuntimeError diag
 // line) directly to stderr when WASM aborts — before the JS catch
@@ -35,13 +39,17 @@ import type { Language, ExtractionResult } from '../types.js';
     encoding?: BufferEncoding | ((err?: Error | null) => void),
     cb?: (err?: Error | null) => void,
   ): boolean => {
-    const s = typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString('utf-8');
-    if (s.startsWith('Aborted(') || s.includes('Build with -sASSERTIONS for more info')) {
+    const s =
+      typeof chunk === "string" ? chunk : Buffer.from(chunk).toString("utf-8");
+    if (
+      s.startsWith("Aborted(") ||
+      s.includes("Build with -sASSERTIONS for more info")
+    ) {
       // Honour the Writable stream contract: callbacks must always
       // fire even when the write is suppressed, or upstream code
       // waiting on the drain signal would hang. Both overload forms
       // are handled (`(chunk, cb)` and `(chunk, encoding, cb)`).
-      if (typeof encoding === 'function') encoding();
+      if (typeof encoding === "function") encoding();
       else if (cb) cb();
       return true;
     }
@@ -53,7 +61,7 @@ const PARSER_RESET_INTERVAL = 5000;
 const parseCounts = new Map<Language, number>();
 
 parentPort!.on(
-  'message',
+  "message",
   async (msg: {
     type: string;
     id?: number;
@@ -62,10 +70,10 @@ parentPort!.on(
     languages?: Language[];
     frameworkNames?: string[];
   }) => {
-    if (msg.type === 'load-grammars') {
+    if (msg.type === "load-grammars") {
       await loadGrammarsForLanguages(msg.languages!);
-      parentPort!.postMessage({ type: 'grammars-loaded' });
-    } else if (msg.type === 'parse') {
+      parentPort!.postMessage({ type: "grammars-loaded" });
+    } else if (msg.type === "parse") {
       const { id, filePath, content, frameworkNames } = msg;
       try {
         const language = detectLanguage(filePath!, content);
@@ -83,19 +91,22 @@ parentPort!.on(
           resetParser(language);
         }
 
-        parentPort!.postMessage({ type: 'parse-result', id, result });
+        parentPort!.postMessage({ type: "parse-result", id, result });
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
 
         // WASM memory errors leave the module in a corrupted state — all
         // subsequent parses would also fail (cascading failures). Crash the
         // worker so the main thread spawns a fresh one with a clean heap.
-        if (message.includes('memory access out of bounds') || message.includes('out of memory')) {
+        if (
+          message.includes("memory access out of bounds") ||
+          message.includes("out of memory")
+        ) {
           process.exit(1);
         }
 
         parentPort!.postMessage({
-          type: 'parse-result',
+          type: "parse-result",
           id,
           result: {
             nodes: [],
@@ -105,16 +116,16 @@ parentPort!.on(
               {
                 message: `Parse worker error: ${message}`,
                 filePath: filePath!,
-                severity: 'error',
-                code: 'parse_error',
+                severity: "error",
+                code: "parse_error",
               },
             ],
             durationMs: 0,
           } satisfies ExtractionResult,
         });
       }
-    } else if (msg.type === 'shutdown') {
-      parentPort!.postMessage({ type: 'shutdown-ack' });
+    } else if (msg.type === "shutdown") {
+      parentPort!.postMessage({ type: "shutdown-ack" });
     }
   },
 );

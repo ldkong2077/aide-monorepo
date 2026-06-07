@@ -5,26 +5,26 @@
  * This barrel builds the EXTRACTORS map consumed by TreeSitterExtractor.
  */
 
-import { type Language } from '../../types.js';
-import type { LanguageExtractor } from '../tree-sitter-types.js';
+import { type Language } from "../../types.js";
+import type { LanguageExtractor } from "../tree-sitter-types.js";
 
-import { typescriptExtractor } from './typescript.js';
-import { javascriptExtractor } from './javascript.js';
-import { pythonExtractor } from './python.js';
-import { goExtractor } from './go.js';
-import { rustExtractor } from './rust.js';
-import { javaExtractor } from './java.js';
-import { cExtractor, cppExtractor } from './c-cpp.js';
-import { csharpExtractor } from './csharp.js';
-import { phpExtractor } from './php.js';
-import { rubyExtractor } from './ruby.js';
-import { swiftExtractor } from './swift.js';
-import { kotlinExtractor } from './kotlin.js';
-import { dartExtractor } from './dart.js';
-import { pascalExtractor } from './pascal.js';
-import { scalaExtractor } from './scala.js';
-import { luaExtractor } from './lua.js';
-import { luauExtractor } from './luau.js';
+import { typescriptExtractor } from "./typescript.js";
+import { javascriptExtractor } from "./javascript.js";
+import { pythonExtractor } from "./python.js";
+import { goExtractor } from "./go.js";
+import { rustExtractor } from "./rust.js";
+import { javaExtractor } from "./java.js";
+import { cExtractor, cppExtractor } from "./c-cpp.js";
+import { csharpExtractor } from "./csharp.js";
+import { phpExtractor } from "./php.js";
+import { rubyExtractor } from "./ruby.js";
+import { swiftExtractor } from "./swift.js";
+import { kotlinExtractor } from "./kotlin.js";
+import { dartExtractor } from "./dart.js";
+import { pascalExtractor } from "./pascal.js";
+import { scalaExtractor } from "./scala.js";
+import { luaExtractor } from "./lua.js";
+import { luauExtractor } from "./luau.js";
 
 export const EXTRACTORS: Partial<Record<Language, LanguageExtractor>> = {
   typescript: typescriptExtractor,

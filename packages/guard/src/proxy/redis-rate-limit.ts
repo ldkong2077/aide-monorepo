@@ -1,5 +1,5 @@
 /**
- * @aide/guard — Redis-backed token-bucket rate limiter.
+ * @aide-dev/guard — Redis-backed token-bucket rate limiter.
  *
  * Drop-in replacement for {@link TokenBucketRateLimiter} that stores
  * bucket state in Redis instead of a process-local Map. Use this
@@ -19,11 +19,28 @@
  * timestamp for deterministic testing. Production code uses
  * `Date.now()`.
  */
-import { type Redis } from 'ioredis';
-import type { RateLimitConfig, RateLimitResult } from './rate-limit.js';
-import { DEFAULT_RATE_LIMIT } from './rate-limit.js';
+import { type Redis } from "ioredis";
+import type { RateLimitConfig, RateLimitResult } from "./rate-limit.js";
+import { DEFAULT_RATE_LIMIT } from "./rate-limit.js";
 
-const KEY_PREFIX = 'aide:rate-limit:';
+const KEY_PREFIX = "aide:rate-limit:";
+
+/**
+ * Safely iterate over keys matching a pattern using SCAN instead of KEYS.
+ * SCAN is non-blocking and better suited for large datasets.
+ */
+async function scanKeys(redis: Redis, pattern: string): Promise<string[]> {
+  const keys: string[] = [];
+  let cursor = "0";
+
+  do {
+    const result = await redis.scan(cursor, "MATCH", pattern, "COUNT", 100);
+    cursor = result[0];
+    keys.push(...result[1]);
+  } while (cursor !== "0");
+
+  return keys;
+}
 
 /**
  * Lua script: atomically refill and consume one token.
@@ -100,10 +117,14 @@ export class RedisTokenBucketRateLimiter {
     this.redis = redis;
     this.config = { ...DEFAULT_RATE_LIMIT, ...config };
     if (this.config.limit <= 0) {
-      throw new Error(`RateLimitConfig.limit must be > 0, got ${this.config.limit}`);
+      throw new Error(
+        `RateLimitConfig.limit must be > 0, got ${this.config.limit}`,
+      );
     }
     if (this.config.windowMs <= 0) {
-      throw new Error(`RateLimitConfig.windowMs must be > 0, got ${this.config.windowMs}`);
+      throw new Error(
+        `RateLimitConfig.windowMs must be > 0, got ${this.config.windowMs}`,
+      );
     }
   }
 
@@ -113,11 +134,10 @@ export class RedisTokenBucketRateLimiter {
   }
 
   /**
-   * Number of tracked buckets. Issues `DBSIZE` filtered by key prefix.
-   * Expensive on large Redis instances — use sparingly.
+   * Number of tracked buckets. Uses SCAN for non-blocking iteration.
    */
   async size(): Promise<number> {
-    const keys = await this.redis.keys(`${KEY_PREFIX}*`);
+    const keys = await scanKeys(this.redis, `${KEY_PREFIX}*`);
     return keys.length;
   }
 
@@ -144,7 +164,7 @@ export class RedisTokenBucketRateLimiter {
 
   /** Forget all rate-limit buckets. Used by tests. */
   async resetAll(): Promise<void> {
-    const keys = await this.redis.keys(`${KEY_PREFIX}*`);
+    const keys = await scanKeys(this.redis, `${KEY_PREFIX}*`);
     if (keys.length > 0) {
       await this.redis.del(...keys);
     }

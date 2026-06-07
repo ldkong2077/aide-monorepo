@@ -1,5 +1,5 @@
 /**
- * @aide/guard — Tenant cost tracker and circuit breaker.
+ * @aide-dev/guard — Tenant cost tracker and circuit breaker.
  *
  * Tracks per-tenant daily spend in process-local memory and trips a
  * "cost circuit" when a tenant exceeds
@@ -153,7 +153,10 @@ export class TenantCostTracker {
    * state. Returns `null` if the tenant is unknown — the proxy
    * can use this to distinguish "we have data" from "we don't".
    */
-  snapshot(tenantId: string, now: number = Date.now()): TenantSpendSnapshot | null {
+  snapshot(
+    tenantId: string,
+    now: number = Date.now(),
+  ): TenantSpendSnapshot | null {
     const state = this.tenants.get(tenantId);
     if (!state) return null;
     const dayStart = utcDayStart(now);

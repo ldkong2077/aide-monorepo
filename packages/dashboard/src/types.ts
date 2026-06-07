@@ -4,7 +4,12 @@
  */
 
 /** Dashboard view type */
-export type DashboardView = 'overview' | 'flows' | 'tasks' | 'verification' | 'costs';
+export type DashboardView =
+  | "overview"
+  | "flows"
+  | "tasks"
+  | "verification"
+  | "costs";
 
 /** Dashboard filter */
 export interface DashboardFilter {

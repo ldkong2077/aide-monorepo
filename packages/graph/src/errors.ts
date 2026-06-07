@@ -48,9 +48,13 @@ export class CodeGraphError extends Error {
   /** Additional context about the error */
   readonly context?: Record<string, unknown>;
 
-  constructor(message: string, code: string, context?: Record<string, unknown>) {
+  constructor(
+    message: string,
+    code: string,
+    context?: Record<string, unknown>,
+  ) {
     super(message);
-    this.name = 'CodeGraphError';
+    this.name = "CodeGraphError";
     this.code = code;
     this.context = context;
 
@@ -68,8 +72,8 @@ export class FileError extends CodeGraphError {
   readonly filePath: string;
 
   constructor(message: string, filePath: string, cause?: Error) {
-    super(message, 'FILE_ERROR', { filePath, cause: cause?.message });
-    this.name = 'FileError';
+    super(message, "FILE_ERROR", { filePath, cause: cause?.message });
+    this.name = "FileError";
     this.filePath = filePath;
     if (cause) {
       this.cause = cause;
@@ -90,13 +94,13 @@ export class ParseError extends CodeGraphError {
     filePath: string,
     options?: { line?: number; column?: number; cause?: Error },
   ) {
-    super(message, 'PARSE_ERROR', {
+    super(message, "PARSE_ERROR", {
       filePath,
       line: options?.line,
       column: options?.column,
       cause: options?.cause?.message,
     });
-    this.name = 'ParseError';
+    this.name = "ParseError";
     this.filePath = filePath;
     this.line = options?.line;
     this.column = options?.column;
@@ -113,8 +117,8 @@ export class DatabaseError extends CodeGraphError {
   readonly operation: string;
 
   constructor(message: string, operation: string, cause?: Error) {
-    super(message, 'DATABASE_ERROR', { operation, cause: cause?.message });
-    this.name = 'DatabaseError';
+    super(message, "DATABASE_ERROR", { operation, cause: cause?.message });
+    this.name = "DatabaseError";
     this.operation = operation;
     if (cause) {
       this.cause = cause;
@@ -129,8 +133,8 @@ export class SearchError extends CodeGraphError {
   readonly query: string;
 
   constructor(message: string, query: string, cause?: Error) {
-    super(message, 'SEARCH_ERROR', { query, cause: cause?.message });
-    this.name = 'SearchError';
+    super(message, "SEARCH_ERROR", { query, cause: cause?.message });
+    this.name = "SearchError";
     this.query = query;
     if (cause) {
       this.cause = cause;
@@ -143,8 +147,8 @@ export class SearchError extends CodeGraphError {
  */
 export class VectorError extends CodeGraphError {
   constructor(message: string, operation: string, cause?: Error) {
-    super(message, 'VECTOR_ERROR', { operation, cause: cause?.message });
-    this.name = 'VectorError';
+    super(message, "VECTOR_ERROR", { operation, cause: cause?.message });
+    this.name = "VectorError";
     if (cause) {
       this.cause = cause;
     }
@@ -156,8 +160,8 @@ export class VectorError extends CodeGraphError {
  */
 export class ConfigError extends CodeGraphError {
   constructor(message: string, details?: Record<string, unknown>) {
-    super(message, 'CONFIG_ERROR', details);
-    this.name = 'ConfigError';
+    super(message, "CONFIG_ERROR", details);
+    this.name = "ConfigError";
   }
 }
 
@@ -176,7 +180,7 @@ export interface Logger {
 /**
  * Default console-based logger.
  *
- * This is the one place in @aide/graph where direct `console.*` is
+ * This is the one place in @aide-dev/graph where direct `console.*` is
  * intentional — it's the logger sink. Every other module in the
  * package should call `logDebug` / `logWarn` / `logError` below, not
  * `console.*` directly, so that test suites can swap in
@@ -186,14 +190,14 @@ export interface Logger {
 export const defaultLogger: Logger = {
   debug(message: string, context?: Record<string, unknown>): void {
     if (process.env.CODEGRAPH_DEBUG) {
-      console.debug(`[CodeGraph] ${message}`, context ?? '');
+      console.debug(`[CodeGraph] ${message}`, context ?? "");
     }
   },
   warn(message: string, context?: Record<string, unknown>): void {
-    console.warn(`[CodeGraph] ${message}`, context ?? '');
+    console.warn(`[CodeGraph] ${message}`, context ?? "");
   },
   error(message: string, context?: Record<string, unknown>): void {
-    console.error(`[CodeGraph] ${message}`, context ?? '');
+    console.error(`[CodeGraph] ${message}`, context ?? "");
   },
 };
 /* eslint-enable no-console */
@@ -229,20 +233,29 @@ export function getLogger(): Logger {
 /**
  * Log a debug message
  */
-export function logDebug(message: string, context?: Record<string, unknown>): void {
+export function logDebug(
+  message: string,
+  context?: Record<string, unknown>,
+): void {
   currentLogger.debug(message, context);
 }
 
 /**
  * Log a warning message
  */
-export function logWarn(message: string, context?: Record<string, unknown>): void {
+export function logWarn(
+  message: string,
+  context?: Record<string, unknown>,
+): void {
   currentLogger.warn(message, context);
 }
 
 /**
  * Log an error message
  */
-export function logError(message: string, context?: Record<string, unknown>): void {
+export function logError(
+  message: string,
+  context?: Record<string, unknown>,
+): void {
   currentLogger.error(message, context);
 }

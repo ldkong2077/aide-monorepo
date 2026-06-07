@@ -4,21 +4,26 @@
  * Handles React and Next.js patterns.
  */
 
-import { type Node } from '../../types.js';
-import { type FrameworkResolver, type UnresolvedRef, type ResolvedRef, type ResolutionContext } from '../types.js';
+import { type Node } from "../../types.js";
+import {
+  type FrameworkResolver,
+  type UnresolvedRef,
+  type ResolvedRef,
+  type ResolutionContext,
+} from "../types.js";
 
 export const reactResolver: FrameworkResolver = {
-  name: 'react',
-  languages: ['javascript', 'typescript'],
+  name: "react",
+  languages: ["javascript", "typescript"],
 
   detect(context: ResolutionContext): boolean {
     // Check for React in package.json
-    const packageJson = context.readFile('package.json');
+    const packageJson = context.readFile("package.json");
     if (packageJson) {
       try {
         const pkg = JSON.parse(packageJson);
         const deps = { ...pkg.dependencies, ...pkg.devDependencies };
-        if (deps.react || deps.next || deps['react-native']) {
+        if (deps.react || deps.next || deps["react-native"]) {
           return true;
         }
       } catch {
@@ -28,7 +33,7 @@ export const reactResolver: FrameworkResolver = {
 
     // Check for .jsx/.tsx files
     const allFiles = context.getAllFiles();
-    return allFiles.some((f) => f.endsWith('.jsx') || f.endsWith('.tsx'));
+    return allFiles.some((f) => f.endsWith(".jsx") || f.endsWith(".tsx"));
   },
 
   resolve(ref: UnresolvedRef, context: ResolutionContext): ResolvedRef | null {
@@ -40,33 +45,36 @@ export const reactResolver: FrameworkResolver = {
           original: ref,
           targetNodeId: result,
           confidence: 0.8,
-          resolvedBy: 'framework',
+          resolvedBy: "framework",
         };
       }
     }
 
     // Pattern 2: Hook references (use*)
-    if (ref.referenceName.startsWith('use') && ref.referenceName.length > 3) {
+    if (ref.referenceName.startsWith("use") && ref.referenceName.length > 3) {
       const result = resolveHook(ref.referenceName, context);
       if (result) {
         return {
           original: ref,
           targetNodeId: result,
           confidence: 0.85,
-          resolvedBy: 'framework',
+          resolvedBy: "framework",
         };
       }
     }
 
     // Pattern 3: Context references
-    if (ref.referenceName.endsWith('Context') || ref.referenceName.endsWith('Provider')) {
+    if (
+      ref.referenceName.endsWith("Context") ||
+      ref.referenceName.endsWith("Provider")
+    ) {
       const result = resolveContext(ref.referenceName, context);
       if (result) {
         return {
           original: ref,
           targetNodeId: result,
           confidence: 0.8,
-          resolvedBy: 'framework',
+          resolvedBy: "framework",
         };
       }
     }
@@ -95,7 +103,7 @@ export const reactResolver: FrameworkResolver = {
       let match;
       while ((match = pattern.exec(content)) !== null) {
         const [fullMatch, name] = match;
-        const line = content.slice(0, match.index).split('\n').length;
+        const line = content.slice(0, match.index).split("\n").length;
 
         // Check if it returns JSX (rough heuristic)
         const afterMatch = content.slice(
@@ -103,12 +111,13 @@ export const reactResolver: FrameworkResolver = {
           match.index + fullMatch.length + 500,
         );
         const hasJSX =
-          afterMatch.includes('<') && (afterMatch.includes('/>') || afterMatch.includes('</'));
+          afterMatch.includes("<") &&
+          (afterMatch.includes("/>") || afterMatch.includes("</"));
 
         if (hasJSX) {
           nodes.push({
             id: `component:${filePath}:${name}:${line}`,
-            kind: 'component',
+            kind: "component",
             name: name,
             qualifiedName: `${filePath}::${name}`,
             filePath,
@@ -116,8 +125,8 @@ export const reactResolver: FrameworkResolver = {
             endLine: line,
             startColumn: 0,
             endColumn: fullMatch.length,
-            language: filePath.endsWith('.tsx') ? 'tsx' : 'jsx',
-            isExported: fullMatch.includes('export'),
+            language: filePath.endsWith(".tsx") ? "tsx" : "jsx",
+            isExported: fullMatch.includes("export"),
             updatedAt: now,
           });
         }
@@ -125,15 +134,16 @@ export const reactResolver: FrameworkResolver = {
     }
 
     // Extract custom hooks
-    const hookPattern = /(?:export\s+)?(?:function|const|let)\s+(use[A-Z][a-zA-Z0-9]*)\s*[=(]/g;
+    const hookPattern =
+      /(?:export\s+)?(?:function|const|let)\s+(use[A-Z][a-zA-Z0-9]*)\s*[=(]/g;
     let hookMatch;
     while ((hookMatch = hookPattern.exec(content)) !== null) {
       const [fullMatch, name] = hookMatch;
-      const line = content.slice(0, hookMatch.index).split('\n').length;
+      const line = content.slice(0, hookMatch.index).split("\n").length;
 
       nodes.push({
         id: `hook:${filePath}:${name}:${line}`,
-        kind: 'function',
+        kind: "function",
         name: name,
         qualifiedName: `${filePath}::${name}`,
         filePath,
@@ -142,24 +152,26 @@ export const reactResolver: FrameworkResolver = {
         startColumn: 0,
         endColumn: fullMatch.length,
         language:
-          filePath.endsWith('.ts') || filePath.endsWith('.tsx') ? 'typescript' : 'javascript',
-        isExported: fullMatch.includes('export'),
+          filePath.endsWith(".ts") || filePath.endsWith(".tsx")
+            ? "typescript"
+            : "javascript",
+        isExported: fullMatch.includes("export"),
         updatedAt: now,
       });
     }
 
     // Extract Next.js pages/routes (pages directory convention)
-    if (filePath.includes('pages/') || filePath.includes('app/')) {
+    if (filePath.includes("pages/") || filePath.includes("app/")) {
       // Default export in pages becomes a route
-      if (content.includes('export default')) {
+      if (content.includes("export default")) {
         const routePath = filePathToRoute(filePath);
         if (routePath) {
-          const line = content.indexOf('export default');
-          const lineNum = content.slice(0, line).split('\n').length;
+          const line = content.indexOf("export default");
+          const lineNum = content.slice(0, line).split("\n").length;
 
           nodes.push({
             id: `route:${filePath}:${routePath}:${lineNum}`,
-            kind: 'route',
+            kind: "route",
             name: routePath,
             qualifiedName: `${filePath}::route:${routePath}`,
             filePath,
@@ -167,11 +179,11 @@ export const reactResolver: FrameworkResolver = {
             endLine: lineNum,
             startColumn: 0,
             endColumn: 0,
-            language: filePath.endsWith('.tsx')
-              ? 'tsx'
-              : filePath.endsWith('.ts')
-                ? 'typescript'
-                : 'javascript',
+            language: filePath.endsWith(".tsx")
+              ? "tsx"
+              : filePath.endsWith(".ts")
+                ? "typescript"
+                : "javascript",
             updatedAt: now,
           });
         }
@@ -197,31 +209,31 @@ function isBuiltInType(name: string): boolean {
 }
 
 const BUILT_IN_TYPES = new Set([
-  'Array',
-  'Boolean',
-  'Date',
-  'Error',
-  'Function',
-  'JSON',
-  'Math',
-  'Number',
-  'Object',
-  'Promise',
-  'RegExp',
-  'String',
-  'Symbol',
-  'Map',
-  'Set',
-  'WeakMap',
-  'WeakSet',
-  'React',
-  'Component',
-  'Fragment',
-  'Suspense',
-  'StrictMode',
+  "Array",
+  "Boolean",
+  "Date",
+  "Error",
+  "Function",
+  "JSON",
+  "Math",
+  "Number",
+  "Object",
+  "Promise",
+  "RegExp",
+  "String",
+  "Symbol",
+  "Map",
+  "Set",
+  "WeakMap",
+  "WeakSet",
+  "React",
+  "Component",
+  "Fragment",
+  "Suspense",
+  "StrictMode",
 ]);
 
-const COMPONENT_KINDS = new Set(['component', 'function', 'class']);
+const COMPONENT_KINDS = new Set(["component", "function", "class"]);
 
 /**
  * Resolve a component reference using name-based lookup
@@ -238,21 +250,23 @@ function resolveComponent(
   if (components.length === 0) return null;
 
   // Prefer same directory
-  const fromDir = fromFile.substring(0, fromFile.lastIndexOf('/'));
+  const fromDir = fromFile.substring(0, fromFile.lastIndexOf("/"));
   const sameDir = components.filter((n) => n.filePath.startsWith(fromDir));
   if (sameDir.length > 0) return sameDir[0].id;
 
   // Prefer component directories
   const COMPONENT_DIRS = [
-    '/components/',
-    '/src/components/',
-    '/app/components/',
-    '/pages/',
-    '/src/pages/',
-    '/views/',
-    '/src/views/',
+    "/components/",
+    "/src/components/",
+    "/app/components/",
+    "/pages/",
+    "/src/pages/",
+    "/views/",
+    "/src/views/",
   ];
-  const preferred = components.filter((n) => COMPONENT_DIRS.some((d) => n.filePath.includes(d)));
+  const preferred = components.filter((n) =>
+    COMPONENT_DIRS.some((d) => n.filePath.includes(d)),
+  );
   if (preferred.length > 0) return preferred[0].id;
 
   return components[0].id;
@@ -265,12 +279,16 @@ function resolveHook(name: string, context: ResolutionContext): string | null {
   const candidates = context.getNodesByName(name);
   if (candidates.length === 0) return null;
 
-  const hooks = candidates.filter((n) => n.kind === 'function' && n.name.startsWith('use'));
+  const hooks = candidates.filter(
+    (n) => n.kind === "function" && n.name.startsWith("use"),
+  );
   if (hooks.length === 0) return null;
 
   // Prefer hooks directories
-  const HOOK_DIRS = ['/hooks/', '/src/hooks/', '/lib/hooks/', '/utils/hooks/'];
-  const preferred = hooks.filter((n) => HOOK_DIRS.some((d) => n.filePath.includes(d)));
+  const HOOK_DIRS = ["/hooks/", "/src/hooks/", "/lib/hooks/", "/utils/hooks/"];
+  const preferred = hooks.filter((n) =>
+    HOOK_DIRS.some((d) => n.filePath.includes(d)),
+  );
   if (preferred.length > 0) return preferred[0].id;
 
   return hooks[0].id;
@@ -279,11 +297,14 @@ function resolveHook(name: string, context: ResolutionContext): string | null {
 /**
  * Resolve a context reference using name-based lookup
  */
-function resolveContext(name: string, context: ResolutionContext): string | null {
+function resolveContext(
+  name: string,
+  context: ResolutionContext,
+): string | null {
   const candidates = context.getNodesByName(name);
   if (candidates.length === 0) {
     // Try without Context/Provider suffix
-    const baseName = name.replace(/Context$|Provider$/, '');
+    const baseName = name.replace(/Context$|Provider$/, "");
     if (baseName !== name) {
       const baseCandidates = context.getNodesByName(baseName);
       if (baseCandidates.length > 0) return baseCandidates[0].id;
@@ -293,14 +314,16 @@ function resolveContext(name: string, context: ResolutionContext): string | null
 
   // Prefer context directories
   const CONTEXT_DIRS = [
-    '/context/',
-    '/contexts/',
-    '/src/context/',
-    '/src/contexts/',
-    '/providers/',
-    '/src/providers/',
+    "/context/",
+    "/contexts/",
+    "/src/context/",
+    "/src/contexts/",
+    "/providers/",
+    "/src/providers/",
   ];
-  const preferred = candidates.filter((n) => CONTEXT_DIRS.some((d) => n.filePath.includes(d)));
+  const preferred = candidates.filter((n) =>
+    CONTEXT_DIRS.some((d) => n.filePath.includes(d)),
+  );
   if (preferred.length > 0) return preferred[0].id;
 
   return candidates[0].id;
@@ -316,29 +339,29 @@ function filePathToRoute(filePath: string): string | null {
   // app/page.tsx -> /
   // app/about/page.tsx -> /about
 
-  if (filePath.includes('pages/')) {
+  if (filePath.includes("pages/")) {
     let route = filePath
-      .replace(/^.*pages\//, '/')
-      .replace(/\/index\.(tsx?|jsx?)$/, '')
-      .replace(/\.(tsx?|jsx?)$/, '')
-      .replace(/\[([^\]]+)\]/g, ':$1');
+      .replace(/^.*pages\//, "/")
+      .replace(/\/index\.(tsx?|jsx?)$/, "")
+      .replace(/\.(tsx?|jsx?)$/, "")
+      .replace(/\[([^\]]+)\]/g, ":$1");
 
-    if (route === '') route = '/';
+    if (route === "") route = "/";
     return route;
   }
 
-  if (filePath.includes('app/')) {
+  if (filePath.includes("app/")) {
     // App router - only page.tsx files are routes
-    if (!filePath.includes('page.')) {
+    if (!filePath.includes("page.")) {
       return null;
     }
 
     let route = filePath
-      .replace(/^.*app\//, '/')
-      .replace(/\/page\.(tsx?|jsx?)$/, '')
-      .replace(/\[([^\]]+)\]/g, ':$1');
+      .replace(/^.*app\//, "/")
+      .replace(/\/page\.(tsx?|jsx?)$/, "")
+      .replace(/\[([^\]]+)\]/g, ":$1");
 
-    if (route === '') route = '/';
+    if (route === "") route = "/";
     return route;
   }
 

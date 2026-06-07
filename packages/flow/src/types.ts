@@ -4,19 +4,30 @@
  */
 
 /** Flow status */
-export type FlowStatus = 'pending' | 'running' | 'paused' | 'completed' | 'failed' | 'cancelled';
+export type FlowStatus =
+  | "pending"
+  | "running"
+  | "paused"
+  | "completed"
+  | "failed"
+  | "cancelled";
 
 /** Task status */
-export type TaskStatus = 'pending' | 'running' | 'completed' | 'failed' | 'skipped';
+export type TaskStatus =
+  | "pending"
+  | "running"
+  | "completed"
+  | "failed"
+  | "skipped";
 
 /** Flow step */
-export type FlowStep = 
-  | 'init'
-  | 'design'
-  | 'plan'
-  | 'execute'
-  | 'verify'
-  | 'report';
+export type FlowStep =
+  | "init"
+  | "design"
+  | "plan"
+  | "execute"
+  | "verify"
+  | "report";
 
 /** Flow configuration */
 export interface FlowConfig {
@@ -55,7 +66,7 @@ export interface TaskResult {
 
 /** Verification result */
 export interface VerificationResult {
-  verdict: 'TRUST' | 'REVIEW' | 'REJECT';
+  verdict: "TRUST" | "REVIEW" | "REJECT";
   confidence: number;
   issues: string[];
   suggestions: string[];

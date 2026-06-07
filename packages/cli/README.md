@@ -1,13 +1,13 @@
-# @aide/cli
+# @aide-dev/cli
 
 > Unified CLI for the AIDE toolkit — graph, guard, and MCP server, all behind one `aide` binary.
 
-This is the package most users will install. It is intentionally thin: it parses arguments with `commander` and delegates to the underlying `@aide/*` packages. All business logic lives in those packages; the CLI is just the user-facing surface.
+This is the package most users will install. It is intentionally thin: it parses arguments with `commander` and delegates to the underlying `@aide-dev/*` packages. All business logic lives in those packages; the CLI is just the user-facing surface.
 
 ## Install
 
 ```bash
-npm install -g aide      # or: npm install -g @aide/cli
+npm install -g aide      # or: npm install -g @aide-dev/cli
 aide --version
 ```
 
@@ -34,6 +34,7 @@ aide mcp serve
 ## Configuration
 
 AIDE reads `aide.config.yaml` from (in order):
+
 1. `--config <path>` if provided
 2. Current working directory
 3. `~/.aide/aide.config.yaml`

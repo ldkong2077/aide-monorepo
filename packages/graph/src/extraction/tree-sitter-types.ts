@@ -6,8 +6,12 @@
  * Extracted to a leaf module to avoid circular imports.
  */
 
-import { type Node as SyntaxNode } from 'web-tree-sitter';
-import { type Node, type NodeKind, type UnresolvedReference } from '../types.js';
+import { type Node as SyntaxNode } from "web-tree-sitter";
+import {
+  type Node,
+  type NodeKind,
+  type UnresolvedReference,
+} from "../types.js";
 
 /**
  * Information returned by a language's extractImport hook.
@@ -45,7 +49,12 @@ export interface VariableInfo {
  */
 export interface ExtractorContext {
   /** Create a node and add it to the extraction result */
-  createNode(kind: NodeKind, name: string, node: SyntaxNode, extra?: Partial<Node>): Node | null;
+  createNode(
+    kind: NodeKind,
+    name: string,
+    node: SyntaxNode,
+    extra?: Partial<Node>,
+  ): Node | null;
   /** Visit a child node (dispatches through the standard visitNode logic) */
   visitNode(node: SyntaxNode): void;
   /** Visit a function body to extract calls */
@@ -119,7 +128,9 @@ export interface LanguageExtractor {
   /** Extract signature from node */
   getSignature?: (node: SyntaxNode, source: string) => string | undefined;
   /** Extract visibility from node */
-  getVisibility?: (node: SyntaxNode) => 'public' | 'private' | 'protected' | 'internal' | undefined;
+  getVisibility?: (
+    node: SyntaxNode,
+  ) => "public" | "private" | "protected" | "internal" | undefined;
   /** Check if node is exported */
   isExported?: (node: SyntaxNode, source: string) => boolean;
   /** Check if node is async */
@@ -150,7 +161,9 @@ export interface LanguageExtractor {
    * Classify a class_declaration node when the grammar reuses one node type
    * for multiple concepts (e.g. Swift uses class_declaration for classes, structs, and enums).
    */
-  classifyClassNode?: (node: SyntaxNode) => 'class' | 'struct' | 'enum' | 'interface' | 'trait';
+  classifyClassNode?: (
+    node: SyntaxNode,
+  ) => "class" | "struct" | "enum" | "interface" | "trait";
 
   /**
    * Resolve the body node for a function/method/class when it's not a child field.
@@ -184,7 +197,10 @@ export interface LanguageExtractor {
    * Returns 'struct', 'interface', etc. to override the default 'type_alias' kind,
    * or undefined to keep it as a type alias.
    */
-  resolveTypeAliasKind?: (node: SyntaxNode, source: string) => NodeKind | undefined;
+  resolveTypeAliasKind?: (
+    node: SyntaxNode,
+    source: string,
+  ) => NodeKind | undefined;
 
   /**
    * Check if a function/method name is a misparse artifact that should be skipped.

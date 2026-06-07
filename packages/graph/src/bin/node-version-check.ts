@@ -18,24 +18,24 @@
  * (see ../ui/glyphs.ts for the rationale).
  */
 export function buildNode25BlockBanner(nodeVersion: string): string {
-  const sep = '-'.repeat(72);
+  const sep = "-".repeat(72);
   return [
     sep,
     `[CodeGraph] Unsupported Node.js version: ${nodeVersion}`,
     sep,
-    'Node.js 25.x has a V8 WASM JIT (turboshaft) Zone allocator bug that',
-    'crashes with `Fatal process out of memory: Zone` when CodeGraph',
-    'compiles tree-sitter grammars. CodeGraph WILL crash on this Node',
-    'version mid-indexing. See https://github.com/colbymchenry/codegraph/issues/81',
-    '',
-    'Fix: install Node.js 22 LTS:',
-    '  nvm install 22 && nvm use 22                          # nvm',
-    '  brew install node@22 && brew link --overwrite --force node@22  # Homebrew',
-    '',
-    'To override (NOT recommended - you will likely OOM):',
-    '  CODEGRAPH_ALLOW_UNSAFE_NODE=1 codegraph ...',
+    "Node.js 25.x has a V8 WASM JIT (turboshaft) Zone allocator bug that",
+    "crashes with `Fatal process out of memory: Zone` when CodeGraph",
+    "compiles tree-sitter grammars. CodeGraph WILL crash on this Node",
+    "version mid-indexing. See https://github.com/colbymchenry/codegraph/issues/81",
+    "",
+    "Fix: install Node.js 22 LTS:",
+    "  nvm install 22 && nvm use 22                          # nvm",
+    "  brew install node@22 && brew link --overwrite --force node@22  # Homebrew",
+    "",
+    "To override (NOT recommended - you will likely OOM):",
+    "  CODEGRAPH_ALLOW_UNSAFE_NODE=1 codegraph ...",
     sep,
-  ].join('\n');
+  ].join("\n");
 }
 
 /**
@@ -56,21 +56,21 @@ export const MIN_NODE_MAJOR = 20;
  * (see ../ui/glyphs.ts for the rationale).
  */
 export function buildNodeTooOldBanner(nodeVersion: string): string {
-  const sep = '-'.repeat(72);
+  const sep = "-".repeat(72);
   return [
     sep,
     `[CodeGraph] Unsupported Node.js version: ${nodeVersion}`,
     sep,
     `CodeGraph requires Node.js ${MIN_NODE_MAJOR} or newer. Older versions lack`,
-    'language features and native APIs CodeGraph depends on, and are not',
-    'tested or supported.',
-    '',
-    'Fix: install Node.js 22 LTS:',
-    '  nvm install 22 && nvm use 22                          # nvm',
-    '  brew install node@22 && brew link --overwrite --force node@22  # Homebrew',
-    '',
-    'To override (NOT recommended - unsupported):',
-    '  CODEGRAPH_ALLOW_UNSAFE_NODE=1 codegraph ...',
+    "language features and native APIs CodeGraph depends on, and are not",
+    "tested or supported.",
+    "",
+    "Fix: install Node.js 22 LTS:",
+    "  nvm install 22 && nvm use 22                          # nvm",
+    "  brew install node@22 && brew link --overwrite --force node@22  # Homebrew",
+    "",
+    "To override (NOT recommended - unsupported):",
+    "  CODEGRAPH_ALLOW_UNSAFE_NODE=1 codegraph ...",
     sep,
-  ].join('\n');
+  ].join("\n");
 }

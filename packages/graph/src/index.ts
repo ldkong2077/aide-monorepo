@@ -96,7 +96,7 @@ export {
 } from "./utils.js";
 export { FileWatcher, WatchOptions } from "./sync/index.js";
 export { MCPServer } from "./mcp/index.js";
-// Note: the installer lives at the `@aide/graph/installer` subpath
+// Note: the installer lives at the `@aide-dev/graph/installer` subpath
 // (see `package.json#exports`). It is intentionally NOT re-exported
 // from the main entry because the installer must stay importable even
 // when tree-sitter native modules (`web-tree-sitter`, WASM grammars)

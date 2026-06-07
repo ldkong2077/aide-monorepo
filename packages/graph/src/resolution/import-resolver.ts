@@ -4,26 +4,50 @@
  * Resolves import paths to actual files and symbols.
  */
 
-import * as path from 'path';
-import { type Language, type Node } from '../types.js';
-import { type UnresolvedRef, type ResolvedRef, type ResolutionContext, type ImportMapping, type ReExport } from './types.js';
-import { applyAliases } from './path-aliases.js';
+import * as path from "path";
+import { type Language, type Node } from "../types.js";
+import {
+  type UnresolvedRef,
+  type ResolvedRef,
+  type ResolutionContext,
+  type ImportMapping,
+  type ReExport,
+} from "./types.js";
+import { applyAliases } from "./path-aliases.js";
 
 /**
  * Extension resolution order by language
  */
 const EXTENSION_RESOLUTION: Record<string, string[]> = {
-  typescript: ['.ts', '.tsx', '.d.ts', '.js', '.jsx', '/index.ts', '/index.tsx', '/index.js'],
-  javascript: ['.js', '.jsx', '.mjs', '.cjs', '/index.js', '/index.jsx'],
-  tsx: ['.tsx', '.ts', '.d.ts', '.js', '.jsx', '/index.tsx', '/index.ts', '/index.js'],
-  jsx: ['.jsx', '.js', '/index.jsx', '/index.js'],
-  python: ['.py', '/__init__.py'],
-  go: ['.go'],
-  rust: ['.rs', '/mod.rs'],
-  java: ['.java'],
-  csharp: ['.cs'],
-  php: ['.php'],
-  ruby: ['.rb'],
+  typescript: [
+    ".ts",
+    ".tsx",
+    ".d.ts",
+    ".js",
+    ".jsx",
+    "/index.ts",
+    "/index.tsx",
+    "/index.js",
+  ],
+  javascript: [".js", ".jsx", ".mjs", ".cjs", "/index.js", "/index.jsx"],
+  tsx: [
+    ".tsx",
+    ".ts",
+    ".d.ts",
+    ".js",
+    ".jsx",
+    "/index.tsx",
+    "/index.ts",
+    "/index.js",
+  ],
+  jsx: [".jsx", ".js", "/index.jsx", "/index.js"],
+  python: [".py", "/__init__.py"],
+  go: [".go"],
+  rust: [".rs", "/mod.rs"],
+  java: [".java"],
+  csharp: [".cs"],
+  php: [".php"],
+  ruby: [".rb"],
 };
 
 /**
@@ -47,7 +71,7 @@ export function resolveImportPath(
   const fromDir = path.dirname(path.join(projectRoot, fromFile));
 
   // Handle relative imports
-  if (importPath.startsWith('.')) {
+  if (importPath.startsWith(".")) {
     return resolveRelativeImport(importPath, fromDir, language, context);
   }
 
@@ -69,32 +93,32 @@ function isExternalImport(
   context?: ResolutionContext,
 ): boolean {
   // Relative imports are not external
-  if (importPath.startsWith('.')) {
+  if (importPath.startsWith(".")) {
     return false;
   }
 
   // Common external patterns
   if (
-    language === 'typescript' ||
-    language === 'javascript' ||
-    language === 'tsx' ||
-    language === 'jsx'
+    language === "typescript" ||
+    language === "javascript" ||
+    language === "tsx" ||
+    language === "jsx"
   ) {
     // Node built-ins
     if (
       [
-        'fs',
-        'path',
-        'os',
-        'crypto',
-        'http',
-        'https',
-        'url',
-        'util',
-        'events',
-        'stream',
-        'child_process',
-        'buffer',
+        "fs",
+        "path",
+        "os",
+        "crypto",
+        "http",
+        "https",
+        "url",
+        "util",
+        "events",
+        "stream",
+        "child_process",
+        "buffer",
       ].includes(importPath)
     ) {
       return true;
@@ -108,37 +132,37 @@ function isExternalImport(
     }
     // Scoped packages or bare specifiers that don't start with aliases
     if (
-      !importPath.startsWith('@/') &&
-      !importPath.startsWith('~/') &&
-      !importPath.startsWith('src/')
+      !importPath.startsWith("@/") &&
+      !importPath.startsWith("~/") &&
+      !importPath.startsWith("src/")
     ) {
       // Likely an npm package
       return true;
     }
   }
 
-  if (language === 'python') {
+  if (language === "python") {
     // Standard library modules
     const stdLibs = [
-      'os',
-      'sys',
-      'json',
-      're',
-      'math',
-      'datetime',
-      'collections',
-      'typing',
-      'pathlib',
-      'logging',
+      "os",
+      "sys",
+      "json",
+      "re",
+      "math",
+      "datetime",
+      "collections",
+      "typing",
+      "pathlib",
+      "logging",
     ];
-    if (stdLibs.includes(importPath.split('.')[0])) {
+    if (stdLibs.includes(importPath.split(".")[0])) {
       return true;
     }
   }
 
-  if (language === 'go') {
+  if (language === "go") {
     // Standard library or external packages
-    if (!importPath.startsWith('.') && !importPath.includes('/internal/')) {
+    if (!importPath.startsWith(".") && !importPath.includes("/internal/")) {
       return true;
     }
   }
@@ -160,7 +184,7 @@ function resolveRelativeImport(
 
   // Try the path as-is first
   const basePath = path.resolve(fromDir, importPath);
-  const relativePath = path.relative(projectRoot, basePath).replace(/\\/g, '/');
+  const relativePath = path.relative(projectRoot, basePath).replace(/\\/g, "/");
 
   // Try each extension
   for (const ext of extensions) {
@@ -218,12 +242,12 @@ function resolveAliasedImport(
   // 2. Hard-coded fallback list. Kept for projects that use these
   //    conventional aliases without declaring them in tsconfig.
   const fallbackAliases: Record<string, string> = {
-    '@/': 'src/',
-    '~/': 'src/',
-    '@src/': 'src/',
-    'src/': 'src/',
-    '@app/': 'app/',
-    'app/': 'app/',
+    "@/": "src/",
+    "~/": "src/",
+    "@src/": "src/",
+    "src/": "src/",
+    "@app/": "app/",
+    "app/": "app/",
   };
   for (const [alias, replacement] of Object.entries(fallbackAliases)) {
     if (importPath.startsWith(alias)) {
@@ -247,17 +271,17 @@ export function extractImportMappings(
   const mappings: ImportMapping[] = [];
 
   if (
-    language === 'typescript' ||
-    language === 'javascript' ||
-    language === 'tsx' ||
-    language === 'jsx'
+    language === "typescript" ||
+    language === "javascript" ||
+    language === "tsx" ||
+    language === "jsx"
   ) {
     mappings.push(...extractJSImports(content));
-  } else if (language === 'python') {
+  } else if (language === "python") {
     mappings.push(...extractPythonImports(content));
-  } else if (language === 'go') {
+  } else if (language === "go") {
     mappings.push(...extractGoImports(content));
-  } else if (language === 'php') {
+  } else if (language === "php") {
     mappings.push(...extractPHPImports(content));
   }
 
@@ -282,7 +306,7 @@ function extractJSImports(content: string): ImportMapping[] {
     if (defaultImport) {
       mappings.push({
         localName: defaultImport,
-        exportedName: 'default',
+        exportedName: "default",
         source: source,
         isDefault: true,
         isNamespace: false,
@@ -291,7 +315,7 @@ function extractJSImports(content: string): ImportMapping[] {
 
     // Named imports
     if (namedImports) {
-      const names = namedImports.split(',').map((s) => s.trim());
+      const names = namedImports.split(",").map((s) => s.trim());
       for (const name of names) {
         const aliasMatch = /(\w+)\s+as\s+(\w+)/.exec(name);
         if (aliasMatch) {
@@ -318,7 +342,7 @@ function extractJSImports(content: string): ImportMapping[] {
     if (star && namespaceAlias) {
       mappings.push({
         localName: namespaceAlias,
-        exportedName: '*',
+        exportedName: "*",
         source: source,
         isDefault: false,
         isNamespace: true,
@@ -327,14 +351,15 @@ function extractJSImports(content: string): ImportMapping[] {
   }
 
   // Require statements
-  const requireRegex = /(?:const|let|var)\s+(?:(\w+)|{([^}]+)})\s*=\s*require\(['"]([^'"]+)['"]\)/g;
+  const requireRegex =
+    /(?:const|let|var)\s+(?:(\w+)|{([^}]+)})\s*=\s*require\(['"]([^'"]+)['"]\)/g;
   while ((match = requireRegex.exec(content)) !== null) {
     const [, defaultName, destructured, source] = match;
 
     if (defaultName) {
       mappings.push({
         localName: defaultName,
-        exportedName: 'default',
+        exportedName: "default",
         source: source,
         isDefault: true,
         isNamespace: false,
@@ -342,7 +367,7 @@ function extractJSImports(content: string): ImportMapping[] {
     }
 
     if (destructured) {
-      const names = destructured.split(',').map((s) => s.trim());
+      const names = destructured.split(",").map((s) => s.trim());
       for (const name of names) {
         const aliasMatch = /(\w+)\s*:\s*(\w+)/.exec(name);
         if (aliasMatch) {
@@ -381,7 +406,7 @@ function extractPythonImports(content: string): ImportMapping[] {
 
   while ((match = fromImportRegex.exec(content)) !== null) {
     const [, source, imports] = match;
-    const names = imports.split(',').map((s) => s.trim());
+    const names = imports.split(",").map((s) => s.trim());
 
     for (const name of names) {
       const aliasMatch = /(\w+)\s+as\s+(\w+)/.exec(name);
@@ -393,7 +418,7 @@ function extractPythonImports(content: string): ImportMapping[] {
           isDefault: false,
           isNamespace: false,
         });
-      } else if (name && name !== '*') {
+      } else if (name && name !== "*") {
         mappings.push({
           localName: name,
           exportedName: name,
@@ -409,10 +434,10 @@ function extractPythonImports(content: string): ImportMapping[] {
   const importRegex = /^import\s+([\w.]+)(?:\s+as\s+(\w+))?/gm;
   while ((match = importRegex.exec(content)) !== null) {
     const [, source, alias] = match;
-    const localName = alias || source.split('.').pop()!;
+    const localName = alias || source.split(".").pop()!;
     mappings.push({
       localName,
-      exportedName: '*',
+      exportedName: "*",
       source: source,
       isDefault: false,
       isNamespace: true,
@@ -434,10 +459,10 @@ function extractGoImports(content: string): ImportMapping[] {
 
   while ((match = singleImportRegex.exec(content)) !== null) {
     const [, alias, source] = match;
-    const packageName = source.split('/').pop()!;
+    const packageName = source.split("/").pop()!;
     mappings.push({
       localName: alias || packageName,
-      exportedName: '*',
+      exportedName: "*",
       source: source,
       isDefault: false,
       isNamespace: true,
@@ -453,10 +478,10 @@ function extractGoImports(content: string): ImportMapping[] {
 
     while ((lineMatch = lineRegex.exec(block)) !== null) {
       const [, alias, source] = lineMatch;
-      const packageName = source.split('/').pop()!;
+      const packageName = source.split("/").pop()!;
       mappings.push({
         localName: alias || packageName,
-        exportedName: '*',
+        exportedName: "*",
         source: source,
         isDefault: false,
         isNamespace: true,
@@ -479,7 +504,7 @@ function extractPHPImports(content: string): ImportMapping[] {
 
   while ((match = useRegex.exec(content)) !== null) {
     const [, fullPath, alias] = match;
-    const className = fullPath.split('\\').pop()!;
+    const className = fullPath.split("\\").pop()!;
     mappings.push({
       localName: alias || className,
       exportedName: className,
@@ -515,14 +540,14 @@ export function clearImportMappingCache(): void {
  * apply this to function bodies, only to top-level files).
  */
 function stripJsComments(content: string): string {
-  let out = '';
+  let out = "";
   let i = 0;
-  let str: '"' | "'" | '`' | null = null;
+  let str: '"' | "'" | "`" | null = null;
   while (i < content.length) {
     const ch = content[i];
     if (str !== null) {
       out += ch;
-      if (ch === '\\' && i + 1 < content.length) {
+      if (ch === "\\" && i + 1 < content.length) {
         out += content[i + 1];
         i += 2;
         continue;
@@ -531,19 +556,23 @@ function stripJsComments(content: string): string {
       i++;
       continue;
     }
-    if (ch === '"' || ch === "'" || ch === '`') {
+    if (ch === '"' || ch === "'" || ch === "`") {
       str = ch;
       out += ch;
       i++;
       continue;
     }
-    if (ch === '/' && content[i + 1] === '/') {
-      while (i < content.length && content[i] !== '\n') i++;
+    if (ch === "/" && content[i + 1] === "/") {
+      while (i < content.length && content[i] !== "\n") i++;
       continue;
     }
-    if (ch === '/' && content[i + 1] === '*') {
+    if (ch === "/" && content[i + 1] === "*") {
       i += 2;
-      while (i < content.length && !(content[i] === '*' && content[i + 1] === '/')) i++;
+      while (
+        i < content.length &&
+        !(content[i] === "*" && content[i + 1] === "/")
+      )
+        i++;
       i += 2;
       continue;
     }
@@ -568,12 +597,15 @@ function stripJsComments(content: string): string {
  * tree-sitter pass, and this function shares that trade-off. Errors
  * fall through silently; resolution simply skips the broken file.
  */
-export function extractReExports(content: string, language: Language): ReExport[] {
+export function extractReExports(
+  content: string,
+  language: Language,
+): ReExport[] {
   if (
-    language !== 'typescript' &&
-    language !== 'javascript' &&
-    language !== 'tsx' &&
-    language !== 'jsx'
+    language !== "typescript" &&
+    language !== "javascript" &&
+    language !== "tsx" &&
+    language !== "jsx"
   ) {
     return [];
   }
@@ -590,7 +622,7 @@ export function extractReExports(content: string, language: Language): ReExport[
   const wildcardRe = /export\s*\*(?:\s+as\s+\w+)?\s*from\s*['"]([^'"]+)['"]/g;
   let m: RegExpExecArray | null;
   while ((m = wildcardRe.exec(cleaned)) !== null) {
-    out.push({ kind: 'wildcard', source: m[1] });
+    out.push({ kind: "wildcard", source: m[1] });
   }
 
   // Named: `export { a, b as c } from '...'`
@@ -598,20 +630,20 @@ export function extractReExports(content: string, language: Language): ReExport[
   while ((m = namedRe.exec(cleaned)) !== null) {
     const inner = m[1];
     const source = m[2];
-    for (const raw of inner.split(',')) {
+    for (const raw of inner.split(",")) {
       const item = raw.trim();
       if (!item) continue;
       const aliasMatch = /^(\w+)\s+as\s+(\w+)$/.exec(item);
       if (aliasMatch) {
         out.push({
-          kind: 'named',
+          kind: "named",
           exportedName: aliasMatch[2],
           originalName: aliasMatch[1],
           source,
         });
       } else if (/^\w+$/.test(item)) {
         out.push({
-          kind: 'named',
+          kind: "named",
           exportedName: item,
           originalName: item,
           source,
@@ -638,19 +670,32 @@ export function resolveViaImport(
 
   // Check if the reference name matches any import
   for (const imp of imports) {
-    if (imp.localName === ref.referenceName || ref.referenceName.startsWith(imp.localName + '.')) {
+    if (
+      imp.localName === ref.referenceName ||
+      ref.referenceName.startsWith(imp.localName + ".")
+    ) {
       // Resolve the import path
-      const resolvedPath = resolveImportPath(imp.source, ref.filePath, ref.language, context);
+      const resolvedPath = resolveImportPath(
+        imp.source,
+        ref.filePath,
+        ref.language,
+        context,
+      );
 
       if (resolvedPath) {
-        const exportedName = imp.isDefault ? 'default' : imp.exportedName;
+        const exportedName = imp.isDefault ? "default" : imp.exportedName;
         const memberName = imp.isNamespace
-          ? ref.referenceName.replace(imp.localName + '.', '')
+          ? ref.referenceName.replace(imp.localName + ".", "")
           : null;
 
         const targetNode = findExportedSymbol(
           resolvedPath,
-          { isDefault: imp.isDefault, isNamespace: imp.isNamespace, exportedName, memberName },
+          {
+            isDefault: imp.isDefault,
+            isNamespace: imp.isNamespace,
+            exportedName,
+            memberName,
+          },
           ref.language,
           context,
           new Set(),
@@ -661,7 +706,7 @@ export function resolveViaImport(
             original: ref,
             targetNodeId: targetNode.id,
             confidence: 0.9,
-            resolvedBy: 'import',
+            resolvedBy: "import",
           };
         }
       }
@@ -708,14 +753,18 @@ function findExportedSymbol(
   // 1. Direct hit: the symbol is declared in this file.
   if (want.isDefault) {
     const direct = nodesInFile.find(
-      (n) => n.isExported && (n.kind === 'function' || n.kind === 'class'),
+      (n) => n.isExported && (n.kind === "function" || n.kind === "class"),
     );
     if (direct) return direct;
   } else if (want.isNamespace && want.memberName) {
-    const direct = nodesInFile.find((n) => n.name === want.memberName && n.isExported);
+    const direct = nodesInFile.find(
+      (n) => n.name === want.memberName && n.isExported,
+    );
     if (direct) return direct;
   } else {
-    const direct = nodesInFile.find((n) => n.name === want.exportedName && n.isExported);
+    const direct = nodesInFile.find(
+      (n) => n.name === want.exportedName && n.isExported,
+    );
     if (direct) return direct;
   }
 
@@ -724,9 +773,9 @@ function findExportedSymbol(
   if (reExports.length === 0) return undefined;
 
   // Look for explicit `export { want } from './other.js'` (with optional rename).
-  const targetName = want.isDefault ? 'default' : want.exportedName;
+  const targetName = want.isDefault ? "default" : want.exportedName;
   for (const rex of reExports) {
-    if (rex.kind === 'named' && rex.exportedName === targetName) {
+    if (rex.kind === "named" && rex.exportedName === targetName) {
       const next = resolveImportPath(rex.source, filePath, language, context);
       if (!next) continue;
       // After rename: `export { foo as bar } from './x.js'` — to chase
@@ -734,7 +783,7 @@ function findExportedSymbol(
       const chained = findExportedSymbol(
         next,
         {
-          isDefault: rex.originalName === 'default',
+          isDefault: rex.originalName === "default",
           isNamespace: false,
           exportedName: rex.originalName,
           memberName: null,
@@ -751,10 +800,17 @@ function findExportedSymbol(
   // 3. Wildcard re-export: `export * from './other.js'` — try every
   //    forwarding source. This is the barrel-of-barrels case.
   for (const rex of reExports) {
-    if (rex.kind === 'wildcard') {
+    if (rex.kind === "wildcard") {
       const next = resolveImportPath(rex.source, filePath, language, context);
       if (!next) continue;
-      const chained = findExportedSymbol(next, want, language, context, visited, depth + 1);
+      const chained = findExportedSymbol(
+        next,
+        want,
+        language,
+        context,
+        visited,
+        depth + 1,
+      );
       if (chained) return chained;
     }
   }

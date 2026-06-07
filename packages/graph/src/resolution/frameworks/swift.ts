@@ -4,21 +4,26 @@
  * Handles SwiftUI, UIKit, and Vapor (server-side Swift) patterns.
  */
 
-import { type Node } from '../../types.js';
-import { type FrameworkResolver, type UnresolvedRef, type ResolvedRef, type ResolutionContext } from '../types.js';
-import { stripCommentsForRegex } from '../strip-comments.js';
+import { type Node } from "../../types.js";
+import {
+  type FrameworkResolver,
+  type UnresolvedRef,
+  type ResolvedRef,
+  type ResolutionContext,
+} from "../types.js";
+import { stripCommentsForRegex } from "../strip-comments.js";
 
 export const swiftUIResolver: FrameworkResolver = {
-  name: 'swiftui',
-  languages: ['swift'],
+  name: "swiftui",
+  languages: ["swift"],
 
   detect(context: ResolutionContext): boolean {
     // Check for SwiftUI imports in Swift files
     const allFiles = context.getAllFiles();
     for (const file of allFiles) {
-      if (file.endsWith('.swift')) {
+      if (file.endsWith(".swift")) {
         const content = context.readFile(file);
-        if (content && content.includes('import SwiftUI')) {
+        if (content && content.includes("import SwiftUI")) {
           return true;
         }
       }
@@ -26,7 +31,7 @@ export const swiftUIResolver: FrameworkResolver = {
 
     // Check for Xcode project with SwiftUI
     for (const file of allFiles) {
-      if (file.endsWith('.xcodeproj') || file.endsWith('.xcworkspace')) {
+      if (file.endsWith(".xcodeproj") || file.endsWith(".xcworkspace")) {
         return true;
       }
     }
@@ -36,44 +41,62 @@ export const swiftUIResolver: FrameworkResolver = {
 
   resolve(ref: UnresolvedRef, context: ResolutionContext): ResolvedRef | null {
     // Pattern 1: View references (SwiftUI views are PascalCase ending in View)
-    if (ref.referenceName.endsWith('View') && /^[A-Z]/.test(ref.referenceName)) {
-      const result = resolveByNameAndKind(ref.referenceName, VIEW_KINDS, VIEW_DIRS, context);
+    if (
+      ref.referenceName.endsWith("View") &&
+      /^[A-Z]/.test(ref.referenceName)
+    ) {
+      const result = resolveByNameAndKind(
+        ref.referenceName,
+        VIEW_KINDS,
+        VIEW_DIRS,
+        context,
+      );
       if (result) {
         return {
           original: ref,
           targetNodeId: result,
           confidence: 0.85,
-          resolvedBy: 'framework',
+          resolvedBy: "framework",
         };
       }
     }
 
     // Pattern 2: ViewModel/ObservableObject references
     if (
-      ref.referenceName.endsWith('ViewModel') ||
-      ref.referenceName.endsWith('Store') ||
-      ref.referenceName.endsWith('Manager')
+      ref.referenceName.endsWith("ViewModel") ||
+      ref.referenceName.endsWith("Store") ||
+      ref.referenceName.endsWith("Manager")
     ) {
-      const result = resolveByNameAndKind(ref.referenceName, CLASS_KINDS, VIEWMODEL_DIRS, context);
+      const result = resolveByNameAndKind(
+        ref.referenceName,
+        CLASS_KINDS,
+        VIEWMODEL_DIRS,
+        context,
+      );
       if (result) {
         return {
           original: ref,
           targetNodeId: result,
           confidence: 0.85,
-          resolvedBy: 'framework',
+          resolvedBy: "framework",
         };
       }
     }
 
     // Pattern 3: Model references
     if (/^[A-Z][a-zA-Z]+$/.test(ref.referenceName)) {
-      const result = resolveByNameAndKind(ref.referenceName, MODEL_KINDS, MODEL_DIRS, context);
+      const result = resolveByNameAndKind(
+        ref.referenceName,
+        MODEL_KINDS,
+        MODEL_DIRS,
+        context,
+      );
       if (result) {
         return {
           original: ref,
           targetNodeId: result,
           confidence: 0.7,
-          resolvedBy: 'framework',
+          resolvedBy: "framework",
         };
       }
     }
@@ -82,10 +105,10 @@ export const swiftUIResolver: FrameworkResolver = {
   },
 
   extract(filePath, content) {
-    if (!filePath.endsWith('.swift')) return { nodes: [], references: [] };
+    if (!filePath.endsWith(".swift")) return { nodes: [], references: [] };
     const nodes: Node[] = [];
     const now = Date.now();
-    const safe = stripCommentsForRegex(content, 'swift');
+    const safe = stripCommentsForRegex(content, "swift");
 
     // Extract SwiftUI View structs
     // struct ContentView: View { ... }
@@ -94,11 +117,11 @@ export const swiftUIResolver: FrameworkResolver = {
     let match: RegExpExecArray | null;
     while ((match = viewPattern.exec(safe)) !== null) {
       const [, viewName] = match;
-      const line = safe.slice(0, match.index).split('\n').length;
+      const line = safe.slice(0, match.index).split("\n").length;
 
       nodes.push({
         id: `view:${filePath}:${viewName}:${line}`,
-        kind: 'component',
+        kind: "component",
         name: viewName,
         qualifiedName: `${filePath}::${viewName}`,
         filePath,
@@ -106,7 +129,7 @@ export const swiftUIResolver: FrameworkResolver = {
         endLine: line,
         startColumn: 0,
         endColumn: match[0].length,
-        language: 'swift',
+        language: "swift",
         updatedAt: now,
       });
     }
@@ -116,11 +139,11 @@ export const swiftUIResolver: FrameworkResolver = {
 
     while ((match = appPattern.exec(safe)) !== null) {
       const [, appName] = match;
-      const line = safe.slice(0, match.index).split('\n').length;
+      const line = safe.slice(0, match.index).split("\n").length;
 
       nodes.push({
         id: `app:${filePath}:${appName}:${line}`,
-        kind: 'class',
+        kind: "class",
         name: appName,
         qualifiedName: `${filePath}::${appName}`,
         filePath,
@@ -128,7 +151,7 @@ export const swiftUIResolver: FrameworkResolver = {
         endLine: line,
         startColumn: 0,
         endColumn: match[0].length,
-        language: 'swift',
+        language: "swift",
         updatedAt: now,
       });
     }
@@ -138,19 +161,19 @@ export const swiftUIResolver: FrameworkResolver = {
 };
 
 export const uikitResolver: FrameworkResolver = {
-  name: 'uikit',
-  languages: ['swift'],
+  name: "uikit",
+  languages: ["swift"],
 
   detect(context: ResolutionContext): boolean {
     const allFiles = context.getAllFiles();
     for (const file of allFiles) {
-      if (file.endsWith('.swift')) {
+      if (file.endsWith(".swift")) {
         const content = context.readFile(file);
         if (
           content &&
-          (content.includes('import UIKit') ||
-            content.includes('UIViewController') ||
-            content.includes('UIView'))
+          (content.includes("import UIKit") ||
+            content.includes("UIViewController") ||
+            content.includes("UIView"))
         ) {
           return true;
         }
@@ -162,53 +185,79 @@ export const uikitResolver: FrameworkResolver = {
 
   resolve(ref: UnresolvedRef, context: ResolutionContext): ResolvedRef | null {
     // Pattern 1: ViewController references
-    if (ref.referenceName.endsWith('ViewController')) {
-      const result = resolveByNameAndKind(ref.referenceName, CLASS_KINDS, VC_DIRS, context);
+    if (ref.referenceName.endsWith("ViewController")) {
+      const result = resolveByNameAndKind(
+        ref.referenceName,
+        CLASS_KINDS,
+        VC_DIRS,
+        context,
+      );
       if (result) {
         return {
           original: ref,
           targetNodeId: result,
           confidence: 0.85,
-          resolvedBy: 'framework',
+          resolvedBy: "framework",
         };
       }
     }
 
     // Pattern 2: UIView subclass references
-    if (ref.referenceName.endsWith('View') && !ref.referenceName.endsWith('ViewController')) {
-      const result = resolveByNameAndKind(ref.referenceName, CLASS_KINDS, UIVIEW_DIRS, context);
+    if (
+      ref.referenceName.endsWith("View") &&
+      !ref.referenceName.endsWith("ViewController")
+    ) {
+      const result = resolveByNameAndKind(
+        ref.referenceName,
+        CLASS_KINDS,
+        UIVIEW_DIRS,
+        context,
+      );
       if (result) {
         return {
           original: ref,
           targetNodeId: result,
           confidence: 0.8,
-          resolvedBy: 'framework',
+          resolvedBy: "framework",
         };
       }
     }
 
     // Pattern 3: Cell references
-    if (ref.referenceName.endsWith('Cell')) {
-      const result = resolveByNameAndKind(ref.referenceName, CLASS_KINDS, CELL_DIRS, context);
+    if (ref.referenceName.endsWith("Cell")) {
+      const result = resolveByNameAndKind(
+        ref.referenceName,
+        CLASS_KINDS,
+        CELL_DIRS,
+        context,
+      );
       if (result) {
         return {
           original: ref,
           targetNodeId: result,
           confidence: 0.85,
-          resolvedBy: 'framework',
+          resolvedBy: "framework",
         };
       }
     }
 
     // Pattern 4: Delegate/DataSource references
-    if (ref.referenceName.endsWith('Delegate') || ref.referenceName.endsWith('DataSource')) {
-      const result = resolveByNameAndKind(ref.referenceName, PROTOCOL_KINDS, [], context);
+    if (
+      ref.referenceName.endsWith("Delegate") ||
+      ref.referenceName.endsWith("DataSource")
+    ) {
+      const result = resolveByNameAndKind(
+        ref.referenceName,
+        PROTOCOL_KINDS,
+        [],
+        context,
+      );
       if (result) {
         return {
           original: ref,
           targetNodeId: result,
           confidence: 0.8,
-          resolvedBy: 'framework',
+          resolvedBy: "framework",
         };
       }
     }
@@ -217,10 +266,10 @@ export const uikitResolver: FrameworkResolver = {
   },
 
   extract(filePath, content) {
-    if (!filePath.endsWith('.swift')) return { nodes: [], references: [] };
+    if (!filePath.endsWith(".swift")) return { nodes: [], references: [] };
     const nodes: Node[] = [];
     const now = Date.now();
-    const safe = stripCommentsForRegex(content, 'swift');
+    const safe = stripCommentsForRegex(content, "swift");
 
     // Extract UIViewController subclasses
     const vcPattern = /class\s+(\w+)\s*:\s*(?:\w+\s*,\s*)*UIViewController/g;
@@ -228,11 +277,11 @@ export const uikitResolver: FrameworkResolver = {
     let match: RegExpExecArray | null;
     while ((match = vcPattern.exec(safe)) !== null) {
       const [, vcName] = match;
-      const line = safe.slice(0, match.index).split('\n').length;
+      const line = safe.slice(0, match.index).split("\n").length;
 
       nodes.push({
         id: `viewcontroller:${filePath}:${vcName}:${line}`,
-        kind: 'class',
+        kind: "class",
         name: vcName,
         qualifiedName: `${filePath}::${vcName}`,
         filePath,
@@ -240,7 +289,7 @@ export const uikitResolver: FrameworkResolver = {
         endLine: line,
         startColumn: 0,
         endColumn: match[0].length,
-        language: 'swift',
+        language: "swift",
         updatedAt: now,
       });
     }
@@ -250,11 +299,11 @@ export const uikitResolver: FrameworkResolver = {
 
     while ((match = viewPattern.exec(safe)) !== null) {
       const [, viewName] = match;
-      const line = safe.slice(0, match.index).split('\n').length;
+      const line = safe.slice(0, match.index).split("\n").length;
 
       nodes.push({
         id: `uiview:${filePath}:${viewName}:${line}`,
-        kind: 'class',
+        kind: "class",
         name: viewName,
         qualifiedName: `${filePath}::${viewName}`,
         filePath,
@@ -262,7 +311,7 @@ export const uikitResolver: FrameworkResolver = {
         endLine: line,
         startColumn: 0,
         endColumn: match[0].length,
-        language: 'swift',
+        language: "swift",
         updatedAt: now,
       });
     }
@@ -272,22 +321,22 @@ export const uikitResolver: FrameworkResolver = {
 };
 
 export const vaporResolver: FrameworkResolver = {
-  name: 'vapor',
-  languages: ['swift'],
+  name: "vapor",
+  languages: ["swift"],
 
   detect(context: ResolutionContext): boolean {
     // Check for Package.swift with Vapor dependency
-    const packageSwift = context.readFile('Package.swift');
-    if (packageSwift && packageSwift.includes('vapor')) {
+    const packageSwift = context.readFile("Package.swift");
+    if (packageSwift && packageSwift.includes("vapor")) {
       return true;
     }
 
     // Check for Vapor imports
     const allFiles = context.getAllFiles();
     for (const file of allFiles) {
-      if (file.endsWith('.swift')) {
+      if (file.endsWith(".swift")) {
         const content = context.readFile(file);
-        if (content && content.includes('import Vapor')) {
+        if (content && content.includes("import Vapor")) {
           return true;
         }
       }
@@ -298,7 +347,7 @@ export const vaporResolver: FrameworkResolver = {
 
   resolve(ref: UnresolvedRef, context: ResolutionContext): ResolvedRef | null {
     // Pattern 1: Controller references
-    if (ref.referenceName.endsWith('Controller')) {
+    if (ref.referenceName.endsWith("Controller")) {
       const result = resolveByNameAndKind(
         ref.referenceName,
         VAPOR_CONTROLLER_KINDS,
@@ -310,7 +359,7 @@ export const vaporResolver: FrameworkResolver = {
           original: ref,
           targetNodeId: result,
           confidence: 0.85,
-          resolvedBy: 'framework',
+          resolvedBy: "framework",
         };
       }
     }
@@ -328,13 +377,13 @@ export const vaporResolver: FrameworkResolver = {
           original: ref,
           targetNodeId: result,
           confidence: 0.75,
-          resolvedBy: 'framework',
+          resolvedBy: "framework",
         };
       }
     }
 
     // Pattern 3: Middleware references
-    if (ref.referenceName.endsWith('Middleware')) {
+    if (ref.referenceName.endsWith("Middleware")) {
       const result = resolveByNameAndKind(
         ref.referenceName,
         VAPOR_CONTROLLER_KINDS,
@@ -346,7 +395,7 @@ export const vaporResolver: FrameworkResolver = {
           original: ref,
           targetNodeId: result,
           confidence: 0.8,
-          resolvedBy: 'framework',
+          resolvedBy: "framework",
         };
       }
     }
@@ -355,11 +404,11 @@ export const vaporResolver: FrameworkResolver = {
   },
 
   extract(filePath, content) {
-    if (!filePath.endsWith('.swift')) return { nodes: [], references: [] };
+    if (!filePath.endsWith(".swift")) return { nodes: [], references: [] };
     const nodes: Node[] = [];
     const references: UnresolvedRef[] = [];
     const now = Date.now();
-    const safe = stripCommentsForRegex(content, 'swift');
+    const safe = stripCommentsForRegex(content, "swift");
 
     // Vapor: (app|router|routes).METHOD("path", use: handler)
     const routeRegex =
@@ -367,12 +416,12 @@ export const vaporResolver: FrameworkResolver = {
     let match: RegExpExecArray | null;
     while ((match = routeRegex.exec(safe)) !== null) {
       const [, method, routePath, handlerExpr] = match;
-      const line = safe.slice(0, match.index).split('\n').length;
+      const line = safe.slice(0, match.index).split("\n").length;
       const upper = method.toUpperCase();
 
       const routeNode: Node = {
         id: `route:${filePath}:${line}:${upper}:${routePath}`,
-        kind: 'route',
+        kind: "route",
         name: `${upper} ${routePath}`,
         qualifiedName: `${filePath}::route:${routePath}`,
         filePath,
@@ -380,23 +429,23 @@ export const vaporResolver: FrameworkResolver = {
         endLine: line,
         startColumn: 0,
         endColumn: match[0].length,
-        language: 'swift',
+        language: "swift",
         updatedAt: now,
       };
       nodes.push(routeNode);
 
       // Last segment of dotted path (e.g. UserController.list -> list)
-      const parts = handlerExpr.split('.');
+      const parts = handlerExpr.split(".");
       const handlerName = parts[parts.length - 1];
       if (handlerName) {
         references.push({
           fromNodeId: routeNode.id,
           referenceName: handlerName,
-          referenceKind: 'references',
+          referenceKind: "references",
           line,
           column: 0,
           filePath,
-          language: 'swift',
+          language: "swift",
         });
       }
     }
@@ -406,21 +455,38 @@ export const vaporResolver: FrameworkResolver = {
 };
 
 // Directory patterns
-const VIEW_DIRS = ['/Views/', '/View/', '/Screens/', '/Components/', '/UI/'];
-const VIEWMODEL_DIRS = ['/ViewModels/', '/ViewModel/', '/Stores/', '/Managers/', '/Services/'];
-const MODEL_DIRS = ['/Models/', '/Model/', '/Entities/', '/Domain/'];
-const VC_DIRS = ['/ViewControllers/', '/ViewController/', '/Controllers/', '/Screens/'];
-const UIVIEW_DIRS = ['/Views/', '/View/', '/UI/', '/Components/'];
-const CELL_DIRS = ['/Cells/', '/Cell/', '/Views/', '/TableViewCells/', '/CollectionViewCells/'];
-const VAPOR_CONTROLLER_DIRS = ['/Controllers/', '/Controller/', '/Routes/'];
-const FLUENT_MODEL_DIRS = ['/Models/', '/Model/', '/Entities/', '/Database/'];
-const VAPOR_MIDDLEWARE_DIRS = ['/Middleware/', '/Middlewares/'];
+const VIEW_DIRS = ["/Views/", "/View/", "/Screens/", "/Components/", "/UI/"];
+const VIEWMODEL_DIRS = [
+  "/ViewModels/",
+  "/ViewModel/",
+  "/Stores/",
+  "/Managers/",
+  "/Services/",
+];
+const MODEL_DIRS = ["/Models/", "/Model/", "/Entities/", "/Domain/"];
+const VC_DIRS = [
+  "/ViewControllers/",
+  "/ViewController/",
+  "/Controllers/",
+  "/Screens/",
+];
+const UIVIEW_DIRS = ["/Views/", "/View/", "/UI/", "/Components/"];
+const CELL_DIRS = [
+  "/Cells/",
+  "/Cell/",
+  "/Views/",
+  "/TableViewCells/",
+  "/CollectionViewCells/",
+];
+const VAPOR_CONTROLLER_DIRS = ["/Controllers/", "/Controller/", "/Routes/"];
+const FLUENT_MODEL_DIRS = ["/Models/", "/Model/", "/Entities/", "/Database/"];
+const VAPOR_MIDDLEWARE_DIRS = ["/Middleware/", "/Middlewares/"];
 
-const VIEW_KINDS = new Set(['struct', 'component']);
-const CLASS_KINDS = new Set(['class']);
-const MODEL_KINDS = new Set(['struct', 'class']);
-const PROTOCOL_KINDS = new Set(['protocol']);
-const VAPOR_CONTROLLER_KINDS = new Set(['class', 'struct']);
+const VIEW_KINDS = new Set(["struct", "component"]);
+const CLASS_KINDS = new Set(["class"]);
+const MODEL_KINDS = new Set(["struct", "class"]);
+const PROTOCOL_KINDS = new Set(["protocol"]);
+const VAPOR_CONTROLLER_KINDS = new Set(["class", "struct"]);
 
 /**
  * Resolve a symbol by name using indexed queries instead of scanning all files.

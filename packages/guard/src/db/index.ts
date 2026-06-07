@@ -3,8 +3,8 @@
  * 导出存储层、迁移框架和schema相关功能
  */
 
-export { SQLiteStorage, createStorage } from '../storage/index.js';
-export type { Storage, SQLiteStorageOptions } from '../storage/index.js';
+export { SQLiteStorage, createStorage } from "../storage/index.js";
+export type { Storage, SQLiteStorageOptions } from "../storage/index.js";
 export {
   CURRENT_SCHEMA_VERSION,
   getCurrentVersion,
@@ -12,4 +12,4 @@ export {
   needsMigration,
   getPendingMigrations,
   getMigrationHistory,
-} from './migrations.js';
+} from "./migrations.js";

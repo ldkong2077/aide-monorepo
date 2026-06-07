@@ -1,6 +1,6 @@
-import type { Node as SyntaxNode } from 'web-tree-sitter';
-import { getNodeText, getChildByField } from '../tree-sitter-helpers.js';
-import type { LanguageExtractor } from '../tree-sitter-types.js';
+import type { Node as SyntaxNode } from "web-tree-sitter";
+import { getNodeText, getChildByField } from "../tree-sitter-helpers.js";
+import type { LanguageExtractor } from "../tree-sitter-types.js";
 
 // Node names follow the vendored ABI-15 grammar (@tree-sitter-grammars/
 // tree-sitter-lua), NOT the older tree-sitter-wasms build — see grammars.ts.
@@ -27,34 +27,36 @@ function findDescendant(node: SyntaxNode, type: string): SyntaxNode | null {
  */
 function requireModule(callNode: SyntaxNode, source: string): string | null {
   // function_call > name: <callee>, arguments: arguments
-  const name = getChildByField(callNode, 'name');
+  const name = getChildByField(callNode, "name");
   // A dotted/colon callee (e.g. `socket.connect`) is dot/method_index_expression,
   // never a bare `require`.
-  if (name?.type !== 'identifier') return null;
-  if (getNodeText(name, source) !== 'require') return null;
+  if (name?.type !== "identifier") return null;
+  if (getNodeText(name, source) !== "require") return null;
 
-  const args = getChildByField(callNode, 'arguments');
+  const args = getChildByField(callNode, "arguments");
   if (!args) return null;
 
   // String require — `string > content: string_content` gives the bare name.
-  const content = findDescendant(args, 'string_content');
+  const content = findDescendant(args, "string_content");
   if (content) return getNodeText(content, source).trim() || null;
-  const str = findDescendant(args, 'string');
+  const str = findDescendant(args, "string");
   if (str) {
     const mod = getNodeText(str, source)
       .trim()
-      .replace(/^\[\[/, '')
-      .replace(/\]\]$/, '')
-      .replace(/^["']/, '')
-      .replace(/["']$/, '');
+      .replace(/^\[\[/, "")
+      .replace(/\]\]$/, "")
+      .replace(/^["']/, "")
+      .replace(/["']$/, "");
     if (mod) return mod;
   }
 
   // Roblox/Luau instance-path require: `require(script.Parent.Signal)` → "Signal".
   const idx =
-    findDescendant(args, 'dot_index_expression') ?? findDescendant(args, 'method_index_expression');
+    findDescendant(args, "dot_index_expression") ??
+    findDescendant(args, "method_index_expression");
   if (idx) {
-    const field = getChildByField(idx, 'field') ?? getChildByField(idx, 'method');
+    const field =
+      getChildByField(idx, "field") ?? getChildByField(idx, "method");
     if (field) return getNodeText(field, source).trim() || null;
   }
   return null;
@@ -67,7 +69,7 @@ export const luaExtractor: LanguageExtractor = {
   // method_index_expression) and a `local` token, not by separate node types.
   // Anonymous `function() ... end` (function_definition) has no name and is
   // captured via its enclosing variable instead.
-  functionTypes: ['function_declaration'],
+  functionTypes: ["function_declaration"],
   classTypes: [], // Lua has no classes/structs/interfaces/enums — tables are used for everything
   methodTypes: [],
   interfaceTypes: [],
@@ -75,14 +77,14 @@ export const luaExtractor: LanguageExtractor = {
   enumTypes: [],
   typeAliasTypes: [],
   importTypes: [], // `require` is a function_call — handled in visitNode below
-  callTypes: ['function_call'],
-  variableTypes: ['variable_declaration'], // see the `lua` branch in extractVariable
-  nameField: 'name',
-  bodyField: 'body',
-  paramsField: 'parameters',
+  callTypes: ["function_call"],
+  variableTypes: ["variable_declaration"], // see the `lua` branch in extractVariable
+  nameField: "name",
+  bodyField: "body",
+  paramsField: "parameters",
 
   getSignature: (node, source) => {
-    const params = getChildByField(node, 'parameters');
+    const params = getChildByField(node, "parameters");
     return params ? getNodeText(params, source) : undefined;
   },
 
@@ -91,9 +93,13 @@ export const luaExtractor: LanguageExtractor = {
   // name. Plain `function f()` / `local function f()` have no receiver and stay
   // functions. (For `a.b.c`, the receiver is the nested `a.b`.)
   getReceiverType: (node, source) => {
-    const name = getChildByField(node, 'name');
-    if (name && (name.type === 'dot_index_expression' || name.type === 'method_index_expression')) {
-      const table = getChildByField(name, 'table');
+    const name = getChildByField(node, "name");
+    if (
+      name &&
+      (name.type === "dot_index_expression" ||
+        name.type === "method_index_expression")
+    ) {
+      const table = getChildByField(name, "table");
       if (table) return getNodeText(table, source);
     }
     return undefined;
@@ -109,7 +115,7 @@ export const luaExtractor: LanguageExtractor = {
     const emit = (callNode: SyntaxNode): void => {
       const mod = requireModule(callNode, source);
       if (!mod) return;
-      const imp = ctx.createNode('import', mod, callNode, {
+      const imp = ctx.createNode("import", mod, callNode, {
         signature: getNodeText(callNode, source).trim().slice(0, 100),
       });
       if (imp && ctx.nodeStack.length > 0) {
@@ -118,7 +124,7 @@ export const luaExtractor: LanguageExtractor = {
           ctx.addUnresolvedReference({
             fromNodeId: parentId,
             referenceName: mod,
-            referenceKind: 'imports',
+            referenceKind: "imports",
             line: callNode.startPosition.row + 1,
             column: callNode.startPosition.column,
           });
@@ -127,7 +133,7 @@ export const luaExtractor: LanguageExtractor = {
     };
 
     // Bare / global `require("x")` — claim it so it isn't double-counted as a call.
-    if (node.type === 'function_call') {
+    if (node.type === "function_call") {
       if (requireModule(node, source)) {
         emit(node);
         return true;
@@ -137,12 +143,16 @@ export const luaExtractor: LanguageExtractor = {
 
     // `local x = require("x")` — variable_declaration wraps an assignment_statement
     // whose initializer subtree the variable branch will skip, so dig it out here.
-    if (node.type === 'variable_declaration') {
-      const assign = node.namedChildren.find((c) => c.type === 'assignment_statement');
-      const exprList = assign?.namedChildren.find((c) => c.type === 'expression_list');
+    if (node.type === "variable_declaration") {
+      const assign = node.namedChildren.find(
+        (c) => c.type === "assignment_statement",
+      );
+      const exprList = assign?.namedChildren.find(
+        (c) => c.type === "expression_list",
+      );
       if (exprList) {
         for (const val of exprList.namedChildren) {
-          if (val.type === 'function_call') emit(val);
+          if (val.type === "function_call") emit(val);
         }
       }
       return false;

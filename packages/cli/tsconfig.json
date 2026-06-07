@@ -1,12 +1,21 @@
 {
   "extends": "../../tsconfig.json",
-  "compilerOptions": { "composite": true, "rootDir": "./src", "outDir": "./dist", "declarationDir": "./dist" },
+  "compilerOptions": {
+    "composite": true,
+    "rootDir": "./src",
+    "outDir": "./dist",
+    "declarationDir": "./dist"
+  },
   "include": ["src/**/*.ts"],
   "exclude": ["**/*.test.ts", "node_modules", "dist"],
   "references": [
     { "path": "../core" },
     { "path": "../graph" },
     { "path": "../guard" },
+    { "path": "../mind" },
+    { "path": "../templates" },
+    { "path": "../flow" },
+    { "path": "../dashboard" },
     { "path": "../mcp-server" }
   ]
 }

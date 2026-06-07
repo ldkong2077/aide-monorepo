@@ -55,7 +55,7 @@ export {
 export type { InstallLocation } from "./config-writer.js";
 // Re-export the shared config helpers so the CLI's tests (and any
 // downstream tooling that wants to inspect what `aide install` would
-// write) can do so via the `@aide/graph/installer` subpath without
+// write) can do so via the `@aide-dev/graph/installer` subpath without
 // having to know the per-target layout.
 export {
   getMcpServerConfig,
@@ -170,11 +170,11 @@ export async function runInstallerWithOptions(
       const s = clack.spinner();
       s.start("Installing AIDE CLI...");
       try {
-        execSync("npm install -g @aide/cli", { stdio: "pipe" });
+        execSync("npm install -g @aide-dev/cli", { stdio: "pipe" });
         s.stop("Installed AIDE CLI on PATH");
       } catch {
         s.stop("Could not install (permission denied)");
-        clack.log.warn("Try: sudo npm install -g @aide/cli");
+        clack.log.warn("Try: sudo npm install -g @aide-dev/cli");
       }
     } else {
       clack.log.info(

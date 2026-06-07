@@ -6,12 +6,12 @@
  * are compiled, keeping V8 WASM memory pressure low on large codebases.
  */
 
-import * as path from 'path';
-import { fileURLToPath } from 'node:url';
-import { createRequire } from 'node:module';
-import { Parser, Language as WasmLanguage } from 'web-tree-sitter';
-import { type Language } from '../types.js';
-import { logWarn } from '../errors.js';
+import * as path from "path";
+import { fileURLToPath } from "node:url";
+import { createRequire } from "node:module";
+import { Parser, Language as WasmLanguage } from "web-tree-sitter";
+import { type Language } from "../types.js";
+import { logWarn } from "../errors.js";
 
 // `require` is not available in ESM. `createRequire` lets us call
 // `require.resolve` against the current module's URL — used to locate
@@ -20,7 +20,7 @@ const requireFromHere = createRequire(import.meta.url);
 
 export type GrammarLanguage = Exclude<
   Language,
-  'svelte' | 'vue' | 'liquid' | 'yaml' | 'twig' | 'unknown'
+  "svelte" | "vue" | "liquid" | "yaml" | "twig" | "unknown"
 >;
 
 /**
@@ -28,81 +28,81 @@ export type GrammarLanguage = Exclude<
  * in the tree-sitter-wasms package.
  */
 const WASM_GRAMMAR_FILES: Record<GrammarLanguage, string> = {
-  typescript: 'tree-sitter-typescript.wasm',
-  tsx: 'tree-sitter-tsx.wasm',
-  javascript: 'tree-sitter-javascript.wasm',
-  jsx: 'tree-sitter-javascript.wasm',
-  python: 'tree-sitter-python.wasm',
-  go: 'tree-sitter-go.wasm',
-  rust: 'tree-sitter-rust.wasm',
-  java: 'tree-sitter-java.wasm',
-  c: 'tree-sitter-c.wasm',
-  cpp: 'tree-sitter-cpp.wasm',
-  csharp: 'tree-sitter-c_sharp.wasm',
-  php: 'tree-sitter-php.wasm',
-  ruby: 'tree-sitter-ruby.wasm',
-  swift: 'tree-sitter-swift.wasm',
-  kotlin: 'tree-sitter-kotlin.wasm',
-  dart: 'tree-sitter-dart.wasm',
-  pascal: 'tree-sitter-pascal.wasm',
-  scala: 'tree-sitter-scala.wasm',
-  lua: 'tree-sitter-lua.wasm',
-  luau: 'tree-sitter-luau.wasm',
+  typescript: "tree-sitter-typescript.wasm",
+  tsx: "tree-sitter-tsx.wasm",
+  javascript: "tree-sitter-javascript.wasm",
+  jsx: "tree-sitter-javascript.wasm",
+  python: "tree-sitter-python.wasm",
+  go: "tree-sitter-go.wasm",
+  rust: "tree-sitter-rust.wasm",
+  java: "tree-sitter-java.wasm",
+  c: "tree-sitter-c.wasm",
+  cpp: "tree-sitter-cpp.wasm",
+  csharp: "tree-sitter-c_sharp.wasm",
+  php: "tree-sitter-php.wasm",
+  ruby: "tree-sitter-ruby.wasm",
+  swift: "tree-sitter-swift.wasm",
+  kotlin: "tree-sitter-kotlin.wasm",
+  dart: "tree-sitter-dart.wasm",
+  pascal: "tree-sitter-pascal.wasm",
+  scala: "tree-sitter-scala.wasm",
+  lua: "tree-sitter-lua.wasm",
+  luau: "tree-sitter-luau.wasm",
 };
 
 /**
  * File extension to Language mapping
  */
 export const EXTENSION_MAP: Record<string, Language> = {
-  '.ts': 'typescript',
-  '.tsx': 'tsx',
-  '.js': 'javascript',
-  '.mjs': 'javascript',
-  '.cjs': 'javascript',
-  '.jsx': 'jsx',
-  '.py': 'python',
-  '.pyw': 'python',
-  '.go': 'go',
-  '.rs': 'rust',
-  '.java': 'java',
-  '.c': 'c',
-  '.h': 'c', // Could also be C++, defaulting to C
-  '.cpp': 'cpp',
-  '.cc': 'cpp',
-  '.cxx': 'cpp',
-  '.hpp': 'cpp',
-  '.hxx': 'cpp',
-  '.cs': 'csharp',
-  '.php': 'php',
+  ".ts": "typescript",
+  ".tsx": "tsx",
+  ".js": "javascript",
+  ".mjs": "javascript",
+  ".cjs": "javascript",
+  ".jsx": "jsx",
+  ".py": "python",
+  ".pyw": "python",
+  ".go": "go",
+  ".rs": "rust",
+  ".java": "java",
+  ".c": "c",
+  ".h": "c", // Could also be C++, defaulting to C
+  ".cpp": "cpp",
+  ".cc": "cpp",
+  ".cxx": "cpp",
+  ".hpp": "cpp",
+  ".hxx": "cpp",
+  ".cs": "csharp",
+  ".php": "php",
   // Drupal-specific PHP file extensions
-  '.module': 'php',
-  '.install': 'php',
-  '.theme': 'php',
-  '.inc': 'php',
+  ".module": "php",
+  ".install": "php",
+  ".theme": "php",
+  ".inc": "php",
   // YAML (used for Drupal routing files; no symbol extraction, file-level tracking only)
-  '.yml': 'yaml',
-  '.yaml': 'yaml',
+  ".yml": "yaml",
+  ".yaml": "yaml",
   // Twig templates (file-level tracking only, no symbol extraction)
-  '.twig': 'twig',
-  '.rb': 'ruby',
-  '.rake': 'ruby',
-  '.swift': 'swift',
-  '.kt': 'kotlin',
-  '.kts': 'kotlin',
-  '.dart': 'dart',
-  '.liquid': 'liquid',
-  '.svelte': 'svelte',
-  '.vue': 'vue',
-  '.pas': 'pascal',
-  '.dpr': 'pascal',
-  '.dpk': 'pascal',
-  '.lpr': 'pascal',
-  '.dfm': 'pascal',
-  '.fmx': 'pascal',
-  '.scala': 'scala',
-  '.sc': 'scala',
-  '.lua': 'lua',
-  '.luau': 'luau',
+  ".twig": "twig",
+  ".rb": "ruby",
+  ".rake": "ruby",
+  ".swift": "swift",
+  ".kt": "kotlin",
+  ".kts": "kotlin",
+  ".dart": "dart",
+  ".liquid": "liquid",
+  ".svelte": "svelte",
+  ".vue": "vue",
+  ".pas": "pascal",
+  ".dpr": "pascal",
+  ".dpk": "pascal",
+  ".lpr": "pascal",
+  ".dfm": "pascal",
+  ".fmx": "pascal",
+  ".scala": "scala",
+  ".sc": "scala",
+  ".lua": "lua",
+  ".luau": "luau",
 };
 
 /**
@@ -111,7 +111,7 @@ export const EXTENSION_MAP: Record<string, Language> = {
  * from EXTENSION_MAP so parser support and indexing selection never drift.
  */
 export function isSourceFile(filePath: string): boolean {
-  const dot = filePath.lastIndexOf('.');
+  const dot = filePath.lastIndexOf(".");
   if (dot < 0) return false;
   return filePath.slice(dot).toLowerCase() in EXTENSION_MAP;
 }
@@ -143,7 +143,9 @@ export async function initGrammars(): Promise<void> {
  * Skips languages that are already loaded or have no WASM grammar.
  * Must be called after initGrammars().
  */
-export async function loadGrammarsForLanguages(languages: Language[]): Promise<void> {
+export async function loadGrammarsForLanguages(
+  languages: Language[],
+): Promise<void> {
   if (!parserInitialized) {
     await initGrammars();
   }
@@ -151,7 +153,9 @@ export async function loadGrammarsForLanguages(languages: Language[]): Promise<v
   // Deduplicate and filter to languages that have WASM grammars and aren't already loaded
   const toLoad = [...new Set(languages)].filter(
     (lang): lang is GrammarLanguage =>
-      lang in WASM_GRAMMAR_FILES && !languageCache.has(lang) && !unavailableGrammarErrors.has(lang),
+      lang in WASM_GRAMMAR_FILES &&
+      !languageCache.has(lang) &&
+      !unavailableGrammarErrors.has(lang),
   );
 
   // Load grammars sequentially to avoid web-tree-sitter WASM race condition on Node 20+
@@ -169,14 +173,19 @@ export async function loadGrammarsForLanguages(languages: Language[]): Promise<v
       const __filename = fileURLToPath(import.meta.url);
       const __dirname = path.dirname(__filename);
       const wasmPath =
-        lang === 'pascal' || lang === 'scala' || lang === 'lua' || lang === 'luau'
-          ? path.join(__dirname, 'wasm', wasmFile)
+        lang === "pascal" ||
+        lang === "scala" ||
+        lang === "lua" ||
+        lang === "luau"
+          ? path.join(__dirname, "wasm", wasmFile)
           : requireFromHere.resolve(`tree-sitter-wasms/out/${wasmFile}`);
       const language = await WasmLanguage.load(wasmPath);
       languageCache.set(lang, language);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      logWarn(`Failed to load ${lang} grammar — parsing will be unavailable`, { error: message });
+      logWarn(`Failed to load ${lang} grammar — parsing will be unavailable`, {
+        error: message,
+      });
       unavailableGrammarErrors.set(lang, message);
     }
   }
@@ -222,12 +231,12 @@ export function getParser(language: Language): Parser | null {
  * Detect language from file extension
  */
 export function detectLanguage(filePath: string, source?: string): Language {
-  const ext = filePath.substring(filePath.lastIndexOf('.')).toLowerCase();
-  const lang = EXTENSION_MAP[ext] || 'unknown';
+  const ext = filePath.substring(filePath.lastIndexOf(".")).toLowerCase();
+  const lang = EXTENSION_MAP[ext] || "unknown";
 
   // .h files could be C or C++ — check source content for C++ features
-  if (lang === 'c' && ext === '.h' && source) {
-    if (looksLikeCpp(source)) return 'cpp';
+  if (lang === "c" && ext === ".h" && source) {
+    if (looksLikeCpp(source)) return "cpp";
   }
 
   return lang;
@@ -249,12 +258,12 @@ function looksLikeCpp(source: string): boolean {
  * Returns true if the grammar exists, even if not yet loaded.
  */
 export function isLanguageSupported(language: Language): boolean {
-  if (language === 'svelte') return true; // custom extractor (script block delegation)
-  if (language === 'vue') return true; // custom extractor (script block delegation)
-  if (language === 'liquid') return true; // custom regex extractor
-  if (language === 'yaml') return true; // file-level tracking only; Drupal routing extraction via framework resolver
-  if (language === 'twig') return true; // file-level tracking only
-  if (language === 'unknown') return false;
+  if (language === "svelte") return true; // custom extractor (script block delegation)
+  if (language === "vue") return true; // custom extractor (script block delegation)
+  if (language === "liquid") return true; // custom regex extractor
+  if (language === "yaml") return true; // file-level tracking only; Drupal routing extraction via framework resolver
+  if (language === "twig") return true; // file-level tracking only
+  if (language === "unknown") return false;
   return language in WASM_GRAMMAR_FILES;
 }
 
@@ -262,8 +271,9 @@ export function isLanguageSupported(language: Language): boolean {
  * Check if a grammar has been loaded and is ready for parsing.
  */
 export function isGrammarLoaded(language: Language): boolean {
-  if (language === 'svelte' || language === 'vue' || language === 'liquid') return true;
-  if (language === 'yaml' || language === 'twig') return true; // no WASM grammar needed
+  if (language === "svelte" || language === "vue" || language === "liquid")
+    return true;
+  if (language === "yaml" || language === "twig") return true; // no WASM grammar needed
   return languageCache.has(language);
 }
 
@@ -271,7 +281,12 @@ export function isGrammarLoaded(language: Language): boolean {
  * Get all supported languages (those with grammar definitions).
  */
 export function getSupportedLanguages(): Language[] {
-  return [...(Object.keys(WASM_GRAMMAR_FILES) as GrammarLanguage[]), 'svelte', 'vue', 'liquid'];
+  return [
+    ...(Object.keys(WASM_GRAMMAR_FILES) as GrammarLanguage[]),
+    "svelte",
+    "vue",
+    "liquid",
+  ];
 }
 
 /**
@@ -305,7 +320,9 @@ export function clearParserCache(): void {
 /**
  * Report grammars that failed to load.
  */
-export function getUnavailableGrammarErrors(): Partial<Record<Language, string>> {
+export function getUnavailableGrammarErrors(): Partial<
+  Record<Language, string>
+> {
   const out: Partial<Record<Language, string>> = {};
   for (const [language, message] of unavailableGrammarErrors.entries()) {
     out[language] = message;
@@ -318,32 +335,32 @@ export function getUnavailableGrammarErrors(): Partial<Record<Language, string>>
  */
 export function getLanguageDisplayName(language: Language): string {
   const names: Record<Language, string> = {
-    typescript: 'TypeScript',
-    javascript: 'JavaScript',
-    tsx: 'TypeScript (TSX)',
-    jsx: 'JavaScript (JSX)',
-    python: 'Python',
-    go: 'Go',
-    rust: 'Rust',
-    java: 'Java',
-    c: 'C',
-    cpp: 'C++',
-    csharp: 'C#',
-    php: 'PHP',
-    ruby: 'Ruby',
-    swift: 'Swift',
-    kotlin: 'Kotlin',
-    dart: 'Dart',
-    svelte: 'Svelte',
-    vue: 'Vue',
-    liquid: 'Liquid',
-    pascal: 'Pascal / Delphi',
-    scala: 'Scala',
-    lua: 'Lua',
-    luau: 'Luau',
-    yaml: 'YAML',
-    twig: 'Twig',
-    unknown: 'Unknown',
+    typescript: "TypeScript",
+    javascript: "JavaScript",
+    tsx: "TypeScript (TSX)",
+    jsx: "JavaScript (JSX)",
+    python: "Python",
+    go: "Go",
+    rust: "Rust",
+    java: "Java",
+    c: "C",
+    cpp: "C++",
+    csharp: "C#",
+    php: "PHP",
+    ruby: "Ruby",
+    swift: "Swift",
+    kotlin: "Kotlin",
+    dart: "Dart",
+    svelte: "Svelte",
+    vue: "Vue",
+    liquid: "Liquid",
+    pascal: "Pascal / Delphi",
+    scala: "Scala",
+    lua: "Lua",
+    luau: "Luau",
+    yaml: "YAML",
+    twig: "Twig",
+    unknown: "Unknown",
   };
   return names[language] || language;
 }

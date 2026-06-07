@@ -3,7 +3,7 @@
  * 处理 OpenAI 和 Anthropic 两种 SSE 格式的解析与转发
  */
 
-import type { SSEEvent, UsageInfo } from '../types.js';
+import type { SSEEvent, UsageInfo } from "../types.js";
 
 /**
  * 解析 SSE 流，返回 async generator
@@ -27,52 +27,52 @@ export async function* parseRawSSEStream(
   decoder?: InstanceType<typeof TextDecoder>,
 ): AsyncGenerator<SSEEvent, void, undefined> {
   const textDecoder = decoder || new TextDecoder();
-  let buffer = '';
-  let currentEvent = '';
+  let buffer = "";
+  let currentEvent = "";
 
   for await (const chunk of reader) {
     buffer += textDecoder.decode(chunk, { stream: true });
-    const lines = buffer.split('\n');
+    const lines = buffer.split("\n");
     // 保留最后一行（可能不完整）
-    buffer = lines.pop() || '';
+    buffer = lines.pop() || "";
 
-    let eventData = '';
+    let eventData = "";
 
     for (const line of lines) {
       const trimmed = line.trim();
 
       // 空行表示事件结束
-      if (trimmed === '') {
+      if (trimmed === "") {
         if (eventData) {
           yield {
             event: currentEvent || undefined,
             data: eventData,
           };
-          eventData = '';
-          currentEvent = '';
+          eventData = "";
+          currentEvent = "";
         }
         continue;
       }
 
       // event: 类型行
-      if (trimmed.startsWith('event:')) {
+      if (trimmed.startsWith("event:")) {
         currentEvent = trimmed.slice(6).trim();
         continue;
       }
 
       // data: 数据行
-      if (trimmed.startsWith('data:')) {
+      if (trimmed.startsWith("data:")) {
         const data = trimmed.slice(5).trim();
         // OpenAI 结束标记
-        if (data === '[DONE]') {
+        if (data === "[DONE]") {
           return;
         }
-        eventData = eventData ? eventData + '\n' + data : data;
+        eventData = eventData ? eventData + "\n" + data : data;
         continue;
       }
 
       // id: 和 retry: 行，忽略
-      if (trimmed.startsWith('id:') || trimmed.startsWith('retry:')) {
+      if (trimmed.startsWith("id:") || trimmed.startsWith("retry:")) {
         continue;
       }
     }
@@ -81,9 +81,9 @@ export async function* parseRawSSEStream(
   // 处理缓冲区中剩余内容
   if (buffer.trim()) {
     const trimmed = buffer.trim();
-    if (trimmed.startsWith('data:')) {
+    if (trimmed.startsWith("data:")) {
       const data = trimmed.slice(5).trim();
-      if (data && data !== '[DONE]') {
+      if (data && data !== "[DONE]") {
         yield {
           event: currentEvent || undefined,
           data,
@@ -101,7 +101,7 @@ export async function forwardSSE(
   source: AsyncGenerator<SSEEvent, void, undefined>,
   writable: NodeJS.WritableStream,
 ): Promise<void> {
-  writable.write(''); // 触发 headers 发送
+  writable.write(""); // 触发 headers 发送
 
   try {
     for await (const event of source) {
@@ -113,7 +113,7 @@ export async function forwardSSE(
       writable.write(`data: ${event.data}\n\n`);
     }
     // 发送结束标记
-    writable.write('data: [DONE]\n\n');
+    writable.write("data: [DONE]\n\n");
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     // 发送错误事件
@@ -147,12 +147,14 @@ export function extractTokenUsageFromSSE(events: SSEEvent[]): UsageInfo | null {
 /**
  * 从 Anthropic SSE 事件中提取 token 使用信息
  */
-export function extractTokenUsageFromAnthropicSSE(events: SSEEvent[]): UsageInfo | null {
+export function extractTokenUsageFromAnthropicSSE(
+  events: SSEEvent[],
+): UsageInfo | null {
   for (let i = events.length - 1; i >= 0; i--) {
     try {
       const parsed = JSON.parse(events[i].data);
       // Anthropic message_start 或 message_delta 事件包含 usage
-      if (parsed.type === 'message_start' && parsed.message?.usage) {
+      if (parsed.type === "message_start" && parsed.message?.usage) {
         const usage = parsed.message.usage;
         return {
           prompt_tokens: usage.input_tokens || 0,
@@ -160,7 +162,7 @@ export function extractTokenUsageFromAnthropicSSE(events: SSEEvent[]): UsageInfo
           total_tokens: (usage.input_tokens || 0) + (usage.output_tokens || 0),
         };
       }
-      if (parsed.type === 'message_delta' && parsed.usage) {
+      if (parsed.type === "message_delta" && parsed.usage) {
         const usage = parsed.usage;
         return {
           prompt_tokens: 0,
@@ -179,7 +181,10 @@ export function extractTokenUsageFromAnthropicSSE(events: SSEEvent[]): UsageInfo
  * 收集 SSE 事件并估算 token 使用量
  * 当流中没有 usage 信息时，通过文本长度估算
  */
-export function estimateTokenUsage(promptText: string, completionText: string): UsageInfo {
+export function estimateTokenUsage(
+  promptText: string,
+  completionText: string,
+): UsageInfo {
   // 粗略估算：英文约4字符/token，中文约2字符/token
   const estimateTokens = (text: string): number => {
     const cjkChars = (text.match(/[\u4e00-\u9fff\u3400-\u4dbf]/g) || []).length;

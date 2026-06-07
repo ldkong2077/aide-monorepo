@@ -7,33 +7,52 @@
 
 /** AI coding task types */
 export enum TaskType {
-  code_completion = 'code_completion',
-  code_generation = 'code_generation',
-  debugging = 'debugging',
-  refactoring = 'refactoring',
-  code_review = 'code_review',
-  explanation = 'explanation',
-  testing = 'testing',
-  general = 'general',
+  code_completion = "code_completion",
+  code_generation = "code_generation",
+  debugging = "debugging",
+  refactoring = "refactoring",
+  code_review = "code_review",
+  explanation = "explanation",
+  testing = "testing",
+  general = "general",
 }
 
 /** Risk level for diff changes */
-export type RiskLevel = 'critical' | 'high' | 'medium' | 'low';
+export type RiskLevel = "critical" | "high" | "medium" | "low";
 
 /** Severity for reports */
-export type Severity = 'critical' | 'high' | 'medium' | 'low' | 'info';
+export type Severity = "critical" | "high" | "medium" | "low" | "info";
 
 /** Verification verdict */
-export type Verdict = 'TRUST' | 'REVIEW' | 'REJECT';
+export type Verdict = "TRUST" | "REVIEW" | "REJECT";
 
 /** Supported languages */
-export type Language = 'python' | 'typescript' | 'javascript' | 'go' | 'unknown';
+export type Language =
+  | "python"
+  | "typescript"
+  | "javascript"
+  | "go"
+  | "java"
+  | "rust"
+  | "ruby"
+  | "php"
+  | "c"
+  | "cpp"
+  | "kotlin"
+  | "swift"
+  | "csharp"
+  | "unknown";
 
 /** Test framework types */
-export type TestFramework = 'vitest' | 'jest' | 'pytest' | 'go_test' | 'unknown';
+export type TestFramework =
+  | "vitest"
+  | "jest"
+  | "pytest"
+  | "go_test"
+  | "unknown";
 
 /** Route strategy */
-export type RouteStrategy = 'cost' | 'quality' | 'balanced';
+export type RouteStrategy = "cost" | "quality" | "balanced";
 
 // ==================== Provider Types ====================
 
@@ -45,6 +64,12 @@ export interface ProviderConfig {
   models: string[];
   enabled: boolean;
   pricing?: Record<string, { input: number; output: number }>;
+  /**
+   * Per-attempt wall-clock timeout in ms. Each retry attempt is
+   * independently timed, so a 60s budget with 3 retries caps the
+   * total wait at ~4 minutes worst case. Default: 60 000.
+   */
+  requestTimeoutMs?: number;
 }
 
 /** Model configuration */
@@ -63,7 +88,7 @@ export interface ModelConfig {
 
 /** Chat message */
 export interface ChatMessage {
-  role: 'system' | 'user' | 'assistant' | 'tool';
+  role: "system" | "user" | "assistant" | "tool";
   content: string;
   name?: string;
   tool_call_id?: string;
@@ -73,7 +98,7 @@ export interface ChatMessage {
 /** Tool call */
 export interface ToolCall {
   id: string;
-  type: 'function';
+  type: "function";
   function: { name: string; arguments: string };
 }
 
@@ -176,12 +201,12 @@ export interface RoutingEntry {
 // ==================== CodeGuard Types ====================
 
 /** Hallucination type */
-export type HallucinationType = 'package' | 'api' | 'identifier' | 'logic';
+export type HallucinationType = "package" | "api" | "identifier" | "logic";
 
 /** Hallucination report */
 export interface HallucinationReport {
   type?: HallucinationType;
-  category?: 'package_import' | 'api_signature' | 'ai_pattern' | 'logic_issue';
+  category?: "package_import" | "api_signature" | "ai_pattern" | "logic_issue";
   severity: Severity;
   message: string;
   line?: number;
@@ -194,14 +219,14 @@ export interface HallucinationReport {
 
 /** Change type enum */
 export enum ChangeType {
-  SIGNATURE_CHANGE = 'SIGNATURE_CHANGE',
-  LOGIC_CHANGE = 'LOGIC_CHANGE',
-  API_CHANGE = 'API_CHANGE',
-  GUARD_REMOVED = 'GUARD_REMOVED',
-  NEW_FUNCTION = 'NEW_FUNCTION',
-  DELETED_FUNCTION = 'DELETED_FUNCTION',
-  REFACTOR = 'REFACTOR',
-  COSMETIC = 'COSMETIC',
+  SIGNATURE_CHANGE = "SIGNATURE_CHANGE",
+  LOGIC_CHANGE = "LOGIC_CHANGE",
+  API_CHANGE = "API_CHANGE",
+  GUARD_REMOVED = "GUARD_REMOVED",
+  NEW_FUNCTION = "NEW_FUNCTION",
+  DELETED_FUNCTION = "DELETED_FUNCTION",
+  REFACTOR = "REFACTOR",
+  COSMETIC = "COSMETIC",
 }
 
 /** Single diff change */
@@ -219,7 +244,7 @@ export interface DiffChange {
 export interface DiffResult {
   filePath: string;
   changes: DiffChange[];
-  riskScore: number;
+  riskScore: number; // 0–1, where 1 = highest risk
   summary?: string;
 }
 
@@ -261,7 +286,7 @@ export interface VerifyOptions {
   diff?: { base: string; head: string };
   staged?: boolean;
   noTest?: boolean;
-  format?: 'console' | 'json' | 'markdown';
+  format?: "console" | "json" | "markdown";
   minScore?: number;
 }
 
@@ -305,6 +330,19 @@ export interface CorsConfig {
   credentials?: boolean;
 }
 
+/** Per-token rate-limit policy. When set, the proxy caps the request
+ *  volume per Bearer token using a continuous token-bucket. */
+export interface RateLimitConfig {
+  /** Maximum tokens in a full bucket. Default: 60. */
+  limit?: number;
+  /** Time (ms) to fully refill an empty bucket. Default: 60 000 (1 min). */
+  windowMs?: number;
+}
+
+/** Log line format. `json` is required for log aggregation
+ *  (Loki / Splunk / ES); `pretty` is for local development. */
+export type LogFormat = "json" | "pretty";
+
 /** Server config */
 export interface ServerConfig {
   port: number;
@@ -315,17 +353,14 @@ export interface ServerConfig {
    *  bundled AIDE dashboard works out of the box; production
    *  deployments MUST set this to their public origin. */
   cors?: CorsConfig;
-  /**
-   * Per-Bearer-token rate limit. Optional — when omitted, requests
-   * are not throttled by the limiter (other gates like the tenant
-   * cost circuit still apply).
-   */
-  rateLimit?: {
-    /** Max requests per `windowMs` per token. */
-    limit?: number;
-    /** Window length in ms. */
-    windowMs?: number;
-  };
+  /** When set, the proxy enforces per-Bearer-token rate limits. */
+  rateLimit?: RateLimitConfig;
+  /** When `'json'`, the proxy logs one JSON object per line
+   *  (the default pino behaviour). When `'pretty'`, it routes
+   *  through `pino-pretty` for coloured, human-readable output.
+   *  Defaults to `'pretty'` for dev, but the CLI also honours the
+   *  `LOG_FORMAT=json` environment variable. */
+  logFormat?: LogFormat;
   /**
    * Token budget. Optional — when omitted, the proxy does not
    * pre-flight the prompt token count or track per-tenant daily
@@ -338,6 +373,34 @@ export interface ServerConfig {
     maxTokensPerTenantPerDay?: number;
     /** Circuit-open window after a daily overflow, in ms. */
     circuitResetMs?: number;
+  };
+  /**
+   * Redis configuration. When set, rate-limit, tenant-circuit, and
+   * cache state are stored in Redis instead of process-local memory,
+   * enabling multi-replica deployments behind a load balancer.
+   */
+  redis?: {
+    /** Redis connection URL, e.g. `redis://localhost:6379`.
+     *  Supports all ioredis connection formats including TLS
+     *  (`rediss://`) and Unix sockets. */
+    url: string;
+    /**
+     * Optional connection options passed directly to ioredis.
+     * Useful for `enableReadyCheck`, `maxRetriesPerRequest`,
+     * `enableOfflineQueue`, etc.
+     */
+    connectOptions?: Record<string, unknown>;
+    /**
+     * Cache backend: `'sqlite'` (default, persistent, single-replica)
+     * or `'redis'` (shared, multi-replica). When `'redis'`, the
+     * LLM response cache uses Redis TTL instead of SQLite.
+     */
+    cacheType?: "sqlite" | "redis";
+    /**
+     * Optional key prefix for all AIDE Redis keys. Default: `'aide:'`.
+     * Change when sharing a Redis instance with other applications.
+     */
+    keyPrefix?: string;
   };
 }
 
@@ -421,7 +484,7 @@ export interface MCPToolDefinition {
   name: string;
   description: string;
   inputSchema: {
-    type: 'object';
+    type: "object";
     properties: Record<string, MCPPropertySchema>;
     required?: string[];
   };
@@ -437,17 +500,22 @@ export interface MCPPropertySchema {
 
 /** MCP tool result */
 export interface MCPToolResult {
-  content: { type: 'text'; text: string }[];
+  content: { type: "text"; text: string }[];
   isError?: boolean;
 }
 
 // ==================== Installer Types ====================
 
 /** Installer target ID */
-export type InstallerTargetId = 'claude' | 'cursor' | 'codex' | 'vscode' | 'windsurf' | 'opencode';
+export type InstallerTargetId =
+  | "claude"
+  | "cursor"
+  | "codex"
+  | "opencode"
+  | "hermes";
 
 /** Install location */
-export type InstallLocation = 'global' | 'local';
+export type InstallLocation = "global" | "local";
 
 /** Target detection result */
 export interface TargetDetectionResult {
@@ -460,7 +528,7 @@ export interface TargetDetectionResult {
 export interface TargetWriteResult {
   files: {
     path: string;
-    action: 'created' | 'updated' | 'unchanged' | 'removed' | 'not-found';
+    action: "created" | "updated" | "unchanged" | "removed" | "not-found";
   }[];
   notes?: string[];
 }

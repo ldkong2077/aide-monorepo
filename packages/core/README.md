@@ -1,13 +1,13 @@
-# @aide/core
+# @aide-dev/core
 
 > Shared primitives: types, config loading, structured logging, error types, metrics, and the SQLite storage helper.
 
-Most `@aide/*` packages depend on `@aide/core`. It has no AI/LLM dependencies of its own.
+Most `@aide-dev/*` packages depend on `@aide-dev/core`. It has no AI/LLM dependencies of its own.
 
 ## Install
 
 ```bash
-npm install @aide/core
+npm install @aide-dev/core
 ```
 
 ## What's in here
@@ -22,19 +22,19 @@ npm install @aide/core
 ## Usage
 
 ```ts
-import { loadConfig, createLogger, MetricsCollector } from '@aide/core';
+import { loadConfig, createLogger, MetricsCollector } from "@aide-dev/core";
 
 const config = loadConfig();
-const log = createLogger({ module: 'my-feature' });
+const log = createLogger({ module: "my-feature" });
 const metrics = new MetricsCollector();
 
-const timer = metrics.startTimer('expensive-op');
+const timer = metrics.startTimer("expensive-op");
 try {
   await doWork();
   timer.stop(true);
 } catch (e) {
   timer.stop(false, { error: String(e) });
-  log.error({ err: e }, 'op failed');
+  log.error({ err: e }, "op failed");
 }
 ```
 

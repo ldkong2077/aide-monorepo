@@ -4,8 +4,8 @@
  * Types for the reference resolution system.
  */
 
-import { type EdgeKind, type Language, type Node } from '../types.js';
-import type { AliasMap } from './path-aliases.js';
+import { type EdgeKind, type Language, type Node } from "../types.js";
+import type { AliasMap } from "./path-aliases.js";
 
 /**
  * An unresolved reference from extraction
@@ -41,13 +41,13 @@ export interface ResolvedRef {
   confidence: number;
   /** How it was resolved */
   resolvedBy:
-    | 'exact-match'
-    | 'import'
-    | 'qualified-name'
-    | 'framework'
-    | 'fuzzy'
-    | 'instance-method'
-    | 'file-path';
+    | "exact-match"
+    | "import"
+    | "qualified-name"
+    | "framework"
+    | "fuzzy"
+    | "instance-method"
+    | "file-path";
 }
 
 /**
@@ -78,7 +78,7 @@ export interface ResolutionContext {
   /** Get all nodes by qualified name */
   getNodesByQualifiedName(qualifiedName: string): Node[];
   /** Get all nodes of a kind */
-  getNodesByKind(kind: Node['kind']): Node[];
+  getNodesByKind(kind: Node["kind"]): Node[];
   /** Check if a file exists */
   fileExists(filePath: string): boolean;
   /** Read file content */
@@ -175,7 +175,7 @@ export interface ImportMapping {
  */
 export type ReExport =
   | {
-      kind: 'named';
+      kind: "named";
       /** Name as exported by THIS file. */
       exportedName: string;
       /** Name in the upstream module (differs when renamed: `as`). */
@@ -184,7 +184,7 @@ export type ReExport =
       source: string;
     }
   | {
-      kind: 'wildcard';
+      kind: "wildcard";
       /** Module specifier of the upstream module. */
       source: string;
     };

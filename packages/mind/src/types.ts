@@ -4,18 +4,18 @@
  */
 
 /** Processing mode for mind_process */
-export type MindMode = 'brainstorm' | 'plan' | 'full';
+export type MindMode = "brainstorm" | "plan" | "full";
 
 /** Brainstorming step */
 export type BrainstormStep =
-  | 'explore_context'
-  | 'ask_questions'
-  | 'propose_approaches'
-  | 'present_design'
-  | 'write_documents'
-  | 'self_review'
-  | 'user_approval'
-  | 'transition';
+  | "explore_context"
+  | "ask_questions"
+  | "propose_approaches"
+  | "present_design"
+  | "write_documents"
+  | "self_review"
+  | "user_approval"
+  | "transition";
 
 /** Clarifying question */
 export interface ClarifyingQuestion {
@@ -33,7 +33,7 @@ export interface ProposedApproach {
   description: string;
   pros: string[];
   cons: string[];
-  complexity: 'low' | 'medium' | 'high';
+  complexity: "low" | "medium" | "high";
   estimatedTime: string;
   techStack: string[];
 }
@@ -56,7 +56,7 @@ export interface DesignDocument {
   metadata: {
     createdAt: string;
     version: string;
-    status: 'draft' | 'review' | 'approved';
+    status: "draft" | "review" | "approved";
   };
 }
 
@@ -69,7 +69,7 @@ export interface ImplementationTask {
   dependencies: string[];
   verification: string[];
   estimatedTime: string;
-  priority: 'high' | 'medium' | 'low';
+  priority: "high" | "medium" | "low";
 }
 
 /** Plan document */
@@ -81,7 +81,7 @@ export interface PlanDocument {
     createdAt: string;
     version: string;
     totalEstimatedTime: string;
-    status: 'draft' | 'review' | 'approved';
+    status: "draft" | "review" | "approved";
   };
 }
 

@@ -22,27 +22,41 @@
  *      `@Resolver` class, which is what disambiguates the two.
  */
 
-import { type Node } from '../../types.js';
-import { type FrameworkResolver, type UnresolvedRef, type ResolvedRef, type ResolutionContext } from '../types.js';
-import { stripCommentsForRegex } from '../strip-comments.js';
+import { type Node } from "../../types.js";
+import {
+  type FrameworkResolver,
+  type UnresolvedRef,
+  type ResolvedRef,
+  type ResolutionContext,
+} from "../types.js";
+import { stripCommentsForRegex } from "../strip-comments.js";
 
-type JsLang = 'typescript' | 'javascript';
+type JsLang = "typescript" | "javascript";
 
-const HTTP_METHODS = ['Get', 'Post', 'Put', 'Patch', 'Delete', 'Head', 'Options', 'All'];
-const GQL_OPS = ['Query', 'Mutation', 'Subscription'];
+const HTTP_METHODS = [
+  "Get",
+  "Post",
+  "Put",
+  "Patch",
+  "Delete",
+  "Head",
+  "Options",
+  "All",
+];
+const GQL_OPS = ["Query", "Mutation", "Subscription"];
 
 export const nestjsResolver: FrameworkResolver = {
-  name: 'nestjs',
-  languages: ['typescript', 'javascript'],
+  name: "nestjs",
+  languages: ["typescript", "javascript"],
 
   detect(context: ResolutionContext): boolean {
     // Primary, fast path: any @nestjs/* dependency in package.json.
-    const packageJson = context.readFile('package.json');
+    const packageJson = context.readFile("package.json");
     if (packageJson) {
       try {
         const pkg = JSON.parse(packageJson);
         const deps = { ...pkg.dependencies, ...pkg.devDependencies };
-        if (Object.keys(deps).some((k) => k.startsWith('@nestjs/'))) {
+        if (Object.keys(deps).some((k) => k.startsWith("@nestjs/"))) {
           return true;
         }
       } catch {
@@ -54,20 +68,20 @@ export const nestjsResolver: FrameworkResolver = {
     const allFiles = context.getAllFiles();
     for (const file of allFiles) {
       if (
-        file.endsWith('.controller.ts') ||
-        file.endsWith('.controller.js') ||
-        file.endsWith('.module.ts') ||
-        file.endsWith('.resolver.ts') ||
-        file.endsWith('.gateway.ts')
+        file.endsWith(".controller.ts") ||
+        file.endsWith(".controller.js") ||
+        file.endsWith(".module.ts") ||
+        file.endsWith(".resolver.ts") ||
+        file.endsWith(".gateway.ts")
       ) {
         const content = context.readFile(file);
         if (
           content &&
-          (content.includes('@nestjs/') ||
-            content.includes('@Controller') ||
-            content.includes('@Module(') ||
-            content.includes('@Resolver(') ||
-            content.includes('@WebSocketGateway('))
+          (content.includes("@nestjs/") ||
+            content.includes("@Controller") ||
+            content.includes("@Module(") ||
+            content.includes("@Resolver(") ||
+            content.includes("@WebSocketGateway("))
         ) {
           return true;
         }
@@ -85,7 +99,7 @@ export const nestjsResolver: FrameworkResolver = {
       if (!suffix.test(ref.referenceName)) continue;
       const candidates = context
         .getNodesByName(ref.referenceName)
-        .filter((n) => n.kind === 'class');
+        .filter((n) => n.kind === "class");
       if (candidates.length === 0) return null;
       const preferred = candidates.find((n) => n.filePath.includes(convention));
       const target = preferred ?? candidates[0];
@@ -93,14 +107,15 @@ export const nestjsResolver: FrameworkResolver = {
         original: ref,
         targetNodeId: target.id,
         confidence: preferred ? 0.85 : 0.7,
-        resolvedBy: 'framework',
+        resolvedBy: "framework",
       };
     }
     return null;
   },
 
   extract(filePath, content) {
-    if (!/\.(m?js|tsx?|cjs)$/.test(filePath)) return { nodes: [], references: [] };
+    if (!/\.(m?js|tsx?|cjs)$/.test(filePath))
+      return { nodes: [], references: [] };
     const nodes: Node[] = [];
     const references: UnresolvedRef[] = [];
     const now = Date.now();
@@ -117,7 +132,7 @@ export const nestjsResolver: FrameworkResolver = {
       const line = lineAt(safe, index);
       const node: Node = {
         id: `route:${filePath}:${line}:${method}:${path}`,
-        kind: 'route',
+        kind: "route",
         name: `${method} ${path}`,
         qualifiedName: `${filePath}::${method}:${path}`,
         filePath,
@@ -133,7 +148,7 @@ export const nestjsResolver: FrameworkResolver = {
         references.push({
           fromNodeId: node.id,
           referenceName: handler,
-          referenceKind: 'references',
+          referenceKind: "references",
           line,
           column: 0,
           filePath,
@@ -147,35 +162,56 @@ export const nestjsResolver: FrameworkResolver = {
     // HTTP routes: method decorator path joined onto the enclosing controller's prefix.
     for (const hit of findDecorators(safe, HTTP_METHODS)) {
       const scope = scopeFor(scopes, hit.index);
-      const prefix = scope?.kind === 'controller' ? scope.prefix : '';
+      const prefix = scope?.kind === "controller" ? scope.prefix : "";
       const path = joinHttpPath(prefix, parseStringArg(hit.args));
-      addRoute(hit.index, hit.name.toUpperCase(), path, hit.length, methodNameAfter(safe, hit.end));
+      addRoute(
+        hit.index,
+        hit.name.toUpperCase(),
+        path,
+        hit.length,
+        methodNameAfter(safe, hit.end),
+      );
     }
 
     // GraphQL operations: only inside an @Resolver class (disambiguates the
     // REST `@Query()` parameter decorator, which lives inside @Controller classes).
     for (const hit of findDecorators(safe, GQL_OPS)) {
       const scope = scopeFor(scopes, hit.index);
-      if (scope?.kind !== 'resolver') continue;
+      if (scope?.kind !== "resolver") continue;
       const handler = methodNameAfter(safe, hit.end);
       const name = parseGraphqlName(hit.args, handler);
       addRoute(hit.index, hit.name.toUpperCase(), name, hit.length, handler);
     }
 
     // Microservice message/event handlers.
-    for (const hit of findDecorators(safe, ['MessagePattern', 'EventPattern'])) {
-      const verb = hit.name === 'EventPattern' ? 'EVENT' : 'MESSAGE';
+    for (const hit of findDecorators(safe, [
+      "MessagePattern",
+      "EventPattern",
+    ])) {
+      const verb = hit.name === "EventPattern" ? "EVENT" : "MESSAGE";
       const handler = methodNameAfter(safe, hit.end);
-      addRoute(hit.index, verb, parseStringArg(hit.args) || handler || '', hit.length, handler);
+      addRoute(
+        hit.index,
+        verb,
+        parseStringArg(hit.args) || handler || "",
+        hit.length,
+        handler,
+      );
     }
 
     // WebSocket message handlers, prefixed with the gateway namespace when present.
-    for (const hit of findDecorators(safe, ['SubscribeMessage'])) {
+    for (const hit of findDecorators(safe, ["SubscribeMessage"])) {
       const scope = scopeFor(scopes, hit.index);
-      const namespace = scope?.kind === 'gateway' ? scope.prefix : '';
+      const namespace = scope?.kind === "gateway" ? scope.prefix : "";
       const handler = methodNameAfter(safe, hit.end);
-      const event = parseStringArg(hit.args) || handler || '';
-      addRoute(hit.index, 'WS', namespace ? `${namespace}:${event}` : event, hit.length, handler);
+      const event = parseStringArg(hit.args) || handler || "";
+      addRoute(
+        hit.index,
+        "WS",
+        namespace ? `${namespace}:${event}` : event,
+        hit.length,
+        handler,
+      );
     }
 
     return { nodes, references };
@@ -187,15 +223,15 @@ export const nestjsResolver: FrameworkResolver = {
 // ---------------------------------------------------------------------------
 
 const PROVIDER_CONVENTIONS: [RegExp, string][] = [
-  [/Service$/, '.service.'],
-  [/Controller$/, '.controller.'],
-  [/Resolver$/, '.resolver.'],
-  [/Gateway$/, '.gateway.'],
-  [/Repository$/, '.repository.'],
-  [/Guard$/, '.guard.'],
-  [/Interceptor$/, '.interceptor.'],
-  [/Pipe$/, '.pipe.'],
-  [/Module$/, '.module.'],
+  [/Service$/, ".service."],
+  [/Controller$/, ".controller."],
+  [/Resolver$/, ".resolver."],
+  [/Gateway$/, ".gateway."],
+  [/Repository$/, ".repository."],
+  [/Guard$/, ".guard."],
+  [/Interceptor$/, ".interceptor."],
+  [/Pipe$/, ".pipe."],
+  [/Module$/, ".module."],
 ];
 
 // ---------------------------------------------------------------------------
@@ -223,7 +259,7 @@ interface DecoratorHit {
  */
 function findDecorators(safe: string, names: string[]): DecoratorHit[] {
   const hits: DecoratorHit[] = [];
-  const re = new RegExp(`@(${names.join('|')})\\s*\\(`, 'g');
+  const re = new RegExp(`@(${names.join("|")})\\s*\\(`, "g");
   let m: RegExpExecArray | null;
   while ((m = re.exec(safe)) !== null) {
     const openIndex = m.index + m[0].length - 1; // position of '('
@@ -246,26 +282,29 @@ function findDecorators(safe: string, names: string[]): DecoratorHit[] {
  * String-aware, so parens inside string literals don't unbalance the count.
  * Returns the inner text and the index just past the closing `)`.
  */
-function readArgs(s: string, openIndex: number): { args: string; end: number } | null {
-  if (s[openIndex] !== '(') return null;
+function readArgs(
+  s: string,
+  openIndex: number,
+): { args: string; end: number } | null {
+  if (s[openIndex] !== "(") return null;
   let depth = 0;
   let inStr: string | null = null;
   for (let i = openIndex; i < s.length; i++) {
     const ch = s[i];
     if (inStr) {
-      if (ch === '\\') {
+      if (ch === "\\") {
         i++;
         continue;
       }
       if (ch === inStr) inStr = null;
       continue;
     }
-    if (ch === '"' || ch === "'" || ch === '`') {
+    if (ch === '"' || ch === "'" || ch === "`") {
       inStr = ch;
       continue;
     }
-    if (ch === '(') depth++;
-    else if (ch === ')') {
+    if (ch === "(") depth++;
+    else if (ch === ")") {
       depth--;
       if (depth === 0) return { args: s.slice(openIndex + 1, i), end: i + 1 };
     }
@@ -293,12 +332,12 @@ function methodNameAfter(safe: string, start: number): string | null {
   // Skip stacked decorators.
   for (;;) {
     eatWs();
-    if (safe[i] !== '@') break;
+    if (safe[i] !== "@") break;
     decoName.lastIndex = i;
     if (!decoName.exec(safe)) break;
     i = decoName.lastIndex;
     eatWs();
-    if (safe[i] === '(') {
+    if (safe[i] === "(") {
       const parsed = readArgs(safe, i);
       if (!parsed) return null;
       i = parsed.end;
@@ -326,7 +365,7 @@ function methodNameAfter(safe: string, start: number): string | null {
 // Class scopes (controller / resolver / gateway boundaries)
 // ---------------------------------------------------------------------------
 
-type ClassKind = 'controller' | 'resolver' | 'gateway' | 'other';
+type ClassKind = "controller" | "resolver" | "gateway" | "other";
 
 interface ClassScope {
   kind: ClassKind;
@@ -343,19 +382,31 @@ interface ClassScope {
  * many classes share a file.
  */
 function buildClassScopes(safe: string): ClassScope[] {
-  const defs: { kind: ClassKind; name: string; prefixOf: (a: string) => string }[] = [
-    { kind: 'controller', name: 'Controller', prefixOf: parseControllerPrefix },
-    { kind: 'resolver', name: 'Resolver', prefixOf: () => '' },
-    { kind: 'gateway', name: 'WebSocketGateway', prefixOf: parseGatewayNamespace },
-    { kind: 'other', name: 'Injectable', prefixOf: () => '' },
-    { kind: 'other', name: 'Module', prefixOf: () => '' },
-    { kind: 'other', name: 'Catch', prefixOf: () => '' },
+  const defs: {
+    kind: ClassKind;
+    name: string;
+    prefixOf: (a: string) => string;
+  }[] = [
+    { kind: "controller", name: "Controller", prefixOf: parseControllerPrefix },
+    { kind: "resolver", name: "Resolver", prefixOf: () => "" },
+    {
+      kind: "gateway",
+      name: "WebSocketGateway",
+      prefixOf: parseGatewayNamespace,
+    },
+    { kind: "other", name: "Injectable", prefixOf: () => "" },
+    { kind: "other", name: "Module", prefixOf: () => "" },
+    { kind: "other", name: "Catch", prefixOf: () => "" },
   ];
 
   const raw: { kind: ClassKind; prefix: string; index: number }[] = [];
   for (const def of defs) {
     for (const hit of findDecorators(safe, [def.name])) {
-      raw.push({ kind: def.kind, prefix: def.prefixOf(hit.args), index: hit.index });
+      raw.push({
+        kind: def.kind,
+        prefix: def.prefixOf(hit.args),
+        index: hit.index,
+      });
     }
   }
   raw.sort((a, b) => a.index - b.index);
@@ -382,7 +433,7 @@ function scopeFor(scopes: ClassScope[], index: number): ClassScope | null {
 /** First string literal anywhere in the args, or '' (covers `'x'`, `{ k: 'x' }`). */
 function parseStringArg(args: string): string {
   const m = /['"`]([^'"`]*)['"`]/.exec(args);
-  return m ? m[1] : '';
+  return m ? m[1] : "";
 }
 
 /** `@Controller('users')` | `@Controller({ path: 'users', host })` | `@Controller(['a','b'])` | `@Controller()`. */
@@ -395,7 +446,7 @@ function parseControllerPrefix(args: string): string {
 /** `@WebSocketGateway({ namespace: 'chat' })` | `@WebSocketGateway(81, { namespace: '/chat' })` | `@WebSocketGateway()`. */
 function parseGatewayNamespace(args: string): string {
   const m = /namespace\s*:\s*['"`]([^'"`]*)['"`]/.exec(args);
-  return m ? m[1] : '';
+  return m ? m[1] : "";
 }
 
 /**
@@ -408,7 +459,7 @@ function parseGraphqlName(args: string, handler: string | null): string {
   if (named) return named[1];
   const lead = /^\s*['"`]([^'"`]*)['"`]/.exec(args);
   if (lead) return lead[1];
-  return handler ?? '';
+  return handler ?? "";
 }
 
 // ---------------------------------------------------------------------------
@@ -418,16 +469,17 @@ function parseGraphqlName(args: string, handler: string | null): string {
 /** Join a controller prefix and method path into a single normalised `/path`. */
 function joinHttpPath(prefix: string, sub: string): string {
   const parts = [prefix, sub]
-    .map((p) => p.trim().replace(/^\/+|\/+$/g, ''))
+    .map((p) => p.trim().replace(/^\/+|\/+$/g, ""))
     .filter((p) => p.length > 0);
-  return '/' + parts.join('/');
+  return "/" + parts.join("/");
 }
 
 function lineAt(safe: string, index: number): number {
-  return safe.slice(0, index).split('\n').length;
+  return safe.slice(0, index).split("\n").length;
 }
 
 function detectLanguage(filePath: string): JsLang {
-  if (filePath.endsWith('.ts') || filePath.endsWith('.tsx')) return 'typescript';
-  return 'javascript';
+  if (filePath.endsWith(".ts") || filePath.endsWith(".tsx"))
+    return "typescript";
+  return "javascript";
 }

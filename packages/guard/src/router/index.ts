@@ -3,117 +3,124 @@
  * 根据任务类型、策略和历史性能选择最优模型
  */
 
-import { TaskType } from '../types.js';
+import { TaskType } from "../types.js";
 import type {
   RouteStrategy,
   ModelConfig,
   RoutingEntry,
   ModelPerformance,
   ChatMessage,
-} from '../types.js';
+} from "../types.js";
 
 // ==================== 任务分类器 ====================
 
 /** 各任务类型的关键词映射 */
 const TASK_KEYWORDS: Record<TaskType, string[]> = {
   [TaskType.debugging]: [
-    'debug',
-    'fix',
-    'error',
-    'bug',
-    'issue',
-    'crash',
-    'exception',
-    'traceback',
-    'stack trace',
-    '修复',
-    '调试',
-    '报错',
-    '异常',
+    "debug",
+    "fix",
+    "error",
+    "bug",
+    "issue",
+    "crash",
+    "exception",
+    "traceback",
+    "stack trace",
+    "修复",
+    "调试",
+    "报错",
+    "异常",
   ],
   [TaskType.refactoring]: [
-    'refactor',
-    'rename',
-    'restructure',
-    'clean up',
-    'optimize',
-    'simplify',
-    '重构',
-    '重命名',
-    '优化',
+    "refactor",
+    "rename",
+    "restructure",
+    "clean up",
+    "optimize",
+    "simplify",
+    "重构",
+    "重命名",
+    "优化",
   ],
   [TaskType.testing]: [
-    'test',
-    'spec',
-    'unit test',
-    'integration test',
-    'coverage',
-    'mock',
-    'stub',
-    '测试',
-    '单元测试',
+    "test",
+    "spec",
+    "unit test",
+    "integration test",
+    "coverage",
+    "mock",
+    "stub",
+    "测试",
+    "单元测试",
   ],
   [TaskType.code_review]: [
-    'review',
-    'audit',
-    'check',
-    'inspect',
-    'analyze',
-    'lint',
-    '审查',
-    '检查',
-    '审计',
+    "review",
+    "audit",
+    "check",
+    "inspect",
+    "analyze",
+    "lint",
+    "审查",
+    "检查",
+    "审计",
   ],
   [TaskType.code_generation]: [
-    'generate',
-    'create',
-    'implement',
-    'build',
-    'write',
-    'develop',
-    'scaffold',
-    '生成',
-    '创建',
-    '实现',
-    '编写',
+    "generate",
+    "create",
+    "implement",
+    "build",
+    "write",
+    "develop",
+    "scaffold",
+    "生成",
+    "创建",
+    "实现",
+    "编写",
   ],
   [TaskType.explanation]: [
-    'explain',
-    'what does',
-    'how does',
-    'why',
-    'describe',
-    'tell me',
-    '解释',
-    '说明',
-    '什么是',
-    '为什么',
+    "explain",
+    "what does",
+    "how does",
+    "why",
+    "describe",
+    "tell me",
+    "解释",
+    "说明",
+    "什么是",
+    "为什么",
   ],
-  [TaskType.code_completion]: ['complete', 'continue', 'finish', 'fill', '补全', '继续'],
+  [TaskType.code_completion]: [
+    "complete",
+    "continue",
+    "finish",
+    "fill",
+    "补全",
+    "继续",
+  ],
   [TaskType.general]: [],
 };
 
 /** 代码存在指示词 */
 const CODE_INDICATORS = [
-  'function',
-  'class',
-  'import',
-  'export',
-  'const',
-  'let',
-  'var',
-  'def ',
-  'return',
-  'async',
-  'await',
-  '=>',
-  '===',
-  '!==',
-  '{',
-  '}',
-  '()',
-  '[]',
-  '```',
+  "function",
+  "class",
+  "import",
+  "export",
+  "const",
+  "let",
+  "var",
+  "def ",
+  "return",
+  "async",
+  "await",
+  "=>",
+  "===",
+  "!==",
+  "{",
+  "}",
+  "()",
+  "[]",
+  "```",
 ];
 
 /**
@@ -126,8 +133,10 @@ export class RuleBasedClassifier {
    */
   classify(messages: ChatMessage[]): TaskType {
     // 合并所有用户消息
-    const userMessages = messages.filter((m) => m.role === 'user').map((m) => m.content);
-    const combinedText = userMessages.join(' ').toLowerCase();
+    const userMessages = messages
+      .filter((m) => m.role === "user")
+      .map((m) => m.content);
+    const combinedText = userMessages.join(" ").toLowerCase();
 
     if (!combinedText.trim()) {
       return TaskType.general;
@@ -142,8 +151,8 @@ export class RuleBasedClassifier {
         // 中文关键词不使用 \b 边界（中文无词边界），英文关键词使用 \b
         const isChinese = /[\u4e00-\u9fff]/.test(keyword);
         const regex = isChinese
-          ? new RegExp(escapeRegex(keyword), 'gi')
-          : new RegExp(`\\b${escapeRegex(keyword)}\\b`, 'gi');
+          ? new RegExp(escapeRegex(keyword), "gi")
+          : new RegExp(`\\b${escapeRegex(keyword)}\\b`, "gi");
         const matches = combinedText.match(regex);
         if (matches) {
           score += matches.length;
@@ -164,7 +173,10 @@ export class RuleBasedClassifier {
       scores.set(TaskType.code_generation, currentGenScore + 0.5);
 
       // 如果包含错误相关内容，增加 debugging 分数
-      if (combinedText.includes('error') || combinedText.includes('exception')) {
+      if (
+        combinedText.includes("error") ||
+        combinedText.includes("exception")
+      ) {
         const currentDebugScore = scores.get(TaskType.debugging) || 0;
         scores.set(TaskType.debugging, currentDebugScore + 1);
       }
@@ -207,7 +219,7 @@ export class RuleBasedClassifier {
 
 /** 转义正则特殊字符 */
 function escapeRegex(str: string): string {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 // ==================== 默认模型配置 ====================
@@ -215,9 +227,9 @@ function escapeRegex(str: string): string {
 /** 内置模型配置表 */
 export const MODEL_CONFIGS: ModelConfig[] = [
   {
-    id: 'deepseek-v4-pro',
-    name: 'DeepSeek V4 Pro',
-    provider: 'deepseek',
+    id: "deepseek-v4-pro",
+    name: "DeepSeek V4 Pro",
+    provider: "deepseek",
     cost_per_1k_input: 0.0027,
     cost_per_1k_output: 0.011,
     quality_score: 9.0,
@@ -225,9 +237,9 @@ export const MODEL_CONFIGS: ModelConfig[] = [
     max_context: 128000,
   },
   {
-    id: 'deepseek-flash',
-    name: 'DeepSeek Flash',
-    provider: 'deepseek',
+    id: "deepseek-flash",
+    name: "DeepSeek Flash",
+    provider: "deepseek",
     cost_per_1k_input: 0.0001,
     cost_per_1k_output: 0.0004,
     quality_score: 7.5,
@@ -235,9 +247,9 @@ export const MODEL_CONFIGS: ModelConfig[] = [
     max_context: 64000,
   },
   {
-    id: 'gpt-4o',
-    name: 'GPT-4o',
-    provider: 'openai',
+    id: "gpt-4o",
+    name: "GPT-4o",
+    provider: "openai",
     cost_per_1k_input: 0.005,
     cost_per_1k_output: 0.015,
     quality_score: 9.0,
@@ -245,9 +257,9 @@ export const MODEL_CONFIGS: ModelConfig[] = [
     max_context: 128000,
   },
   {
-    id: 'gpt-4o-mini',
-    name: 'GPT-4o Mini',
-    provider: 'openai',
+    id: "gpt-4o-mini",
+    name: "GPT-4o Mini",
+    provider: "openai",
     cost_per_1k_input: 0.00015,
     cost_per_1k_output: 0.0006,
     quality_score: 7.0,
@@ -255,9 +267,9 @@ export const MODEL_CONFIGS: ModelConfig[] = [
     max_context: 128000,
   },
   {
-    id: 'claude-sonnet-4-20250514',
-    name: 'Claude Sonnet 4',
-    provider: 'anthropic',
+    id: "claude-sonnet-4-20250514",
+    name: "Claude Sonnet 4",
+    provider: "anthropic",
     cost_per_1k_input: 0.003,
     cost_per_1k_output: 0.015,
     quality_score: 9.5,
@@ -265,9 +277,9 @@ export const MODEL_CONFIGS: ModelConfig[] = [
     max_context: 200000,
   },
   {
-    id: 'claude-3-5-haiku-20241022',
-    name: 'Claude 3.5 Haiku',
-    provider: 'anthropic',
+    id: "claude-3-5-haiku-20241022",
+    name: "Claude 3.5 Haiku",
+    provider: "anthropic",
     cost_per_1k_input: 0.0008,
     cost_per_1k_output: 0.004,
     quality_score: 7.5,
@@ -305,7 +317,7 @@ export class RouteEngine {
 
   constructor(options: RouteEngineOptions = {}) {
     this.classifier = new RuleBasedClassifier();
-    this.strategy = options.strategy || 'balanced';
+    this.strategy = options.strategy || "balanced";
     this.routingTable = options.routingTable || this.getDefaultRoutingTable();
     this.modelConfigs = new Map();
     this.performanceData = new Map();
@@ -338,15 +350,19 @@ export class RouteEngine {
   /**
    * 执行路由：根据任务类型和策略选择最优模型
    */
-  route(taskType: TaskType, originalModel?: string, strategy?: RouteStrategy): RouteResult {
+  route(
+    taskType: TaskType,
+    originalModel?: string,
+    strategy?: RouteStrategy,
+  ): RouteResult {
     const effectiveStrategy = strategy || this.strategy;
     const entries = this.getAvailableEntries(taskType);
 
     if (entries.length === 0) {
       // 没有可用路由，回退到原始模型
       return {
-        provider: 'deepseek',
-        model: originalModel || 'deepseek-flash',
+        provider: "deepseek",
+        model: originalModel || "deepseek-flash",
       };
     }
 
@@ -357,11 +373,11 @@ export class RouteEngine {
 
     // 根据策略选择
     switch (effectiveStrategy) {
-      case 'cost':
+      case "cost":
         return this.routeByCost(entries);
-      case 'quality':
+      case "quality":
         return this.routeByQuality(entries);
-      case 'balanced':
+      case "balanced":
       default:
         return this.routeByBalanced(entries, taskType);
     }
@@ -416,7 +432,10 @@ export class RouteEngine {
     const entries = this.routingTable[taskType] || [];
     return entries.filter((entry) => {
       // 过滤掉未启用的 Provider
-      if (this.enabledProviders.size > 0 && !this.enabledProviders.has(entry.provider)) {
+      if (
+        this.enabledProviders.size > 0 &&
+        !this.enabledProviders.has(entry.provider)
+      ) {
         return false;
       }
       return true;
@@ -435,11 +454,15 @@ export class RouteEngine {
         entry,
         config: this.modelConfigs.get(entry.model),
       }))
-      .filter((item) => item.config && item.config.quality_score >= QUALITY_THRESHOLD)
+      .filter(
+        (item) => item.config && item.config.quality_score >= QUALITY_THRESHOLD,
+      )
       .sort((a, b) => {
         // 按输出成本排序（输出通常比输入贵）
-        const costA = (a.config!.cost_per_1k_input + a.config!.cost_per_1k_output) / 2;
-        const costB = (b.config!.cost_per_1k_input + b.config!.cost_per_1k_output) / 2;
+        const costA =
+          (a.config!.cost_per_1k_input + a.config!.cost_per_1k_output) / 2;
+        const costB =
+          (b.config!.cost_per_1k_input + b.config!.cost_per_1k_output) / 2;
         return costA - costB;
       });
 
@@ -478,7 +501,10 @@ export class RouteEngine {
    * 均衡路由：综合质量、速度和成本
    * 加权分数 = 质量*0.5 + 速度*0.3 + (1-归一化成本)*0.2
    */
-  private routeByBalanced(entries: RoutingEntry[], taskType: TaskType): RouteResult {
+  private routeByBalanced(
+    entries: RoutingEntry[],
+    taskType: TaskType,
+  ): RouteResult {
     const candidates = entries
       .map((entry) => {
         const config = this.modelConfigs.get(entry.model);
@@ -495,18 +521,23 @@ export class RouteEngine {
 
     // 计算成本归一化因子
     const maxCost = Math.max(
-      ...candidates.map((c) => (c.config!.cost_per_1k_input + c.config!.cost_per_1k_output) / 2),
+      ...candidates.map(
+        (c) => (c.config!.cost_per_1k_input + c.config!.cost_per_1k_output) / 2,
+      ),
     );
 
     // 计算每个候选的综合分数
     const scored = candidates.map((candidate) => {
       const { config, perf } = candidate;
-      const avgCost = (config!.cost_per_1k_input + config!.cost_per_1k_output) / 2;
+      const avgCost =
+        (config!.cost_per_1k_input + config!.cost_per_1k_output) / 2;
       const normalizedCost = maxCost > 0 ? avgCost / maxCost : 0;
 
       // 基础分数
       let score =
-        config!.quality_score * 0.5 + config!.speed_score * 0.3 + (1 - normalizedCost) * 0.2;
+        config!.quality_score * 0.5 +
+        config!.speed_score * 0.3 +
+        (1 - normalizedCost) * 0.2;
 
       // 根据历史性能调整
       if (perf && perf.total_requests >= 3) {
@@ -539,37 +570,49 @@ export class RouteEngine {
   private getDefaultRoutingTable(): Record<string, RoutingEntry[]> {
     return {
       [TaskType.code_completion]: [
-        { model: 'deepseek-flash', provider: 'deepseek', priority: 1 },
-        { model: 'gpt-4o-mini', provider: 'openai', priority: 2 },
+        { model: "deepseek-flash", provider: "deepseek", priority: 1 },
+        { model: "gpt-4o-mini", provider: "openai", priority: 2 },
       ],
       [TaskType.code_generation]: [
-        { model: 'deepseek-v4-pro', provider: 'deepseek', priority: 1 },
-        { model: 'gpt-4o', provider: 'openai', priority: 2 },
-        { model: 'claude-sonnet-4-20250514', provider: 'anthropic', priority: 3 },
+        { model: "deepseek-v4-pro", provider: "deepseek", priority: 1 },
+        { model: "gpt-4o", provider: "openai", priority: 2 },
+        {
+          model: "claude-sonnet-4-20250514",
+          provider: "anthropic",
+          priority: 3,
+        },
       ],
       [TaskType.debugging]: [
-        { model: 'deepseek-v4-pro', provider: 'deepseek', priority: 1 },
-        { model: 'claude-sonnet-4-20250514', provider: 'anthropic', priority: 2 },
+        { model: "deepseek-v4-pro", provider: "deepseek", priority: 1 },
+        {
+          model: "claude-sonnet-4-20250514",
+          provider: "anthropic",
+          priority: 2,
+        },
       ],
       [TaskType.refactoring]: [
-        { model: 'deepseek-v4-pro', provider: 'deepseek', priority: 1 },
-        { model: 'gpt-4o', provider: 'openai', priority: 2 },
+        { model: "deepseek-v4-pro", provider: "deepseek", priority: 1 },
+        { model: "gpt-4o", provider: "openai", priority: 2 },
       ],
       [TaskType.code_review]: [
-        { model: 'deepseek-v4-pro', provider: 'deepseek', priority: 1 },
-        { model: 'claude-sonnet-4-20250514', provider: 'anthropic', priority: 2 },
+        { model: "deepseek-v4-pro", provider: "deepseek", priority: 1 },
+        {
+          model: "claude-sonnet-4-20250514",
+          provider: "anthropic",
+          priority: 2,
+        },
       ],
       [TaskType.explanation]: [
-        { model: 'deepseek-flash', provider: 'deepseek', priority: 1 },
-        { model: 'gpt-4o-mini', provider: 'openai', priority: 2 },
+        { model: "deepseek-flash", provider: "deepseek", priority: 1 },
+        { model: "gpt-4o-mini", provider: "openai", priority: 2 },
       ],
       [TaskType.testing]: [
-        { model: 'deepseek-v4-pro', provider: 'deepseek', priority: 1 },
-        { model: 'gpt-4o', provider: 'openai', priority: 2 },
+        { model: "deepseek-v4-pro", provider: "deepseek", priority: 1 },
+        { model: "gpt-4o", provider: "openai", priority: 2 },
       ],
       [TaskType.general]: [
-        { model: 'deepseek-flash', provider: 'deepseek', priority: 1 },
-        { model: 'gpt-4o-mini', provider: 'openai', priority: 2 },
+        { model: "deepseek-flash", provider: "deepseek", priority: 1 },
+        { model: "gpt-4o-mini", provider: "openai", priority: 2 },
       ],
     };
   }

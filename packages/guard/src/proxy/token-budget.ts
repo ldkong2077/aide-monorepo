@@ -22,7 +22,7 @@ import {
   countMessageTokens,
   estimateRequestTokens,
   type ChatMessage,
-} from '@aide/core';
+} from "@aide-dev/core";
 
 /** Configuration for {@link TokenBudgetEnforcer}. */
 export interface TokenBudgetConfig {
@@ -41,7 +41,7 @@ export interface TokenBudgetConfig {
 }
 
 /** Reasons a request can be rejected. Mirrors the metric label. */
-export type TokenBudgetRejectionReason = 'per_request' | 'per_tenant_daily';
+export type TokenBudgetRejectionReason = "per_request" | "per_tenant_daily";
 
 /** Result of a {@link TokenBudgetEnforcer.check} call. */
 export type TokenBudgetDecision =
@@ -101,7 +101,7 @@ export class TokenBudgetEnforcer {
   }
 
   /** Get the effective configuration (with defaults filled in). */
-  getConfig(): Required<Omit<TokenBudgetConfig, 'now'>> {
+  getConfig(): Required<Omit<TokenBudgetConfig, "now">> {
     return {
       maxPromptTokensPerRequest: this.maxPromptTokensPerRequest,
       maxTokensPerTenantPerDay: this.maxTokensPerTenantPerDay,
@@ -133,7 +133,11 @@ export class TokenBudgetEnforcer {
    * the upstream call returns with the actual usage numbers so the
    * daily counter reflects what was actually billed.
    */
-  check(tenantId: string, messages: readonly ChatMessage[], model: string): TokenBudgetDecision {
+  check(
+    tenantId: string,
+    messages: readonly ChatMessage[],
+    model: string,
+  ): TokenBudgetDecision {
     const t = this.now();
     const s = this.touch(tenantId);
     const estimated = estimateRequestTokens(messages, model);
@@ -146,7 +150,7 @@ export class TokenBudgetEnforcer {
       this._rejections++;
       return {
         allowed: false,
-        reason: 'per_request',
+        reason: "per_request",
         estimatedPromptTokens: estimated,
         tenantDailyBefore: s.dailyTokens,
         retryAfterMs: 0,
@@ -162,7 +166,7 @@ export class TokenBudgetEnforcer {
         s.circuitOpenUntil = t + this.circuitResetMs;
         return {
           allowed: false,
-          reason: 'per_tenant_daily',
+          reason: "per_tenant_daily",
           estimatedPromptTokens: estimated,
           tenantDailyBefore: s.dailyTokens,
           retryAfterMs: Math.max(this.circuitResetMs, s.dailyResetAt - t),
@@ -226,8 +230,12 @@ export class TokenBudgetEnforcer {
   }
 
   /** Snapshot every known tenant. Mirrors the cost-tracker's API. */
-  snapshotAll(): Array<{ tenant: string } & ReturnType<TokenBudgetEnforcer['snapshot']>> {
-    const out: Array<{ tenant: string } & ReturnType<TokenBudgetEnforcer['snapshot']>> = [];
+  snapshotAll(): Array<
+    { tenant: string } & ReturnType<TokenBudgetEnforcer["snapshot"]>
+  > {
+    const out: Array<
+      { tenant: string } & ReturnType<TokenBudgetEnforcer["snapshot"]>
+    > = [];
     for (const tenant of this.tenants.keys()) {
       const snap = this.snapshot(tenant);
       if (snap) out.push({ tenant, ...snap });

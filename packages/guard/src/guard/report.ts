@@ -8,7 +8,7 @@ import type {
   ConfidenceScore,
   HallucinationReport,
   DiffResult,
-} from '../types.js';
+} from "../types.js";
 
 /**
  * 考虑中文字符宽度的 padEnd
@@ -19,7 +19,7 @@ function visualPadEnd(str: string, targetWidth: number): string {
   for (const ch of str) {
     visualWidth += ch.charCodeAt(0) > 0x7f ? 2 : 1;
   }
-  return str + ' '.repeat(Math.max(0, targetWidth - visualWidth));
+  return str + " ".repeat(Math.max(0, targetWidth - visualWidth));
 }
 
 /**
@@ -37,108 +37,175 @@ export class ReportFormatter {
     const diffResults = report.diffResults || [];
 
     // 顶部边框
-    lines.push('┌─────────────────────────────────────────────────────────────┐');
+    lines.push(
+      "┌─────────────────────────────────────────────────────────────┐",
+    );
 
     // 标题和总体置信度
     const scoreColor = this.getScoreColor(confidence.overall);
     const verdictText = this.getVerdictText(confidence.verdict);
-    lines.push(`│  🛡️  CodeGuard 验证报告                                      │`);
-    lines.push(`│                                                             │`);
+    lines.push(
+      `│  🛡️  CodeGuard 验证报告                                      │`,
+    );
+    lines.push(
+      `│                                                             │`,
+    );
     lines.push(
       visualPadEnd(
         `│  置信度: ${scoreColor}${confidence.overall}/100${this.resetColor()}  ${verdictText}`,
         62,
-      ) + '│',
+      ) + "│",
     );
-    lines.push('├─────────────────────────────────────────────────────────────┤');
+    lines.push(
+      "├─────────────────────────────────────────────────────────────┤",
+    );
 
     // 评分维度分解
-    lines.push('│  📊 评分维度                                                │');
-    lines.push(this.formatDimensionLine('差异安全性', confidence.dimensions.diffSafety, '30%'));
     lines.push(
-      this.formatDimensionLine('无幻觉程度', confidence.dimensions.hallucinationFree, '35%'),
+      "│  📊 评分维度                                                │",
     );
-    lines.push(this.formatDimensionLine('测试通过率', confidence.dimensions.testPassRate, '25%'));
-    lines.push(this.formatDimensionLine('类型检查  ', confidence.dimensions.typeCheck, '10%'));
-    lines.push('├─────────────────────────────────────────────────────────────┤');
+    lines.push(
+      this.formatDimensionLine(
+        "差异安全性",
+        confidence.dimensions.diffSafety,
+        "30%",
+      ),
+    );
+    lines.push(
+      this.formatDimensionLine(
+        "无幻觉程度",
+        confidence.dimensions.hallucinationFree,
+        "35%",
+      ),
+    );
+    lines.push(
+      this.formatDimensionLine(
+        "测试通过率",
+        confidence.dimensions.testPassRate,
+        "25%",
+      ),
+    );
+    lines.push(
+      this.formatDimensionLine(
+        "类型检查  ",
+        confidence.dimensions.typeCheck,
+        "10%",
+      ),
+    );
+    lines.push(
+      "├─────────────────────────────────────────────────────────────┤",
+    );
 
     // 关键问题（严重和高）
     const criticalIssues = hallucinations.filter(
-      (h) => h.severity === 'critical' || h.severity === 'high',
+      (h) => h.severity === "critical" || h.severity === "high",
     );
     if (criticalIssues.length > 0) {
-      lines.push('│  🔴 关键问题                                                │');
+      lines.push(
+        "│  🔴 关键问题                                                │",
+      );
       for (const issue of criticalIssues.slice(0, 10)) {
-        const icon = issue.severity === 'critical' ? '🔴' : '🟡';
-        const msg = this.truncate(`  ${icon} L${issue.line || '?'}: ${issue.message}`, 57);
-        lines.push(visualPadEnd(`│${msg}`, 62) + '│');
+        const icon = issue.severity === "critical" ? "🔴" : "🟡";
+        const msg = this.truncate(
+          `  ${icon} L${issue.line || "?"}: ${issue.message}`,
+          57,
+        );
+        lines.push(visualPadEnd(`│${msg}`, 62) + "│");
       }
-      lines.push('├─────────────────────────────────────────────────────────────┤');
+      lines.push(
+        "├─────────────────────────────────────────────────────────────┤",
+      );
     }
 
     // 警告（中等）
-    const warnings = hallucinations.filter((h) => h.severity === 'medium');
+    const warnings = hallucinations.filter((h) => h.severity === "medium");
     if (warnings.length > 0) {
-      lines.push('│  🟡 警告                                                    │');
+      lines.push(
+        "│  🟡 警告                                                    │",
+      );
       for (const warning of warnings.slice(0, 5)) {
-        const msg = this.truncate(`  🟡 L${warning.line || '?'}: ${warning.message}`, 57);
-        lines.push(visualPadEnd(`│${msg}`, 62) + '│');
+        const msg = this.truncate(
+          `  🟡 L${warning.line || "?"}: ${warning.message}`,
+          57,
+        );
+        lines.push(visualPadEnd(`│${msg}`, 62) + "│");
       }
-      lines.push('├─────────────────────────────────────────────────────────────┤');
+      lines.push(
+        "├─────────────────────────────────────────────────────────────┤",
+      );
     }
 
     // 通过的检查
     const passedChecks = this.getPassedChecks(diffResults, hallucinations);
     if (passedChecks.length > 0) {
-      lines.push('│  ✅ 通过的检查                                              │');
+      lines.push(
+        "│  ✅ 通过的检查                                              │",
+      );
       for (const check of passedChecks) {
         const msg = this.truncate(`  ✅ ${check}`, 57);
-        lines.push(visualPadEnd(`│${msg}`, 62) + '│');
+        lines.push(visualPadEnd(`│${msg}`, 62) + "│");
       }
-      lines.push('├─────────────────────────────────────────────────────────────┤');
+      lines.push(
+        "├─────────────────────────────────────────────────────────────┤",
+      );
     }
 
     // 测试结果
     if (testResult) {
-      lines.push('│  🧪 测试结果                                                │');
-      const testIcon = testResult.failed === 0 ? '✅' : '❌';
+      lines.push(
+        "│  🧪 测试结果                                                │",
+      );
+      const testIcon = testResult.failed === 0 ? "✅" : "❌";
       lines.push(
         visualPadEnd(
           `│  ${testIcon} 通过: ${testResult.passed}/${testResult.total}  失败: ${testResult.failed}  耗时: ${testResult.duration}ms`,
           62,
-        ) + '│',
+        ) + "│",
       );
       if (testResult.errors.length > 0) {
         for (const error of testResult.errors.slice(0, 3)) {
-          const errMsg = this.truncate(`  ❌ ${error.testName}: ${error.message}`, 57);
-          lines.push(visualPadEnd(`│${errMsg}`, 62) + '│');
+          const errMsg = this.truncate(
+            `  ❌ ${error.testName}: ${error.message}`,
+            57,
+          );
+          lines.push(visualPadEnd(`│${errMsg}`, 62) + "│");
         }
       }
-      lines.push('├─────────────────────────────────────────────────────────────┤');
+      lines.push(
+        "├─────────────────────────────────────────────────────────────┤",
+      );
     }
 
     // 风险因素
     if (confidence.riskFactors.length > 0) {
-      lines.push('│  ⚠️  风险因素                                               │');
+      lines.push(
+        "│  ⚠️  风险因素                                               │",
+      );
       for (const factor of confidence.riskFactors.slice(0, 5)) {
         const msg = this.truncate(`  ${factor}`, 57);
-        lines.push(visualPadEnd(`│${msg}`, 62) + '│');
+        lines.push(visualPadEnd(`│${msg}`, 62) + "│");
       }
-      lines.push('├─────────────────────────────────────────────────────────────┤');
+      lines.push(
+        "├─────────────────────────────────────────────────────────────┤",
+      );
     }
 
     // 建议
-    lines.push('│  💡 建议                                                    │');
+    lines.push(
+      "│  💡 建议                                                    │",
+    );
     const recommendation = this.getRecommendation(confidence);
     const recLines = this.wrapText(recommendation, 55);
     for (const recLine of recLines) {
-      lines.push(visualPadEnd(`│  ${recLine}`, 60) + '│');
+      lines.push(visualPadEnd(`│  ${recLine}`, 60) + "│");
     }
 
     // 底部边框
-    lines.push('└─────────────────────────────────────────────────────────────┘');
+    lines.push(
+      "└─────────────────────────────────────────────────────────────┘",
+    );
 
-    return lines.join('\n');
+    return lines.join("\n");
   }
 
   /**
@@ -159,7 +226,7 @@ export class ReportFormatter {
     const lines: string[] = [];
 
     // 标题
-    lines.push('## 🛡️ CodeGuard 验证报告\n');
+    lines.push("## 🛡️ CodeGuard 验证报告\n");
 
     // 总体评分
     const scoreBadge = this.getScoreBadge(confidence.overall);
@@ -167,86 +234,92 @@ export class ReportFormatter {
     lines.push(`**置信度**: ${scoreBadge} ${verdictBadge}\n`);
 
     // 评分维度
-    lines.push('### 📊 评分维度\n');
-    lines.push('| 维度 | 分数 | 权重 |');
-    lines.push('|------|------|------|');
-    lines.push(`| 差异安全性 | ${this.formatScoreBar(confidence.dimensions.diffSafety)} | 30% |`);
+    lines.push("### 📊 评分维度\n");
+    lines.push("| 维度 | 分数 | 权重 |");
+    lines.push("|------|------|------|");
+    lines.push(
+      `| 差异安全性 | ${this.formatScoreBar(confidence.dimensions.diffSafety)} | 30% |`,
+    );
     lines.push(
       `| 无幻觉程度 | ${this.formatScoreBar(confidence.dimensions.hallucinationFree)} | 35% |`,
     );
-    lines.push(`| 测试通过率 | ${this.formatScoreBar(confidence.dimensions.testPassRate)} | 25% |`);
-    lines.push(`| 类型检查 | ${this.formatScoreBar(confidence.dimensions.typeCheck)} | 10% |`);
-    lines.push('');
+    lines.push(
+      `| 测试通过率 | ${this.formatScoreBar(confidence.dimensions.testPassRate)} | 25% |`,
+    );
+    lines.push(
+      `| 类型检查 | ${this.formatScoreBar(confidence.dimensions.typeCheck)} | 10% |`,
+    );
+    lines.push("");
 
     // 关键问题
     const criticalIssues = hallucinations.filter(
-      (h) => h.severity === 'critical' || h.severity === 'high',
+      (h) => h.severity === "critical" || h.severity === "high",
     );
     if (criticalIssues.length > 0) {
-      lines.push('### 🔴 关键问题\n');
+      lines.push("### 🔴 关键问题\n");
       for (const issue of criticalIssues) {
-        const icon = issue.severity === 'critical' ? '🔴' : '🟡';
-        lines.push(`- ${icon} **L${issue.line || '?'}**: ${issue.message}`);
+        const icon = issue.severity === "critical" ? "🔴" : "🟡";
+        lines.push(`- ${icon} **L${issue.line || "?"}**: ${issue.message}`);
         if (issue.suggestion) {
           lines.push(`  > 💡 ${issue.suggestion}`);
         }
       }
-      lines.push('');
+      lines.push("");
     }
 
     // 警告
-    const warnings = hallucinations.filter((h) => h.severity === 'medium');
+    const warnings = hallucinations.filter((h) => h.severity === "medium");
     if (warnings.length > 0) {
-      lines.push('### 🟡 警告\n');
+      lines.push("### 🟡 警告\n");
       for (const warning of warnings) {
-        lines.push(`- 🟡 **L${warning.line || '?'}**: ${warning.message}`);
+        lines.push(`- 🟡 **L${warning.line || "?"}**: ${warning.message}`);
       }
-      lines.push('');
+      lines.push("");
     }
 
     // 通过的检查
     const passedChecks = this.getPassedChecks(diffResults, hallucinations);
     if (passedChecks.length > 0) {
-      lines.push('### ✅ 通过的检查\n');
+      lines.push("### ✅ 通过的检查\n");
       for (const check of passedChecks) {
         lines.push(`- ✅ ${check}`);
       }
-      lines.push('');
+      lines.push("");
     }
 
     // 测试结果
     if (testResult) {
-      lines.push('### 🧪 测试结果\n');
-      const testIcon = testResult.failed === 0 ? '✅' : '❌';
+      lines.push("### 🧪 测试结果\n");
+      const testIcon = testResult.failed === 0 ? "✅" : "❌";
       lines.push(
         `${testIcon} 通过: **${testResult.passed}/${testResult.total}** | 失败: **${testResult.failed}** | 耗时: ${testResult.duration}ms\n`,
       );
       if (testResult.errors.length > 0) {
-        lines.push('<details><summary>失败详情</summary>\n');
+        lines.push("<details><summary>失败详情</summary>\n");
         for (const error of testResult.errors) {
           lines.push(`- **${error.testName}**: ${error.message}`);
         }
-        lines.push('\n</details>\n');
+        lines.push("\n</details>\n");
       }
     }
 
     // 风险因素
     if (confidence.riskFactors.length > 0) {
-      lines.push('### ⚠️ 风险因素\n');
+      lines.push("### ⚠️ 风险因素\n");
       for (const factor of confidence.riskFactors) {
         lines.push(`- ${factor}`);
       }
-      lines.push('');
+      lines.push("");
     }
 
     // 建议
-    lines.push('### 💡 建议\n');
+    lines.push("### 💡 建议\n");
     lines.push(this.getRecommendation(confidence));
-    lines.push('');
+    lines.push("");
 
     // 差异分析详情
     if (diffResults.length > 0) {
-      lines.push('<details><summary>📋 差异分析详情</summary>\n');
+      lines.push("<details><summary>📋 差异分析详情</summary>\n");
       for (const diff of diffResults) {
         lines.push(`#### ${diff.filePath}\n`);
         lines.push(`- 风险分数: ${(diff.riskScore * 100).toFixed(0)}%`);
@@ -255,12 +328,12 @@ export class ReportFormatter {
           const riskIcon = this.getRiskIcon(change.risk);
           lines.push(`  - ${riskIcon} ${change.reason}`);
         }
-        lines.push('');
+        lines.push("");
       }
-      lines.push('</details>\n');
+      lines.push("</details>\n");
     }
 
-    return lines.join('\n');
+    return lines.join("\n");
   }
 
   // ==================== 私有辅助方法 ====================
@@ -269,16 +342,16 @@ export class ReportFormatter {
    * 获取分数对应的ANSI颜色代码
    */
   private getScoreColor(score: number): string {
-    if (score >= 80) return '\x1b[32m'; // 绿色
-    if (score >= 50) return '\x1b[33m'; // 黄色
-    return '\x1b[31m'; // 红色
+    if (score >= 80) return "\x1b[32m"; // 绿色
+    if (score >= 50) return "\x1b[33m"; // 黄色
+    return "\x1b[31m"; // 红色
   }
 
   /**
    * 重置ANSI颜色
    */
   private resetColor(): string {
-    return '\x1b[0m';
+    return "\x1b[0m";
   }
 
   /**
@@ -286,12 +359,12 @@ export class ReportFormatter {
    */
   private getVerdictText(verdict: string): string {
     switch (verdict) {
-      case 'TRUST':
-        return '✅ 信任';
-      case 'REVIEW':
-        return '⚠️ 需审查';
-      case 'REJECT':
-        return '🔴 拒绝';
+      case "TRUST":
+        return "✅ 信任";
+      case "REVIEW":
+        return "⚠️ 需审查";
+      case "REJECT":
+        return "🔴 拒绝";
       default:
         return verdict;
     }
@@ -300,12 +373,16 @@ export class ReportFormatter {
   /**
    * 格式化维度行
    */
-  private formatDimensionLine(name: string, score: number, weight: string): string {
+  private formatDimensionLine(
+    name: string,
+    score: number,
+    weight: string,
+  ): string {
     const bar = this.formatProgressBar(score);
     const color = this.getScoreColor(score);
     const reset = this.resetColor();
     const content = `│  ${name} ${bar} ${color}${score}${reset}  (权重${weight})`;
-    return visualPadEnd(content, 62) + '│';
+    return visualPadEnd(content, 62) + "│";
   }
 
   /**
@@ -314,7 +391,7 @@ export class ReportFormatter {
   private formatProgressBar(score: number): string {
     const filled = Math.round(score / 10);
     const empty = 10 - filled;
-    return '[' + '█'.repeat(filled) + '░'.repeat(empty) + ']';
+    return "[" + "█".repeat(filled) + "░".repeat(empty) + "]";
   }
 
   /**
@@ -322,7 +399,7 @@ export class ReportFormatter {
    */
   private truncate(text: string, maxLength: number): string {
     if (text.length <= maxLength) return text;
-    return text.substring(0, maxLength - 3) + '...';
+    return text.substring(0, maxLength - 3) + "...";
   }
 
   /**
@@ -330,15 +407,15 @@ export class ReportFormatter {
    */
   private wrapText(text: string, maxWidth: number): string[] {
     const lines: string[] = [];
-    let currentLine = '';
+    let currentLine = "";
     let currentWidth = 0;
 
     for (const char of text) {
       const charWidth = char.charCodeAt(0) > 0x7f ? 2 : 1;
 
-      if (char === ' ' && currentWidth + charWidth > maxWidth) {
+      if (char === " " && currentWidth + charWidth > maxWidth) {
         lines.push(currentLine);
-        currentLine = '';
+        currentLine = "";
         currentWidth = 0;
       } else if (currentWidth + charWidth > maxWidth) {
         if (currentLine) lines.push(currentLine);
@@ -368,32 +445,32 @@ export class ReportFormatter {
 
     // 检查各类幻觉是否未检测到
     const categories = new Set(hallucinations.map((h) => h.category));
-    if (!categories.has('package_import')) {
-      checks.push('所有包导入验证通过');
+    if (!categories.has("package_import")) {
+      checks.push("所有包导入验证通过");
     }
-    if (!categories.has('api_signature')) {
-      checks.push('API签名验证通过');
+    if (!categories.has("api_signature")) {
+      checks.push("API签名验证通过");
     }
-    if (!categories.has('ai_pattern')) {
-      checks.push('未检测到AI生成模式');
+    if (!categories.has("ai_pattern")) {
+      checks.push("未检测到AI生成模式");
     }
-    if (!categories.has('logic_issue')) {
-      checks.push('逻辑检查通过');
+    if (!categories.has("logic_issue")) {
+      checks.push("逻辑检查通过");
     }
 
     // 检查差异分析
     const hasCriticalChanges = diffResults.some((r) =>
-      r.changes.some((c) => c.risk === 'critical'),
+      r.changes.some((c) => c.risk === "critical"),
     );
     if (!hasCriticalChanges) {
-      checks.push('无关键结构性变更');
+      checks.push("无关键结构性变更");
     }
 
     const hasGuardRemoval = diffResults.some((r) =>
-      r.changes.some((c) => c.type === 'GUARD_REMOVED'),
+      r.changes.some((c) => c.type === "GUARD_REMOVED"),
     );
     if (!hasGuardRemoval) {
-      checks.push('守卫条件未被移除');
+      checks.push("守卫条件未被移除");
     }
 
     return checks;
@@ -403,41 +480,43 @@ export class ReportFormatter {
    * 获取建议文本
    */
   private getRecommendation(confidence: ConfidenceScore): string {
-    if (confidence.verdict === 'TRUST') {
-      return '代码变更置信度较高，可以安全合并。建议在合并前进行快速人工确认。';
+    if (confidence.verdict === "TRUST") {
+      return "代码变更置信度较高，可以安全合并。建议在合并前进行快速人工确认。";
     }
 
-    if (confidence.verdict === 'REVIEW') {
-      const parts: string[] = ['代码变更需要人工审查。'];
+    if (confidence.verdict === "REVIEW") {
+      const parts: string[] = ["代码变更需要人工审查。"];
       if (confidence.dimensions.hallucinationFree < 70) {
-        parts.push('请重点检查幻觉检测标记的问题，确认依赖和API是否真实存在。');
+        parts.push("请重点检查幻觉检测标记的问题，确认依赖和API是否真实存在。");
       }
       if (confidence.dimensions.diffSafety < 70) {
-        parts.push('请仔细审查结构性变更，特别是函数签名和公开API的修改。');
+        parts.push("请仔细审查结构性变更，特别是函数签名和公开API的修改。");
       }
       if (confidence.dimensions.testPassRate < 70) {
-        parts.push('请确保所有测试通过后再合并。');
+        parts.push("请确保所有测试通过后再合并。");
       }
-      return parts.join(' ');
+      return parts.join(" ");
     }
 
     // REJECT
-    const parts: string[] = ['代码变更风险较高，建议修改后重新验证。'];
+    const parts: string[] = ["代码变更风险较高，建议修改后重新验证。"];
     if (confidence.dimensions.hallucinationFree < 50) {
-      parts.push('存在严重的幻觉问题，请确认所有导入和API调用是否正确。');
+      parts.push("存在严重的幻觉问题，请确认所有导入和API调用是否正确。");
     }
     if (confidence.dimensions.diffSafety < 50) {
-      parts.push('存在关键的结构性变更，请重新评估变更的必要性。');
+      parts.push("存在关键的结构性变更，请重新评估变更的必要性。");
     }
-    return parts.join(' ');
+    return parts.join(" ");
   }
 
   /**
    * 获取Markdown格式的分数徽章
    */
   private getScoreBadge(score: number): string {
-    if (score >= 80) return `![pass](https://img.shields.io/badge/score-${score}-green)`;
-    if (score >= 50) return `![warn](https://img.shields.io/badge/score-${score}-yellow)`;
+    if (score >= 80)
+      return `![pass](https://img.shields.io/badge/score-${score}-green)`;
+    if (score >= 50)
+      return `![warn](https://img.shields.io/badge/score-${score}-yellow)`;
     return `![fail](https://img.shields.io/badge/score-${score}-red)`;
   }
 
@@ -446,12 +525,12 @@ export class ReportFormatter {
    */
   private getVerdictBadge(verdict: string): string {
     switch (verdict) {
-      case 'TRUST':
-        return '![trust](https://img.shields.io/badge/verdict-TRUST-green)';
-      case 'REVIEW':
-        return '![review](https://img.shields.io/badge/verdict-REVIEW-yellow)';
-      case 'REJECT':
-        return '![reject](https://img.shields.io/badge/verdict-REJECT-red)';
+      case "TRUST":
+        return "![trust](https://img.shields.io/badge/verdict-TRUST-green)";
+      case "REVIEW":
+        return "![review](https://img.shields.io/badge/verdict-REVIEW-yellow)";
+      case "REJECT":
+        return "![reject](https://img.shields.io/badge/verdict-REJECT-red)";
       default:
         return verdict;
     }
@@ -463,7 +542,7 @@ export class ReportFormatter {
   private formatScoreBar(score: number): string {
     const filled = Math.round(score / 10);
     const empty = 10 - filled;
-    return '█'.repeat(filled) + '░'.repeat(empty) + ` ${score}`;
+    return "█".repeat(filled) + "░".repeat(empty) + ` ${score}`;
   }
 
   /**
@@ -471,16 +550,16 @@ export class ReportFormatter {
    */
   private getRiskIcon(riskLevel: string): string {
     switch (riskLevel) {
-      case 'critical':
-        return '🔴';
-      case 'high':
-        return '🟠';
-      case 'medium':
-        return '🟡';
-      case 'low':
-        return '🟢';
+      case "critical":
+        return "🔴";
+      case "high":
+        return "🟠";
+      case "medium":
+        return "🟡";
+      case "low":
+        return "🟢";
       default:
-        return '⚪';
+        return "⚪";
     }
   }
 }

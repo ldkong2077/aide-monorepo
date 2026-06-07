@@ -1,1 +1,29 @@
-{"compilerOptions":{"target":"ES2022","module":"NodeNext","lib":["ES2022"],"strict":true,"esModuleInterop":true,"skipLibCheck":true,"forceConsistentCasingInFileNames":true,"resolveJsonModule":true,"declaration":true,"declarationMap":true,"sourceMap":true,"moduleResolution":"NodeNext","composite":true},"references":[{"path":"packages/core"},{"path":"packages/graph"},{"path":"packages/guard"},{"path":"packages/cli"},{"path":"packages/mcp-server"}],"files":[]}
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "lib": ["ES2022"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "moduleResolution": "NodeNext",
+    "composite": true
+  },
+  "references": [
+    { "path": "packages/core" },
+    { "path": "packages/graph" },
+    { "path": "packages/guard" },
+    { "path": "packages/mind" },
+    { "path": "packages/templates" },
+    { "path": "packages/flow" },
+    { "path": "packages/dashboard" },
+    { "path": "packages/mcp-server" },
+    { "path": "packages/cli" }
+  ],
+  "files": []
+}

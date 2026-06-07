@@ -1,0 +1,14 @@
+node_modules
+dist
+coverage
+.omo
+auxiliary
+.mcp.json
+.DS_Store
+*.min.js
+*.min.css
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+.husky
+docs/archive/*.md

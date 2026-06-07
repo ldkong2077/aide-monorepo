@@ -16,4 +16,4 @@ export {
   CODEGRAPH_SECTION_END,
   CLAUDE_MD_TEMPLATE,
   INSTRUCTIONS_TEMPLATE,
-} from './instructions-template.js';
+} from "./instructions-template.js";

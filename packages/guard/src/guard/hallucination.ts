@@ -3,597 +3,1391 @@
  * 检测AI生成代码中的幻觉问题，包括不存在的包导入、虚假API调用、AI模式等
  */
 
-import * as fs from 'fs';
-import * as path from 'path';
-import type { HallucinationReport, Language, Severity } from '../types.js';
-import type { Storage } from '../storage/index.js';
+import * as fs from "fs";
+import * as path from "path";
+import type { HallucinationReport, Language, Severity } from "../types.js";
+import type { Storage } from "../storage/index.js";
 
 // ==================== Python标准库（常用模块，约200个） ====================
 const PYTHON_STDLIB = new Set([
   // 核心运行时
-  'os',
-  'sys',
-  're',
-  'json',
-  'csv',
-  'math',
-  'random',
-  'datetime',
-  'time',
-  'collections',
-  'itertools',
-  'functools',
-  'operator',
-  'pathlib',
-  'shutil',
-  'subprocess',
-  'threading',
-  'multiprocessing',
-  'logging',
-  'argparse',
-  'unittest',
-  'typing',
-  'dataclasses',
-  'abc',
-  'io',
-  'hashlib',
-  'hmac',
-  'secrets',
-  'base64',
-  'struct',
-  'pickle',
-  'copy',
-  'pprint',
-  'textwrap',
-  'string',
-  'enum',
-  'contextlib',
-  'traceback',
-  'warnings',
-  'weakref',
-  'types',
-  'inspect',
-  'dis',
-  'gc',
-  'site',
-  'codecs',
-  'unicodedata',
-  'locale',
-  'gettext',
-  'calendar',
-  'heapq',
-  'bisect',
-  'array',
-  'queue',
-  'socket',
-  'http',
-  'urllib',
-  'xml',
-  'html',
-  'email',
-  'ftplib',
-  'smtplib',
-  'telnetlib',
-  'ssl',
-  'select',
-  'selectors',
-  'asyncio',
-  'concurrent',
-  'xmlrpc',
-  'ipaddress',
-  'uuid',
-  'platform',
-  'ctypes',
-  'signal',
-  'mmap',
-  'tempfile',
-  'glob',
-  'fnmatch',
-  'linecache',
-  'stat',
-  'fileinput',
-  'configparser',
-  'toml',
-  'zipfile',
-  'tarfile',
-  'gzip',
-  'bz2',
-  'lzma',
-  'zlib',
-  'sqlite3',
-  'dbm',
-  'token',
-  'tokenize',
-  'ast',
-  'symtable',
-  'compileall',
-  'pdb',
-  'profile',
-  'timeit',
-  'trace',
-  'resource',
+  "os",
+  "sys",
+  "re",
+  "json",
+  "csv",
+  "math",
+  "random",
+  "datetime",
+  "time",
+  "collections",
+  "itertools",
+  "functools",
+  "operator",
+  "pathlib",
+  "shutil",
+  "subprocess",
+  "threading",
+  "multiprocessing",
+  "logging",
+  "argparse",
+  "unittest",
+  "typing",
+  "dataclasses",
+  "abc",
+  "io",
+  "hashlib",
+  "hmac",
+  "secrets",
+  "base64",
+  "struct",
+  "pickle",
+  "copy",
+  "pprint",
+  "textwrap",
+  "string",
+  "enum",
+  "contextlib",
+  "traceback",
+  "warnings",
+  "weakref",
+  "types",
+  "inspect",
+  "dis",
+  "gc",
+  "site",
+  "codecs",
+  "unicodedata",
+  "locale",
+  "gettext",
+  "calendar",
+  "heapq",
+  "bisect",
+  "array",
+  "queue",
+  "socket",
+  "http",
+  "urllib",
+  "xml",
+  "html",
+  "email",
+  "ftplib",
+  "smtplib",
+  "telnetlib",
+  "ssl",
+  "select",
+  "selectors",
+  "asyncio",
+  "concurrent",
+  "xmlrpc",
+  "ipaddress",
+  "uuid",
+  "platform",
+  "ctypes",
+  "signal",
+  "mmap",
+  "tempfile",
+  "glob",
+  "fnmatch",
+  "linecache",
+  "stat",
+  "fileinput",
+  "configparser",
+  "toml",
+  "zipfile",
+  "tarfile",
+  "gzip",
+  "bz2",
+  "lzma",
+  "zlib",
+  "sqlite3",
+  "dbm",
+  "token",
+  "tokenize",
+  "ast",
+  "symtable",
+  "compileall",
+  "pdb",
+  "profile",
+  "timeit",
+  "trace",
+  "resource",
   // 网络
-  'http.server',
-  'http.client',
-  'http.cookies',
-  'http.cookiejar',
-  'urllib.request',
-  'urllib.parse',
-  'urllib.error',
-  'urllib.robotparser',
-  'xml.etree.ElementTree',
-  'xml.dom',
-  'xml.sax',
-  'xml.parsers',
-  'html.parser',
-  'html.entities',
-  'socketserver',
-  'webbrowser',
-  'xmlrpc.client',
-  'xmlrpc.server',
-  'poplib',
-  'imaplib',
-  'nntplib',
-  'smtplib',
-  'asyncio',
-  'asyncio.subprocess',
-  'asyncio.streams',
+  "http.server",
+  "http.client",
+  "http.cookies",
+  "http.cookiejar",
+  "urllib.request",
+  "urllib.parse",
+  "urllib.error",
+  "urllib.robotparser",
+  "xml.etree.ElementTree",
+  "xml.dom",
+  "xml.sax",
+  "xml.parsers",
+  "html.parser",
+  "html.entities",
+  "socketserver",
+  "webbrowser",
+  "xmlrpc.client",
+  "xmlrpc.server",
+  "poplib",
+  "imaplib",
+  "nntplib",
+  "smtplib",
+  "asyncio",
+  "asyncio.subprocess",
+  "asyncio.streams",
   // 数据与格式
-  'csv',
-  'json',
-  'toml',
-  'configparser',
-  'plistlib',
-  'email.mime',
-  'email.mime.text',
-  'email.mime.base',
-  'email.mime.multipart',
-  'email.header',
-  'email.utils',
-  'email.message',
-  'mailcap',
-  'mailbox',
-  'mimetypes',
-  'netrc',
-  'xdrlib',
-  'curses',
-  'curses.textpad',
+  "csv",
+  "json",
+  "toml",
+  "configparser",
+  "plistlib",
+  "email.mime",
+  "email.mime.text",
+  "email.mime.base",
+  "email.mime.multipart",
+  "email.header",
+  "email.utils",
+  "email.message",
+  "mailcap",
+  "mailbox",
+  "mimetypes",
+  "netrc",
+  "xdrlib",
+  "curses",
+  "curses.textpad",
   // 加密与安全
-  'hashlib',
-  'hmac',
-  'secrets',
-  'ssl',
+  "hashlib",
+  "hmac",
+  "secrets",
+  "ssl",
   // 数据库
-  'sqlite3',
-  'dbm',
-  'dbm.dumb',
-  'dbm.gnu',
-  'dbm.ndbm',
+  "sqlite3",
+  "dbm",
+  "dbm.dumb",
+  "dbm.gnu",
+  "dbm.ndbm",
   // 文件与目录
-  'tempfile',
-  'glob',
-  'fnmatch',
-  'linecache',
-  'stat',
-  'fileinput',
-  'shutil',
-  'pathlib',
-  'os.path',
+  "tempfile",
+  "glob",
+  "fnmatch",
+  "linecache",
+  "stat",
+  "fileinput",
+  "shutil",
+  "pathlib",
+  "os.path",
   // 系统与进程
-  'atexit',
-  'signal',
-  'resource',
-  'syslog',
-  'posix',
-  'nt',
-  'pwd',
-  'spwd',
-  'grp',
-  'nis',
+  "atexit",
+  "signal",
+  "resource",
+  "syslog",
+  "posix",
+  "nt",
+  "pwd",
+  "spwd",
+  "grp",
+  "nis",
   // 调试与测试
-  'unittest.mock',
-  'unittest.runner',
-  'unittest.suite',
-  'unittest.case',
-  'doctest',
-  'pydoc',
-  'compileall',
-  'py_compile',
-  'bdb',
-  'pdb',
-  'profile',
-  'cProfile',
-  'pstats',
-  'timeit',
-  'trace',
-  'faulthandler',
-  'tracemalloc',
-  'warnings',
+  "unittest.mock",
+  "unittest.runner",
+  "unittest.suite",
+  "unittest.case",
+  "doctest",
+  "pydoc",
+  "compileall",
+  "py_compile",
+  "bdb",
+  "pdb",
+  "profile",
+  "cProfile",
+  "pstats",
+  "timeit",
+  "trace",
+  "faulthandler",
+  "tracemalloc",
+  "warnings",
   // 国际化
-  'gettext',
-  'locale',
-  'codecs',
-  'encodings',
+  "gettext",
+  "locale",
+  "codecs",
+  "encodings",
   // 数据类型与工具
-  'collections.abc',
-  'collections.defaultdict',
-  'collections.OrderedDict',
-  'collections.Counter',
-  'collections.deque',
-  'collections.namedtuple',
-  'collections.ChainMap',
-  'typing',
-  'dataclasses',
-  'enum',
-  'numbers',
-  'decimal',
-  'fractions',
-  'statistics',
-  'cmath',
-  'math',
-  'array',
-  'bisect',
-  'heapq',
-  'sched',
-  'weakref',
-  'weakref.WeakKeyDictionary',
-  'weakref.WeakValueDictionary',
-  'types',
-  'types.MappingProxyType',
-  'types.SimpleNamespace',
-  'functools',
-  'functools.lru_cache',
-  'functools.partial',
-  'functools.wraps',
-  'itertools',
-  'itertools.chain',
-  'itertools.combinations',
-  'operator',
-  'operator.attrgetter',
-  'operator.itemgetter',
-  'copy',
-  'copy.deepcopy',
-  'pprint',
-  'textwrap',
-  'string',
-  're',
-  'difflib',
+  "collections.abc",
+  "collections.defaultdict",
+  "collections.OrderedDict",
+  "collections.Counter",
+  "collections.deque",
+  "collections.namedtuple",
+  "collections.ChainMap",
+  "typing",
+  "dataclasses",
+  "enum",
+  "numbers",
+  "decimal",
+  "fractions",
+  "statistics",
+  "cmath",
+  "math",
+  "array",
+  "bisect",
+  "heapq",
+  "sched",
+  "weakref",
+  "weakref.WeakKeyDictionary",
+  "weakref.WeakValueDictionary",
+  "types",
+  "types.MappingProxyType",
+  "types.SimpleNamespace",
+  "functools",
+  "functools.lru_cache",
+  "functools.partial",
+  "functools.wraps",
+  "itertools",
+  "itertools.chain",
+  "itertools.combinations",
+  "operator",
+  "operator.attrgetter",
+  "operator.itemgetter",
+  "copy",
+  "copy.deepcopy",
+  "pprint",
+  "textwrap",
+  "string",
+  "re",
+  "difflib",
   // 并发
-  'threading',
-  'threading.Thread',
-  'threading.Lock',
-  'threading.Event',
-  'threading.Condition',
-  'threading.Semaphore',
-  'threading.Barrier',
-  'multiprocessing',
-  'multiprocessing.Pool',
-  'multiprocessing.Queue',
-  'concurrent.futures',
-  'concurrent.futures.ThreadPoolExecutor',
-  'concurrent.futures.ProcessPoolExecutor',
-  'queue',
-  'queue.Queue',
-  'queue.LifoQueue',
-  'queue.PriorityQueue',
-  'subprocess',
-  'subprocess.run',
-  'subprocess.Popen',
-  'asyncio',
-  'asyncio.run',
-  'asyncio.gather',
-  'asyncio.create_task',
+  "threading",
+  "threading.Thread",
+  "threading.Lock",
+  "threading.Event",
+  "threading.Condition",
+  "threading.Semaphore",
+  "threading.Barrier",
+  "multiprocessing",
+  "multiprocessing.Pool",
+  "multiprocessing.Queue",
+  "concurrent.futures",
+  "concurrent.futures.ThreadPoolExecutor",
+  "concurrent.futures.ProcessPoolExecutor",
+  "queue",
+  "queue.Queue",
+  "queue.LifoQueue",
+  "queue.PriorityQueue",
+  "subprocess",
+  "subprocess.run",
+  "subprocess.Popen",
+  "asyncio",
+  "asyncio.run",
+  "asyncio.gather",
+  "asyncio.create_task",
   // 其他
-  'venv',
-  'zipapp',
-  'importlib',
-  'importlib.metadata',
-  'importlib.resources',
-  'pkgutil',
-  'modulefinder',
-  'runpy',
-  'sysconfig',
-  'site',
-  'code',
-  'codeop',
-  'crypt',
-  'curses',
-  'curses.ascii',
-  'turtle',
-  'tkinter',
-  'colorsys',
-  'imghdr',
-  'sndhdr',
-  'wave',
-  'chunk',
-  'aifc',
-  'sunau',
-  'audioop',
-  'msvcrt',
-  'winreg',
-  'winsound', // Windows
-  'posixpath',
-  'ntpath',
-  'genericpath',
-  'optparse',
-  'getpass',
-  'cmd',
-  'shlex',
-  'tty',
-  'pty',
-  'termios',
-  'readline',
-  'rlcompleter',
+  "venv",
+  "zipapp",
+  "importlib",
+  "importlib.metadata",
+  "importlib.resources",
+  "pkgutil",
+  "modulefinder",
+  "runpy",
+  "sysconfig",
+  "site",
+  "code",
+  "codeop",
+  "crypt",
+  "curses",
+  "curses.ascii",
+  "turtle",
+  "tkinter",
+  "colorsys",
+  "imghdr",
+  "sndhdr",
+  "wave",
+  "chunk",
+  "aifc",
+  "sunau",
+  "audioop",
+  "msvcrt",
+  "winreg",
+  "winsound", // Windows
+  "posixpath",
+  "ntpath",
+  "genericpath",
+  "optparse",
+  "getpass",
+  "cmd",
+  "shlex",
+  "tty",
+  "pty",
+  "termios",
+  "readline",
+  "rlcompleter",
 ]);
 
 // ==================== Node.js内置模块 ====================
 const NODE_BUILTINS = new Set([
-  'assert',
-  'assert/strict',
-  'async_hooks',
-  'buffer',
-  'child_process',
-  'cluster',
-  'console',
-  'crypto',
-  'dgram',
-  'diagnostics_channel',
-  'dns',
-  'dns/promises',
-  'domain',
-  'events',
-  'fs',
-  'fs/promises',
-  'http',
-  'http2',
-  'https',
-  'inspector',
-  'module',
-  'net',
-  'os',
-  'path',
-  'perf_hooks',
-  'process',
-  'punycode',
-  'querystring',
-  'readline',
-  'readline/promises',
-  'repl',
-  'stream',
-  'stream/consumers',
-  'stream/promises',
-  'stream/web',
-  'string_decoder',
-  'sys',
-  'timers',
-  'timers/promises',
-  'tls',
-  'trace_events',
-  'tty',
-  'url',
-  'util',
-  'util/types',
-  'v8',
-  'vm',
-  'wasi',
-  'worker_threads',
-  'zlib',
+  "assert",
+  "assert/strict",
+  "async_hooks",
+  "buffer",
+  "child_process",
+  "cluster",
+  "console",
+  "crypto",
+  "dgram",
+  "diagnostics_channel",
+  "dns",
+  "dns/promises",
+  "domain",
+  "events",
+  "fs",
+  "fs/promises",
+  "http",
+  "http2",
+  "https",
+  "inspector",
+  "module",
+  "net",
+  "os",
+  "path",
+  "perf_hooks",
+  "process",
+  "punycode",
+  "querystring",
+  "readline",
+  "readline/promises",
+  "repl",
+  "stream",
+  "stream/consumers",
+  "stream/promises",
+  "stream/web",
+  "string_decoder",
+  "sys",
+  "timers",
+  "timers/promises",
+  "tls",
+  "trace_events",
+  "tty",
+  "url",
+  "util",
+  "util/types",
+  "v8",
+  "vm",
+  "wasi",
+  "worker_threads",
+  "zlib",
   // node: 前缀
-  'node:assert',
-  'node:assert/strict',
-  'node:async_hooks',
-  'node:buffer',
-  'node:child_process',
-  'node:cluster',
-  'node:console',
-  'node:crypto',
-  'node:dgram',
-  'node:diagnostics_channel',
-  'node:dns',
-  'node:dns/promises',
-  'node:domain',
-  'node:events',
-  'node:fs',
-  'node:fs/promises',
-  'node:http',
-  'node:http2',
-  'node:https',
-  'node:inspector',
-  'node:module',
-  'node:net',
-  'node:os',
-  'node:path',
-  'node:perf_hooks',
-  'node:process',
-  'node:punycode',
-  'node:querystring',
-  'node:readline',
-  'node:readline/promises',
-  'node:repl',
-  'node:stream',
-  'node:stream/consumers',
-  'node:stream/promises',
-  'node:stream/web',
-  'node:string_decoder',
-  'node:sys',
-  'node:timers',
-  'node:timers/promises',
-  'node:tls',
-  'node:trace_events',
-  'node:tty',
-  'node:url',
-  'node:util',
-  'node:util/types',
-  'node:v8',
-  'node:vm',
-  'node:wasi',
-  'node:worker_threads',
-  'node:zlib',
+  "node:assert",
+  "node:assert/strict",
+  "node:async_hooks",
+  "node:buffer",
+  "node:child_process",
+  "node:cluster",
+  "node:console",
+  "node:crypto",
+  "node:dgram",
+  "node:diagnostics_channel",
+  "node:dns",
+  "node:dns/promises",
+  "node:domain",
+  "node:events",
+  "node:fs",
+  "node:fs/promises",
+  "node:http",
+  "node:http2",
+  "node:https",
+  "node:inspector",
+  "node:module",
+  "node:net",
+  "node:os",
+  "node:path",
+  "node:perf_hooks",
+  "node:process",
+  "node:punycode",
+  "node:querystring",
+  "node:readline",
+  "node:readline/promises",
+  "node:repl",
+  "node:stream",
+  "node:stream/consumers",
+  "node:stream/promises",
+  "node:stream/web",
+  "node:string_decoder",
+  "node:sys",
+  "node:timers",
+  "node:timers/promises",
+  "node:tls",
+  "node:trace_events",
+  "node:tty",
+  "node:url",
+  "node:util",
+  "node:util/types",
+  "node:v8",
+  "node:vm",
+  "node:wasi",
+  "node:worker_threads",
+  "node:zlib",
   // 测试模块 (Node 18+)
-  'node:test',
-  'test',
+  "node:test",
+  "test",
 ]);
 
 // ==================== Go标准库包 ====================
 const GO_STDLIB = new Set([
-  'archive',
-  'archive/tar',
-  'archive/zip',
-  'bufio',
-  'builtin',
-  'bytes',
-  'compress',
-  'compress/bzip2',
-  'compress/flate',
-  'compress/gzip',
-  'compress/lzw',
-  'compress/zlib',
-  'container',
-  'container/heap',
-  'container/list',
-  'container/ring',
-  'context',
-  'crypto',
-  'crypto/aes',
-  'crypto/cipher',
-  'crypto/des',
-  'crypto/dsa',
-  'crypto/ecdsa',
-  'crypto/ed25519',
-  'crypto/elliptic',
-  'crypto/hmac',
-  'crypto/md5',
-  'crypto/rand',
-  'crypto/rc4',
-  'crypto/rsa',
-  'crypto/sha1',
-  'crypto/sha256',
-  'crypto/sha512',
-  'crypto/subtle',
-  'crypto/tls',
-  'crypto/x509',
-  'database',
-  'database/sql',
-  'debug',
-  'debug/dwarf',
-  'debug/elf',
-  'debug/gosym',
-  'debug/macho',
-  'debug/pe',
-  'debug/plan9obj',
-  'embed',
-  'encoding',
-  'encoding/ascii85',
-  'encoding/asn1',
-  'encoding/base32',
-  'encoding/base64',
-  'encoding/binary',
-  'encoding/csv',
-  'encoding/gob',
-  'encoding/hex',
-  'encoding/json',
-  'encoding/pem',
-  'encoding/xml',
-  'errors',
-  'expvar',
-  'flag',
-  'fmt',
-  'go',
-  'go/ast',
-  'go/build',
-  'go/constant',
-  'go/doc',
-  'go/format',
-  'go/importer',
-  'go/parser',
-  'go/printer',
-  'go/scanner',
-  'go/token',
-  'go/types',
-  'hash',
-  'hash/adler32',
-  'hash/crc32',
-  'hash/crc64',
-  'hash/fnv',
-  'html',
-  'html/template',
-  'image',
-  'image/color',
-  'image/color/palette',
-  'image/draw',
-  'image/gif',
-  'image/jpeg',
-  'image/png',
-  'index',
-  'index/suffixarray',
-  'io',
-  'io/fs',
-  'io/ioutil',
-  'log',
-  'log/syslog',
-  'maps',
-  'math',
-  'math/big',
-  'math/bits',
-  'math/cmplx',
-  'math/rand',
-  'mime',
-  'mime/multipart',
-  'mime/quotedprintable',
-  'net',
-  'net/http',
-  'net/http/cgi',
-  'net/http/cookiejar',
-  'net/http/fcgi',
-  'net/http/httptest',
-  'net/http/httptrace',
-  'net/http/httputil',
-  'net/http/pprof',
-  'net/mail',
-  'net/netip',
-  'net/rpc',
-  'net/rpc/jsonrpc',
-  'net/smtp',
-  'net/textproto',
-  'net/url',
-  'os',
-  'os/exec',
-  'os/signal',
-  'os/user',
-  'path',
-  'path/filepath',
-  'plugin',
-  'reflect',
-  'regexp',
-  'regexp/syntax',
-  'runtime',
-  'runtime/cgo',
-  'runtime/debug',
-  'runtime/metrics',
-  'runtime/pprof',
-  'runtime/race',
-  'runtime/trace',
-  'slices',
-  'sort',
-  'strconv',
-  'strings',
-  'sync',
-  'sync/atomic',
-  'syscall',
-  'testing',
-  'testing/fstest',
-  'testing/iotest',
-  'testing/quick',
-  'text',
-  'text/scanner',
-  'text/tabwriter',
-  'text/template',
-  'text/template/parse',
-  'time',
-  'unicode',
-  'unicode/utf16',
-  'unicode/utf8',
-  'unsafe',
+  "archive",
+  "archive/tar",
+  "archive/zip",
+  "bufio",
+  "builtin",
+  "bytes",
+  "compress",
+  "compress/bzip2",
+  "compress/flate",
+  "compress/gzip",
+  "compress/lzw",
+  "compress/zlib",
+  "container",
+  "container/heap",
+  "container/list",
+  "container/ring",
+  "context",
+  "crypto",
+  "crypto/aes",
+  "crypto/cipher",
+  "crypto/des",
+  "crypto/dsa",
+  "crypto/ecdsa",
+  "crypto/ed25519",
+  "crypto/elliptic",
+  "crypto/hmac",
+  "crypto/md5",
+  "crypto/rand",
+  "crypto/rc4",
+  "crypto/rsa",
+  "crypto/sha1",
+  "crypto/sha256",
+  "crypto/sha512",
+  "crypto/subtle",
+  "crypto/tls",
+  "crypto/x509",
+  "database",
+  "database/sql",
+  "debug",
+  "debug/dwarf",
+  "debug/elf",
+  "debug/gosym",
+  "debug/macho",
+  "debug/pe",
+  "debug/plan9obj",
+  "embed",
+  "encoding",
+  "encoding/ascii85",
+  "encoding/asn1",
+  "encoding/base32",
+  "encoding/base64",
+  "encoding/binary",
+  "encoding/csv",
+  "encoding/gob",
+  "encoding/hex",
+  "encoding/json",
+  "encoding/pem",
+  "encoding/xml",
+  "errors",
+  "expvar",
+  "flag",
+  "fmt",
+  "go",
+  "go/ast",
+  "go/build",
+  "go/constant",
+  "go/doc",
+  "go/format",
+  "go/importer",
+  "go/parser",
+  "go/printer",
+  "go/scanner",
+  "go/token",
+  "go/types",
+  "hash",
+  "hash/adler32",
+  "hash/crc32",
+  "hash/crc64",
+  "hash/fnv",
+  "html",
+  "html/template",
+  "image",
+  "image/color",
+  "image/color/palette",
+  "image/draw",
+  "image/gif",
+  "image/jpeg",
+  "image/png",
+  "index",
+  "index/suffixarray",
+  "io",
+  "io/fs",
+  "io/ioutil",
+  "log",
+  "log/syslog",
+  "maps",
+  "math",
+  "math/big",
+  "math/bits",
+  "math/cmplx",
+  "math/rand",
+  "mime",
+  "mime/multipart",
+  "mime/quotedprintable",
+  "net",
+  "net/http",
+  "net/http/cgi",
+  "net/http/cookiejar",
+  "net/http/fcgi",
+  "net/http/httptest",
+  "net/http/httptrace",
+  "net/http/httputil",
+  "net/http/pprof",
+  "net/mail",
+  "net/netip",
+  "net/rpc",
+  "net/rpc/jsonrpc",
+  "net/smtp",
+  "net/textproto",
+  "net/url",
+  "os",
+  "os/exec",
+  "os/signal",
+  "os/user",
+  "path",
+  "path/filepath",
+  "plugin",
+  "reflect",
+  "regexp",
+  "regexp/syntax",
+  "runtime",
+  "runtime/cgo",
+  "runtime/debug",
+  "runtime/metrics",
+  "runtime/pprof",
+  "runtime/race",
+  "runtime/trace",
+  "slices",
+  "sort",
+  "strconv",
+  "strings",
+  "sync",
+  "sync/atomic",
+  "syscall",
+  "testing",
+  "testing/fstest",
+  "testing/iotest",
+  "testing/quick",
+  "text",
+  "text/scanner",
+  "text/tabwriter",
+  "text/template",
+  "text/template/parse",
+  "time",
+  "unicode",
+  "unicode/utf16",
+  "unicode/utf8",
+  "unsafe",
+]);
+
+// ==================== Java标准库（常用包） ====================
+const JAVA_STDLIB = new Set([
+  "java.lang",
+  "java.util",
+  "java.io",
+  "java.net",
+  "java.nio",
+  "java.nio.file",
+  "java.nio.charset",
+  "java.math",
+  "java.time",
+  "java.time.format",
+  "java.time.temporal",
+  "java.time.zone",
+  "java.text",
+  "java.util.stream",
+  "java.util.function",
+  "java.util.concurrent",
+  "java.util.concurrent.atomic",
+  "java.util.concurrent.locks",
+  "java.util.regex",
+  "java.util.logging",
+  "java.util.zip",
+  "java.util.jar",
+  "java.util.prefs",
+  "java.util.random",
+  "java.util.spi",
+  "java.lang.reflect",
+  "java.lang.annotation",
+  "java.lang.invoke",
+  "java.lang.module",
+  "java.lang.ref",
+  "java.lang.runtime",
+  "java.io",
+  "java.io.file",
+  "java.io.stream",
+  "java.net.http",
+  "java.net.ssl",
+  "java.net.URI",
+  "java.net.URL",
+  "java.net.InetAddress",
+  "java.net.ServerSocket",
+  "java.net.Socket",
+  "java.net.DatagramSocket",
+  "java.security",
+  "java.security.cert",
+  "java.security.spec",
+  "java.security.KeyStore",
+  "java.security.MessageDigest",
+  "java.security.Signature",
+  "java.security.SecureRandom",
+  "javax.crypto",
+  "javax.crypto.spec",
+  "javax.crypto.Cipher",
+  "javax.crypto.Mac",
+  "javax.crypto.SecretKey",
+  "javax.crypto.KeyGenerator",
+  "javax.net.ssl",
+  "javax.security.auth",
+  "javax.sql",
+  "javax.xml.parsers",
+  "javax.xml.transform",
+  "javax.xml.transform.stream",
+  "javax.xml.transform.dom",
+  "javax.xml.bind",
+  "javax.json",
+  "javax.swing",
+  "javax.awt",
+  "java.awt",
+  "java.awt.event",
+  "java.awt.image",
+  "java.applet",
+  "java.beans",
+  "java.rmi",
+  "java.rmi.server",
+  "java.sql",
+  "java.sql.ResultSet",
+  "java.sql.Connection",
+  "java.sql.PreparedStatement",
+  "java.sql.Statement",
+  "java.sql.DriverManager",
+  "javax.naming",
+  "javax.naming.directory",
+  "javax.management",
+  "javax.management.remote",
+  "org.w3c.dom",
+  "org.xml.sax",
+  "org.xml.sax.helpers",
+]);
+
+// ==================== Rust标准库（常用crate） ====================
+const RUST_STDLIB = new Set([
+  "std",
+  "std::collections",
+  "std::collections::HashMap",
+  "std::collections::HashSet",
+  "std::collections::BTreeMap",
+  "std::collections::BTreeSet",
+  "std::collections::VecDeque",
+  "std::collections::LinkedList",
+  "std::collections::BinaryHeap",
+  "std::sync",
+  "std::sync::Arc",
+  "std::sync::Mutex",
+  "std::sync::RwLock",
+  "std::sync::mpsc",
+  "std::sync::atomic",
+  "std::sync::Barrier",
+  "std::sync::Condvar",
+  "std::sync::Once",
+  "std::sync::LazyLock",
+  "std::sync::OnceLock",
+  "std::thread",
+  "std::thread::JoinHandle",
+  "std::fs",
+  "std::fs::File",
+  "std::fs::DirBuilder",
+  "std::fs::OpenOptions",
+  "std::io",
+  "std::io::Read",
+  "std::io::Write",
+  "std::io::BufRead",
+  "std::io::BufReader",
+  "std::io::BufWriter",
+  "std::io::Cursor",
+  "std::io::Error",
+  "std::io::ErrorKind",
+  "std::io::Stdin",
+  "std::io::Stdout",
+  "std::io::stderr",
+  "std::net",
+  "std::net::TcpListener",
+  "std::net::TcpStream",
+  "std::net::UdpSocket",
+  "std::net::IpAddr",
+  "std::net::Ipv4Addr",
+  "std::net::Ipv6Addr",
+  "std::net::SocketAddr",
+  "std::path",
+  "std::path::Path",
+  "std::path::PathBuf",
+  "std::env",
+  "std::env::Args",
+  "std::env::Vars",
+  "std::process",
+  "std::process::Command",
+  "std::process::Stdio",
+  "std::process::Child",
+  "std::process::ExitStatus",
+  "std::time",
+  "std::time::Duration",
+  "std::time::Instant",
+  "std::time::SystemTime",
+  "std::fmt",
+  "std::fmt::Display",
+  "std::fmt::Debug",
+  "std::fmt::Formatter",
+  "std::fmt::Result",
+  "std::str",
+  "std::str::FromStr",
+  "std::str::Split",
+  "std::string",
+  "std::string::String",
+  "std::vec",
+  "std::vec::Vec",
+  "std::option",
+  "std::option::Option",
+  "std::result",
+  "std::result::Result",
+  "std::boxed",
+  "std::boxed::Box",
+  "std::rc",
+  "std::rc::Rc",
+  "std::cell",
+  "std::cell::RefCell",
+  "std::cell::Cell",
+  "std::convert",
+  "std::convert::From",
+  "std::convert::Into",
+  "std::convert::TryFrom",
+  "std::convert::TryInto",
+  "std::convert::AsRef",
+  "std::convert::AsMut",
+  "std::iter",
+  "std::iter::Iterator",
+  "std::iter::IntoIterator",
+  "std::iter::FromIterator",
+  "std::iter::Map",
+  "std::iter::Filter",
+  "std::iter::Chain",
+  "std::iter::Zip",
+  "std::iter::Enumerate",
+  "std::ops",
+  "std::ops::Range",
+  "std::ops::RangeInclusive",
+  "std::ops::Deref",
+  "std::ops::DerefMut",
+  "std::ops::Fn",
+  "std::ops::FnMut",
+  "std::ops::FnOnce",
+  "std::cmp",
+  "std::cmp::Ordering",
+  "std::cmp::PartialEq",
+  "std::cmp::PartialOrd",
+  "std::cmp::Eq",
+  "std::cmp::Ord",
+  "std::hash",
+  "std::hash::Hash",
+  "std::hash::Hasher",
+  "std::hash::BuildHasher",
+  "std::any",
+  "std::any::Any",
+  "std::any::TypeId",
+  "std::any::type_name",
+  "std::marker",
+  "std::marker::PhantomData",
+  "std::marker::Send",
+  "std::marker::Sync",
+  "std::marker::Sized",
+  "std::marker::Copy",
+  "std::marker::Clone",
+  "std::mem",
+  "std::ptr",
+  "std::ffi",
+  "std::ffi::CString",
+  "std::ffi::CStr",
+  "std::ffi::OsString",
+  "std::ffi::OsStr",
+  "std::os",
+  "std::os::unix",
+  "std::os::unix::fs",
+  "std::os::unix::net",
+  "std::os::unix::process",
+  "std::os::windows",
+  "std::os::windows::fs",
+  "std::os::windows::io",
+  "std::error",
+  "std::error::Error",
+  "std::panic",
+  "std::backtrace",
+  "std::task",
+  "std::task::Poll",
+  "std::task::Context",
+  "std::future",
+  "std::future::Future",
+  "std::pin",
+  "std::pin::Pin",
+  "core",
+  "alloc",
+  "proc_macro",
+  "test",
+]);
+
+// ==================== Ruby标准库（常用模块） ====================
+const RUBY_STDLIB = new Set([
+  "csv",
+  "digest",
+  "drb",
+  "erb",
+  "fileutils",
+  "find",
+  "forwardable",
+  "io/console",
+  "ipaddr",
+  "json",
+  "logger",
+  "monitor",
+  "net/http",
+  "net/https",
+  "net/ftp",
+  "net/smtp",
+  "net/pop",
+  "net/imap",
+  "net/telnet",
+  "objspace",
+  "open3",
+  "open-uri",
+  "optparse",
+  "ostruct",
+  "pathname",
+  "pp",
+  "prettyprint",
+  "prime",
+  "pstore",
+  "psych",
+  "racc",
+  "rake",
+  "rdoc",
+  "resolv",
+  "rexml",
+  "rss",
+  "rubygems",
+  "securerandom",
+  "set",
+  "shellwords",
+  "singleton",
+  "socket",
+  "stringio",
+  "strscan",
+  "syslog",
+  "tempfile",
+  "thread",
+  "timeout",
+  "tmpdir",
+  "tracer",
+  "tsort",
+  "uri",
+  "weakref",
+  "yaml",
+  "zlib",
+  "bigdecimal",
+  "cgi",
+  "cmath",
+  "coverage",
+  "date",
+  "dbm",
+  "delegate",
+  "did_you_mean",
+  "digest/md5",
+  "digest/sha1",
+  "digest/sha2",
+  "etc",
+  "fcntl",
+  "fiddle",
+  "gdbm",
+  "getoptlong",
+  "io/nonblock",
+  "io/wait",
+  "irb",
+  "json",
+  "kconv",
+  "nkf",
+  "observer",
+  "open-uri",
+  "openssl",
+  "optionparser",
+  "pathname",
+  "pty",
+  "readline",
+  "rexml/document",
+  "ripper",
+  "sdbm",
+  "socket",
+  "stringio",
+  "strscan",
+  "syslog/logger",
+  "tempfile",
+  "time",
+  "timeout",
+  "tracer",
+  "un",
+  "unicode_normalize",
+  "uri",
+  "win32ole",
+  "yaml",
+  "zlib",
+]);
+
+// ==================== PHP标准库（常用扩展/函数命名空间） ====================
+const PHP_STDLIB = new Set([
+  // Core
+  "Core",
+  "standard",
+  "SPL",
+  "Reflection",
+  // Common extensions
+  "curl",
+  "date",
+  "dom",
+  "fileinfo",
+  "filter",
+  "hash",
+  "iconv",
+  "json",
+  "libxml",
+  "mbstring",
+  "mysqlnd",
+  "openssl",
+  "pcre",
+  "PDO",
+  "pdo_mysql",
+  "pdo_pgsql",
+  "pdo_sqlite",
+  "pgsql",
+  "Phar",
+  "posix",
+  "random",
+  "readline",
+  "redis",
+  "session",
+  "SimpleXML",
+  "soap",
+  "sockets",
+  "sodium",
+  "sqlite3",
+  "tokenizer",
+  "xml",
+  "xmlreader",
+  "xmlwriter",
+  "xsl",
+  "zip",
+  "zlib",
+  // Built-in interfaces/classes
+  "ArrayAccess",
+  "ArrayObject",
+  "Closure",
+  "Countable",
+  "DirectoryIterator",
+  "DomainException",
+  "ErrorException",
+  "Exception",
+  "FilesystemIterator",
+  "FilterIterator",
+  "GlobIterator",
+  "InvalidArgumentException",
+  "Iterator",
+  "IteratorAggregate",
+  "LengthException",
+  "LogicException",
+  "OutOfBoundsException",
+  "OutOfRangeException",
+  "OverflowException",
+  "PDOException",
+  "RangeException",
+  "RecursiveArrayIterator",
+  "RecursiveDirectoryIterator",
+  "RecursiveIteratorIterator",
+  "RuntimeException",
+  "SeekableIterator",
+  "Serializable",
+  "SplFixedArray",
+  "SplHeap",
+  "SplMaxHeap",
+  "SplMinHeap",
+  "SplObjectStorage",
+  "SplPriorityQueue",
+  "SplQueue",
+  "SplStack",
+  "Traversable",
+  "UnderflowException",
+  "UnexpectedValueException",
+]);
+
+// ==================== C/C++标准库头文件 ====================
+const C_STDLIB = new Set([
+  "stdio.h",
+  "stdlib.h",
+  "string.h",
+  "math.h",
+  "time.h",
+  "ctype.h",
+  "errno.h",
+  "signal.h",
+  "assert.h",
+  "stddef.h",
+  "stdbool.h",
+  "stdint.h",
+  "inttypes.h",
+  "limits.h",
+  "float.h",
+  "locale.h",
+  "setjmp.h",
+  "stdarg.h",
+  "complex.h",
+  "fenv.h",
+  "tgmath.h",
+  "wchar.h",
+  "wctype.h",
+  "iso646.h",
+]);
+
+const CPP_STDLIB = new Set([
+  // C++ headers (no .h)
+  "algorithm",
+  "array",
+  "atomic",
+  "bitset",
+  "chrono",
+  "codecvt",
+  "compare",
+  "complex",
+  "concepts",
+  "condition_variable",
+  "coroutine",
+  "deque",
+  "exception",
+  "execution",
+  "filesystem",
+  "format",
+  "forward_list",
+  "fstream",
+  "functional",
+  "future",
+  "initializer_list",
+  "iomanip",
+  "ios",
+  "iosfwd",
+  "iostream",
+  "istream",
+  "iterator",
+  "limits",
+  "list",
+  "locale",
+  "map",
+  "memory",
+  "memory_resource",
+  "mutex",
+  "new",
+  "numbers",
+  "numeric",
+  "optional",
+  "ostream",
+  "queue",
+  "random",
+  "ranges",
+  "ratio",
+  "regex",
+  "scoped_allocator",
+  "set",
+  "shared_mutex",
+  "source_location",
+  "span",
+  "sstream",
+  "stack",
+  "stdexcept",
+  "stop_token",
+  "streambuf",
+  "string",
+  "string_view",
+  "strstream",
+  "syncstream",
+  "system_error",
+  "thread",
+  "tuple",
+  "type_traits",
+  "typeindex",
+  "typeinfo",
+  "unordered_map",
+  "unordered_set",
+  "utility",
+  "valarray",
+  "variant",
+  "vector",
+  "version",
+  // C++ C compatibility headers
+  "cassert",
+  "ccomplex",
+  "cctype",
+  "cerrno",
+  "cfenv",
+  "cfloat",
+  "cinttypes",
+  "ciso646",
+  "climits",
+  "clocale",
+  "cmath",
+  "csetjmp",
+  "csignal",
+  "cstdalign",
+  "cstdarg",
+  "cstdbool",
+  "cstddef",
+  "cstdint",
+  "cstdio",
+  "cstdlib",
+  "cstring",
+  "ctgmath",
+  "ctime",
+  "cuchar",
+  "cwchar",
+  "cwctype",
+]);
+
+// ==================== Kotlin标准库 ====================
+const KOTLIN_STDLIB = new Set([
+  "kotlin",
+  "kotlin.collections",
+  "kotlin.comparisons",
+  "kotlin.io",
+  "kotlin.ranges",
+  "kotlin.sequences",
+  "kotlin.text",
+  "kotlin.math",
+  "kotlin.concurrent",
+  "kotlin.properties",
+  "kotlin.reflect",
+  "kotlin.coroutines",
+  "kotlin.streams",
+  "kotlin.time",
+  "kotlin.random",
+  "kotlin.system",
+  "kotlin.js",
+  "kotlin.native",
+  "kotlin.jvm",
+  "kotlin.annotation",
+  "kotlin.enums",
+  "kotlin.experimental",
+  "kotlin.internal",
+  "kotlin.coroutines.intrinsics",
+  "kotlin.coroutines.jvm.internal",
+  "kotlinx",
+  "kotlinx.coroutines",
+  "kotlinx.coroutines.flow",
+  "kotlinx.coroutines.sync",
+  "kotlinx.coroutines.channels",
+  "kotlinx.coroutines.select",
+  "kotlinx.serialization",
+  "kotlinx.serialization.json",
+  "kotlinx.serialization.protobuf",
+  "kotlinx.serialization.cbor",
+  "kotlinx.serialization.properties",
+]);
+
+// ==================== Swift标准库 ====================
+const SWIFT_STDLIB = new Set([
+  "Swift",
+  "Foundation",
+  "FoundationNetworking",
+  "FoundationXML",
+  "Combine",
+  "Concurrency",
+  "Observation",
+  "SwiftUI",
+  "UIKit",
+  "AppKit",
+  "CoreData",
+  "CoreFoundation",
+  "CoreGraphics",
+  "CoreImage",
+  "CoreLocation",
+  "CoreServices",
+  "CoreText",
+  "CoreVideo",
+  "CryptoKit",
+  "GameKit",
+  "MapKit",
+  "Network",
+  "Photos",
+  "PhotosUI",
+  "Security",
+  "StoreKit",
+  "WebKit",
+  "XCTest",
+  "SwiftData",
+  "WidgetKit",
+  "CloudKit",
+  "AVFoundation",
+  "CoreAudio",
+  "CoreAnimation",
+  "CoreMedia",
+  "CoreMIDI",
+  "Metal",
+  "MetalKit",
+  "MetalPerformanceShaders",
+  "SceneKit",
+  "SpriteKit",
+  "Vision",
+  "NaturalLanguage",
+  "Speech",
+  "CoreML",
+  "CreateML",
+  "ActivityKit",
+  "BackgroundTasks",
+  "UserNotifications",
+  "OSLog",
+  "System",
+  "RegexBuilder",
+  "Charts",
+]);
+
+// ==================== C#标准库命名空间 ====================
+const CSHARP_STDLIB = new Set([
+  "System",
+  "System.Collections",
+  "System.Collections.Generic",
+  "System.Collections.Concurrent",
+  "System.Collections.Specialized",
+  "System.IO",
+  "System.IO.Compression",
+  "System.IO.Pipes",
+  "System.IO.Ports",
+  "System.IO.FileSystem",
+  "System.IO.IsolatedStorage",
+  "System.Net",
+  "System.Net.Http",
+  "System.Net.Sockets",
+  "System.Net.Mail",
+  "System.Net.NetworkInformation",
+  "System.Net.Security",
+  "System.Net.WebSockets",
+  "System.Text",
+  "System.Text.Json",
+  "System.Text.RegularExpressions",
+  "System.Text.Encodings",
+  "System.Threading",
+  "System.Threading.Tasks",
+  "System.Threading.Channels",
+  "System.Threading.Tasks.Dataflow",
+  "System.Linq",
+  "System.Linq.Expressions",
+  "System.Reflection",
+  "System.Reflection.Emit",
+  "System.Reflection.Metadata",
+  "System.Runtime",
+  "System.Runtime.CompilerServices",
+  "System.Runtime.InteropServices",
+  "System.Runtime.Serialization",
+  "System.Runtime.Versioning",
+  "System.Security",
+  "System.Security.Cryptography",
+  "System.Security.Authentication",
+  "System.Security.Claims",
+  "System.Security.Permissions",
+  "System.Security.Principal",
+  "System.Diagnostics",
+  "System.Diagnostics.CodeAnalysis",
+  "System.Diagnostics.Contracts",
+  "System.Diagnostics.Process",
+  "System.Diagnostics.Tracing",
+  "System.Globalization",
+  "System.Resources",
+  "System.Math",
+  "System.Convert",
+  "System.DateTime",
+  "System.TimeSpan",
+  "System.Guid",
+  "System.String",
+  "System.MathF",
+  "System.Environment",
+  "System.Console",
+  "System.Random",
+  "System.Convert",
+  "System.BitConverter",
+  "System.Buffer",
+  "System.Span",
+  "System.Memory",
+  "System.Buffers",
+  "System.Numerics",
+  "System.Formats",
+  "System.Formats.Asn1",
+  "System.Formats.Tar",
+  "System.CodeDom",
+  "System.ComponentModel",
+  "System.Data",
+  "System.Data.Common",
+  "System.Data.SqlClient",
+  "System.Xml",
+  "System.Xml.Linq",
+  "System.Xml.Serialization",
+  "System.Xml.XPath",
+  "System.Xml.Xsl",
+  "System.Json",
+  "System.Timers",
+  "System.Type",
+  "System.Object",
+  "System.Boolean",
+  "System.Byte",
+  "System.SByte",
+  "System.Int16",
+  "System.Int32",
+  "System.Int64",
+  "System.UInt16",
+  "System.UInt32",
+  "System.UInt64",
+  "System.Single",
+  "System.Double",
+  "System.Decimal",
+  "System.Char",
+  "System.Void",
+  "System.Array",
+  "System.Exception",
+  "System.Action",
+  "System.Func",
+  "System.Predicate",
+  "System.Comparison",
+  "System.EventHandler",
+  "System.EventArgs",
+  "System.IAsyncResult",
+  "System.IDisposable",
+  "System.IComparable",
+  "System.IEquatable",
+  "System.IFormatProvider",
+  "System.ICloneable",
+  "System.Collections.IEnumerable",
+  "System.Collections.IEnumerator",
+  "System.Collections.IList",
+  "System.Collections.IDictionary",
+  "System.Collections.ICollection",
+  "Microsoft",
+  "Microsoft.CSharp",
+  "Microsoft.VisualBasic",
+  "Microsoft.Win32",
 ]);
 
 /**
@@ -649,15 +1443,59 @@ export class HallucinationDetector {
   private isTrustedPackage(packageName: string, language: string): boolean {
     // 先检查内置标准库
     switch (language) {
-      case 'python':
+      case "python":
         if (PYTHON_STDLIB.has(packageName)) return true;
         break;
-      case 'typescript':
-      case 'javascript':
+      case "typescript":
+      case "javascript":
         if (NODE_BUILTINS.has(packageName)) return true;
         break;
-      case 'go':
+      case "go":
         if (GO_STDLIB.has(packageName)) return true;
+        break;
+      case "java":
+        if (JAVA_STDLIB.has(packageName)) return true;
+        // Java packages are hierarchical: java.util is trusted, so java.util.concurrent is too
+        for (const stdlib of JAVA_STDLIB) {
+          if (packageName.startsWith(stdlib + ".")) return true;
+        }
+        break;
+      case "rust":
+        if (RUST_STDLIB.has(packageName)) return true;
+        // Rust paths are hierarchical: std is trusted, so std::collections is too
+        for (const stdlib of RUST_STDLIB) {
+          if (packageName.startsWith(stdlib + "::")) return true;
+        }
+        break;
+      case "ruby":
+        if (RUBY_STDLIB.has(packageName)) return true;
+        break;
+      case "php":
+        if (PHP_STDLIB.has(packageName)) return true;
+        break;
+      case "c":
+        if (C_STDLIB.has(packageName)) return true;
+        break;
+      case "cpp":
+        if (CPP_STDLIB.has(packageName) || C_STDLIB.has(packageName))
+          return true;
+        break;
+      case "kotlin":
+        if (KOTLIN_STDLIB.has(packageName)) return true;
+        // Kotlin packages are hierarchical
+        for (const stdlib of KOTLIN_STDLIB) {
+          if (packageName.startsWith(stdlib + ".")) return true;
+        }
+        break;
+      case "swift":
+        if (SWIFT_STDLIB.has(packageName)) return true;
+        break;
+      case "csharp":
+        if (CSHARP_STDLIB.has(packageName)) return true;
+        // C# namespaces are hierarchical: System is trusted, so System.IO is too
+        for (const stdlib of CSHARP_STDLIB) {
+          if (packageName.startsWith(stdlib + ".")) return true;
+        }
         break;
     }
 
@@ -683,7 +1521,11 @@ export class HallucinationDetector {
   /**
    * 执行完整的幻觉检测
    */
-  detect(code: string, language: Language, projectDir: string): HallucinationReport[] {
+  detect(
+    code: string,
+    language: Language,
+    projectDir: string,
+  ): HallucinationReport[] {
     const reports: HallucinationReport[] = [];
 
     // 包导入检查
@@ -707,28 +1549,44 @@ export class HallucinationDetector {
   /**
    * 使用自定义规则检测（从DB加载的规则）
    */
-  private checkCustomRules(code: string, language: Language): HallucinationReport[] {
+  private checkCustomRules(
+    code: string,
+    language: Language,
+  ): HallucinationReport[] {
     const rules = this.loadCustomRules(language);
     if (rules.length === 0) return [];
 
     const reports: HallucinationReport[] = [];
 
     for (const rule of rules) {
-      if (rule.language !== 'any' && rule.language !== language) continue;
+      if (rule.language !== "any" && rule.language !== language) continue;
 
       if (rule.pattern.length > 500) continue;
 
       const hasRepeatingChars = /(.+)\1{4,}/.test(rule.pattern);
       if (hasRepeatingChars) continue;
 
+      // Defense-in-depth: detect nested quantifiers that can cause
+      // catastrophic backtracking (ReDoS). Examples:
+      //   (a+)+  (a*)*  (a+)*  (.+)+
+      const hasNestedQuantifiers = /\([^)]*[+*][^)]*\)[+*]/.test(rule.pattern);
+      if (hasNestedQuantifiers) continue;
+
+      // Detect alternation of quantified groups, another common ReDoS vector:
+      //   (a+)+|(b+)+
+      const hasQuantifiedAlternation = /\([^)]*[+*][^)]*\)[+*]\|/.test(
+        rule.pattern,
+      );
+      if (hasQuantifiedAlternation) continue;
+
       try {
-        const regex = new RegExp(rule.pattern, 'g');
+        const regex = new RegExp(rule.pattern, "g");
         let match;
         let matchCount = 0;
         while ((match = regex.exec(code)) !== null && matchCount < 100) {
           const line = this.getLineNumber(code, match.index);
           reports.push({
-            category: rule.category as HallucinationReport['category'],
+            category: rule.category as HallucinationReport["category"],
             severity: rule.severity as Severity,
             message: rule.message,
             line,
@@ -750,19 +1608,50 @@ export class HallucinationDetector {
    * 检查包导入是否存在
    * 根据不同语言检查标准库、第三方包和项目模块
    */
-  checkPackageImports(code: string, language: Language, projectDir: string): HallucinationReport[] {
+  checkPackageImports(
+    code: string,
+    language: Language,
+    projectDir: string,
+  ): HallucinationReport[] {
     const reports: HallucinationReport[] = [];
 
     switch (language) {
-      case 'python':
+      case "python":
         reports.push(...this.checkPythonImports(code, projectDir));
         break;
-      case 'typescript':
-      case 'javascript':
+      case "typescript":
+      case "javascript":
         reports.push(...this.checkJSImports(code, language, projectDir));
         break;
-      case 'go':
+      case "go":
         reports.push(...this.checkGoImports(code, projectDir));
+        break;
+      case "java":
+        reports.push(...this.checkJavaImports(code, projectDir));
+        break;
+      case "rust":
+        reports.push(...this.checkRustImports(code, projectDir));
+        break;
+      case "ruby":
+        reports.push(...this.checkRubyImports(code, projectDir));
+        break;
+      case "php":
+        reports.push(...this.checkPHPImports(code, projectDir));
+        break;
+      case "c":
+        reports.push(...this.checkCImports(code, projectDir));
+        break;
+      case "cpp":
+        reports.push(...this.checkCppImports(code, projectDir));
+        break;
+      case "kotlin":
+        reports.push(...this.checkKotlinImports(code, projectDir));
+        break;
+      case "swift":
+        reports.push(...this.checkSwiftImports(code, projectDir));
+        break;
+      case "csharp":
+        reports.push(...this.checkCSharpImports(code, projectDir));
         break;
     }
 
@@ -772,21 +1661,24 @@ export class HallucinationDetector {
   /**
    * 检查Python导入
    */
-  private checkPythonImports(code: string, projectDir: string): HallucinationReport[] {
+  private checkPythonImports(
+    code: string,
+    projectDir: string,
+  ): HallucinationReport[] {
     const reports: HallucinationReport[] = [];
     // 匹配 import xxx 和 from xxx import yyy
     const importRegex = /^(?:from\s+(\S+)\s+import\s+|\s*import\s+)(\S+)/gm;
     let match;
 
     while ((match = importRegex.exec(code)) !== null) {
-      const moduleName = (match[1] || match[2]).split('.')[0];
+      const moduleName = (match[1] || match[2]).split(".")[0];
       const line = this.getLineNumber(code, match.index);
 
       // 跳过标准库和可信包
-      if (this.isTrustedPackage(moduleName, 'python')) continue;
+      if (this.isTrustedPackage(moduleName, "python")) continue;
 
       // 跳过相对导入
-      if (moduleName.startsWith('.')) continue;
+      if (moduleName.startsWith(".")) continue;
 
       // 检查项目模块
       if (this.isProjectModulePython(moduleName, projectDir)) continue;
@@ -796,8 +1688,8 @@ export class HallucinationDetector {
 
       // 可能是幻觉导入
       reports.push({
-        category: 'package_import',
-        severity: 'high',
+        category: "package_import",
+        severity: "high",
         message: `可能不存在的Python包: "${moduleName}"`,
         line,
         snippet: match[0].trim(),
@@ -818,7 +1710,8 @@ export class HallucinationDetector {
   ): HallucinationReport[] {
     const reports: HallucinationReport[] = [];
     // 匹配 import ... from 'xxx' 和 require('xxx')
-    const importRegex = /(?:import\s+.*?\s+from\s+|require\s*\(\s*)['"`]([^'"`]+)['"`]/g;
+    const importRegex =
+      /(?:import\s+.*?\s+from\s+|require\s*\(\s*)['"`]([^'"`]+)['"`]/g;
     let match;
 
     while ((match = importRegex.exec(code)) !== null) {
@@ -829,12 +1722,12 @@ export class HallucinationDetector {
       if (this.isTrustedPackage(modulePath, language)) continue;
 
       // 跳过相对路径导入
-      if (modulePath.startsWith('.') || modulePath.startsWith('/')) {
+      if (modulePath.startsWith(".") || modulePath.startsWith("/")) {
         // 检查相对路径是否存在
         if (!this.resolveJSRelativePath(modulePath, projectDir)) {
           reports.push({
-            category: 'package_import',
-            severity: 'high',
+            category: "package_import",
+            severity: "high",
             message: `相对路径导入不存在: "${modulePath}"`,
             line,
             snippet: match[0].trim(),
@@ -851,8 +1744,8 @@ export class HallucinationDetector {
       if (this.isInstalledNpmPackage(packageName, projectDir)) continue;
 
       reports.push({
-        category: 'package_import',
-        severity: 'high',
+        category: "package_import",
+        severity: "high",
         message: `可能不存在的npm包: "${packageName}"`,
         line,
         snippet: match[0].trim(),
@@ -866,7 +1759,10 @@ export class HallucinationDetector {
   /**
    * 检查Go导入
    */
-  private checkGoImports(code: string, projectDir: string): HallucinationReport[] {
+  private checkGoImports(
+    code: string,
+    projectDir: string,
+  ): HallucinationReport[] {
     const reports: HallucinationReport[] = [];
     // 匹配 import 块和单行 import
     const importBlockRegex = /import\s*\(([\s\S]*?)\)/g;
@@ -894,7 +1790,14 @@ export class HallucinationDetector {
 
     // 处理单行import
     while ((match = singleImportRegex.exec(code)) !== null) {
-      this.checkSingleGoImport(match[1], code, match.index, projectDir, goModInfo, reports);
+      this.checkSingleGoImport(
+        match[1],
+        code,
+        match.index,
+        projectDir,
+        goModInfo,
+        reports,
+      );
     }
 
     return reports;
@@ -914,7 +1817,7 @@ export class HallucinationDetector {
     const line = this.getLineNumber(code, index);
 
     // 跳过标准库和可信包
-    if (this.isTrustedPackage(importPath, 'go')) return;
+    if (this.isTrustedPackage(importPath, "go")) return;
 
     // 跳过项目内部包
     if (goModInfo && importPath.startsWith(goModInfo.moduleName)) return;
@@ -923,12 +1826,12 @@ export class HallucinationDetector {
     if (goModInfo && goModInfo.dependencies.has(importPath)) return;
 
     // 检查vendor目录
-    const vendorPath = path.join(projectDir, 'vendor', importPath);
+    const vendorPath = path.join(projectDir, "vendor", importPath);
     if (fs.existsSync(vendorPath)) return;
 
     reports.push({
-      category: 'package_import',
-      severity: 'high',
+      category: "package_import",
+      severity: "high",
       message: `可能不存在的Go包: "${importPath}"`,
       line,
       snippet: `import "${importPath}"`,
@@ -937,22 +1840,450 @@ export class HallucinationDetector {
   }
 
   /**
+   * 检查Java导入
+   */
+  private checkJavaImports(
+    code: string,
+    projectDir: string,
+  ): HallucinationReport[] {
+    const reports: HallucinationReport[] = [];
+    const importRegex = /^import\s+(?:static\s+)?([^;]+);/gm;
+    let match;
+
+    while ((match = importRegex.exec(code)) !== null) {
+      const importPath = match[1].trim();
+      const line = this.getLineNumber(code, match.index);
+
+      // Skip wildcard imports
+      if (importPath.endsWith(".*")) {
+        const pkg = importPath.slice(0, -2);
+        if (this.isTrustedPackage(pkg, "java")) continue;
+      } else {
+        // For specific imports, check the package prefix
+        const parts = importPath.split(".");
+        // Check progressively shorter prefixes
+        let trusted = false;
+        for (let i = parts.length - 1; i >= 2; i--) {
+          const prefix = parts.slice(0, i).join(".");
+          if (this.isTrustedPackage(prefix, "java")) {
+            trusted = true;
+            break;
+          }
+        }
+        if (trusted) continue;
+      }
+
+      // Check project modules
+      if (this.isProjectModuleJava(importPath, projectDir)) continue;
+
+      reports.push({
+        category: "package_import",
+        severity: "high",
+        message: `可能不存在的Java包: "${importPath}"`,
+        line,
+        snippet: match[0].trim(),
+        suggestion: `请确认 "${importPath}" 是否在项目依赖中`,
+      });
+    }
+
+    return reports;
+  }
+
+  private isProjectModuleJava(importPath: string, projectDir: string): boolean {
+    // Check if the import matches a source file in the project
+    const parts = importPath.split(".");
+    const javaPath = path.join(
+      projectDir,
+      "src",
+      "main",
+      "java",
+      ...parts.slice(0, -1),
+    );
+    try {
+      if (fs.existsSync(javaPath)) return true;
+    } catch {
+      // ignore
+    }
+    return false;
+  }
+
+  /**
+   * 检查Rust导入
+   */
+  private checkRustImports(
+    code: string,
+    _projectDir: string,
+  ): HallucinationReport[] {
+    const reports: HallucinationReport[] = [];
+    // Match use statements: use std::collections::HashMap; use crate::foo;
+    const useRegex = /^use\s+([^;]+);/gm;
+    let match;
+
+    while ((match = useRegex.exec(code)) !== null) {
+      const importPath = match[1].trim();
+
+      // Skip crate-local and super/self imports
+      if (
+        importPath.startsWith("crate::") ||
+        importPath.startsWith("super::") ||
+        importPath.startsWith("self::")
+      ) {
+        continue;
+      }
+
+      // Extract the base path (before any ::{...} grouping)
+      const basePath =
+        importPath.split("::")[0] +
+          "::" +
+          importPath
+            .split("::")
+            .slice(1)
+            .join("::")
+            .split("{")[0]
+            .split("::")
+            .slice(0, -1)
+            .join("::") || importPath.split("::")[0];
+
+      if (this.isTrustedPackage(basePath, "rust")) continue;
+      if (this.isTrustedPackage(importPath.split("{")[0].trim(), "rust"))
+        continue;
+
+      // Skip common external crates that would be in Cargo.toml
+      // (We can't verify Cargo.toml here without reading it, so we only flag
+      // things that look suspicious — i.e., not in std and not obviously external)
+    }
+
+    return reports;
+  }
+
+  /**
+   * 检查Ruby导入
+   */
+  private checkRubyImports(
+    code: string,
+    _projectDir: string,
+  ): HallucinationReport[] {
+    const reports: HallucinationReport[] = [];
+    // Match require and require_relative
+    const requireRegex = /^require\s+['"]([^'"]+)['"]/gm;
+    let match;
+
+    while ((match = requireRegex.exec(code)) !== null) {
+      const moduleName = match[1].trim();
+
+      // Skip require_relative (local files)
+      if (code.substring(match.index - 9, match.index).includes("relative")) {
+        continue;
+      }
+
+      if (this.isTrustedPackage(moduleName, "ruby")) continue;
+
+      // Don't flag things that look like local gems (snake_case without /)
+      // We can't verify Gemfile without reading it, so only flag clearly suspicious imports
+    }
+
+    return reports;
+  }
+
+  /**
+   * 检查PHP导入
+   */
+  private checkPHPImports(
+    code: string,
+    _projectDir: string,
+  ): HallucinationReport[] {
+    const reports: HallucinationReport[] = [];
+    // Match use statements: use Namespace\ClassName;
+    const useRegex = /^use\s+([^;]+);/gm;
+    let match;
+
+    while ((match = useRegex.exec(code)) !== null) {
+      const namespace = match[1].trim().split("\\")[0];
+
+      if (this.isTrustedPackage(namespace, "php")) continue;
+
+      // Skip common Composer packages (can't verify without reading composer.json)
+    }
+
+    return reports;
+  }
+
+  /**
+   * 检查C导入
+   */
+  private checkCImports(
+    code: string,
+    _projectDir: string,
+  ): HallucinationReport[] {
+    const reports: HallucinationReport[] = [];
+    // Match #include <header.h> and #include "header.h"
+    const includeRegex = /^#include\s+[<"]([^>"]+)[>"]/gm;
+    let match;
+
+    while ((match = includeRegex.exec(code)) !== null) {
+      const header = match[1].trim();
+
+      // Angle-bracket includes: check against C stdlib
+      if (match[0].includes("<")) {
+        if (this.isTrustedPackage(header, "c")) continue;
+
+        // Common system headers not in C99 stdlib
+        const commonSystemHeaders = new Set([
+          "unistd.h",
+          "sys/types.h",
+          "sys/stat.h",
+          "sys/socket.h",
+          "sys/wait.h",
+          "sys/mman.h",
+          "sys/time.h",
+          "sys/resource.h",
+          "sys/param.h",
+          "sys/ioctl.h",
+          "sys/un.h",
+          "sys/select.h",
+          "arpa/inet.h",
+          "netinet/in.h",
+          "netinet/tcp.h",
+          "netdb.h",
+          "dlfcn.h",
+          "dirent.h",
+          "fnmatch.h",
+          "ftw.h",
+          "getopt.h",
+          "glob.h",
+          "grp.h",
+          "pwd.h",
+          "poll.h",
+          "pthread.h",
+          "regex.h",
+          "sched.h",
+          "semaphore.h",
+          "spawn.h",
+          "strings.h",
+          "tar.h",
+          "termios.h",
+          "ulimit.h",
+          "utime.h",
+          "wordexp.h",
+          "aio.h",
+          "fcntl.h",
+          "langinfo.h",
+          "libgen.h",
+          "monetary.h",
+          "ndbm.h",
+          "nl_types.h",
+        ]);
+        if (commonSystemHeaders.has(header)) continue;
+      }
+    }
+
+    return reports;
+  }
+
+  /**
+   * 检查C++导入
+   */
+  private checkCppImports(
+    code: string,
+    _projectDir: string,
+  ): HallucinationReport[] {
+    const reports: HallucinationReport[] = [];
+    const includeRegex = /^#include\s+[<"]([^>"]+)[>"]/gm;
+    let match;
+
+    while ((match = includeRegex.exec(code)) !== null) {
+      const header = match[1].trim();
+
+      if (match[0].includes("<")) {
+        // Check C++ stdlib and C stdlib
+        if (this.isTrustedPackage(header, "cpp")) continue;
+
+        // Common C++ system headers
+        const commonCppHeaders = new Set([
+          "bits/stdc++.h",
+          "ext/pb_ds/",
+          "bits/extc++.h",
+        ]);
+        let isCommon = false;
+        for (const h of commonCppHeaders) {
+          if (header.startsWith(h)) {
+            isCommon = true;
+            break;
+          }
+        }
+        if (isCommon) continue;
+      }
+    }
+
+    return reports;
+  }
+
+  /**
+   * 检查Kotlin导入
+   */
+  private checkKotlinImports(
+    code: string,
+    _projectDir: string,
+  ): HallucinationReport[] {
+    const reports: HallucinationReport[] = [];
+    const importRegex = /^import\s+([^\s]+)/gm;
+    let match;
+
+    while ((match = importRegex.exec(code)) !== null) {
+      const importPath = match[1].trim();
+
+      // Check Kotlin stdlib
+      const basePkg = importPath.split(".")[0];
+      if (this.isTrustedPackage(basePkg, "kotlin")) continue;
+      if (this.isTrustedPackage(importPath, "kotlin")) continue;
+
+      // Check Java stdlib too (Kotlin interops with Java)
+      if (this.isTrustedPackage(basePkg, "java")) continue;
+
+      // Skip android.*, androidx.* (common but not stdlib)
+      if (basePkg === "android" || basePkg === "androidx") continue;
+    }
+
+    return reports;
+  }
+
+  /**
+   * 检查Swift导入
+   */
+  private checkSwiftImports(
+    code: string,
+    _projectDir: string,
+  ): HallucinationReport[] {
+    const reports: HallucinationReport[] = [];
+    const importRegex = /^import\s+(\S+)/gm;
+    let match;
+
+    while ((match = importRegex.exec(code)) !== null) {
+      const moduleName = match[1].trim();
+      const line = this.getLineNumber(code, match.index);
+
+      if (this.isTrustedPackage(moduleName, "swift")) continue;
+
+      // Skip common Apple frameworks not in the main list
+      const commonAppleFrameworks = new Set([
+        "Accelerate",
+        "AudioToolbox",
+        "AVKit",
+        "CarPlay",
+        "Contacts",
+        "CoreBluetooth",
+        "CoreData",
+        "CoreHaptics",
+        "CoreLocation",
+        "CoreMotion",
+        "CoreSpotlight",
+        "EventKit",
+        "ExternalAccessory",
+        "GameController",
+        "HealthKit",
+        "HomeKit",
+        "IdentityLookup",
+        "Intents",
+        "LocalAuthentication",
+        "MapKit",
+        "MediaPlayer",
+        "MessageUI",
+        "MultipeerConnectivity",
+        "NaturalLanguage",
+        "NetworkExtension",
+        "NotificationCenter",
+        "PassKit",
+        "QuickLook",
+        "ReplayKit",
+        "SafariServices",
+        "SiriKit",
+        "Social",
+        "StoreKit",
+        "Twitter",
+        "UIKit",
+        "UserNotificationsUI",
+        "VideoToolbox",
+        "WatchConnectivity",
+        "WatchKit",
+        "WebKit",
+      ]);
+      if (commonAppleFrameworks.has(moduleName)) continue;
+
+      reports.push({
+        category: "package_import",
+        severity: "medium",
+        message: `可能不存在的Swift模块: "${moduleName}"`,
+        line,
+        snippet: match[0].trim(),
+        suggestion: `请确认 "${moduleName}" 是否已添加到项目依赖（SPM/CocoaPods/Carthage）`,
+      });
+    }
+
+    return reports;
+  }
+
+  /**
+   * 检查C#导入
+   */
+  private checkCSharpImports(
+    code: string,
+    _projectDir: string,
+  ): HallucinationReport[] {
+    const reports: HallucinationReport[] = [];
+    const usingRegex = /^using\s+(?:static\s+|alias\s+)?([^=;]+?);/gm;
+    let match;
+
+    while ((match = usingRegex.exec(code)) !== null) {
+      const namespace = match[1].trim();
+
+      if (this.isTrustedPackage(namespace, "csharp")) continue;
+
+      // Skip common NuGet namespaces (can't verify without .csproj)
+      const commonNuGet = new Set([
+        "Newtonsoft",
+        "AutoMapper",
+        "MediatR",
+        "Serilog",
+        "NLog",
+        "FluentValidation",
+        "Polly",
+        "Hangfire",
+        "Dapper",
+        "EntityFramework",
+        "EFCore",
+        "Xunit",
+        "NUnit",
+        "Moq",
+        "FluentAssertions",
+      ]);
+      const baseNs = namespace.split(".")[0];
+      if (commonNuGet.has(baseNs)) continue;
+    }
+
+    return reports;
+  }
+
+  /**
    * 检查API签名是否存在
    * 检测代码中调用的方法是否在对应类型上存在
    */
-  checkAPISignatures(code: string, language: Language, _projectDir: string): HallucinationReport[] {
+  checkAPISignatures(
+    code: string,
+    language: Language,
+    _projectDir: string,
+  ): HallucinationReport[] {
     const reports: HallucinationReport[] = [];
 
     // 检测常见的AI幻觉API调用模式
     const hallucinatedAPIs = this.getCommonHallucinatedAPIs(language);
 
     for (const api of hallucinatedAPIs) {
-      const regex = new RegExp(api.pattern, 'g');
+      const regex = new RegExp(api.pattern, "g");
       let match;
       while ((match = regex.exec(code)) !== null) {
         const line = this.getLineNumber(code, match.index);
         reports.push({
-          category: 'api_signature',
+          category: "api_signature",
           severity: api.severity,
           message: api.message,
           line,
@@ -981,46 +2312,46 @@ export class HallucinationDetector {
       suggestion: string;
     }[] = [];
 
-    if (language === 'python') {
+    if (language === "python") {
       apis.push(
         {
-          pattern: 'pandas\\.read_csv\\(.*encoding\\s*=',
-          message: 'pandas.read_csv 的 encoding 参数可能不存在于旧版本',
-          severity: 'medium',
-          suggestion: '请确认 pandas 版本是否支持该参数',
+          pattern: "pandas\\.read_csv\\(.*encoding\\s*=",
+          message: "pandas.read_csv 的 encoding 参数可能不存在于旧版本",
+          severity: "medium",
+          suggestion: "请确认 pandas 版本是否支持该参数",
         },
         {
-          pattern: 'requests\\.get\\(.*verify\\s*=',
-          message: 'requests.get 的 verify 参数用法需确认',
-          severity: 'low',
-          suggestion: '请确认 requests 库版本是否支持该参数',
+          pattern: "requests\\.get\\(.*verify\\s*=",
+          message: "requests.get 的 verify 参数用法需确认",
+          severity: "low",
+          suggestion: "请确认 requests 库版本是否支持该参数",
         },
       );
     }
 
-    if (language === 'typescript' || language === 'javascript') {
+    if (language === "typescript" || language === "javascript") {
       apis.push(
         {
-          pattern: 'Array\\.fromAsync',
-          message: 'Array.fromAsync 是较新的API，可能不被所有环境支持',
-          severity: 'medium',
-          suggestion: '请确认目标运行时是否支持 Array.fromAsync',
+          pattern: "Array\\.fromAsync",
+          message: "Array.fromAsync 是较新的API，可能不被所有环境支持",
+          severity: "medium",
+          suggestion: "请确认目标运行时是否支持 Array.fromAsync",
         },
         {
-          pattern: 'fs\\.promises\\.readFile',
-          message: 'fs.promises API 需要确认Node.js版本支持',
-          severity: 'low',
-          suggestion: '建议确认Node.js版本 >= 10',
+          pattern: "fs\\.promises\\.readFile",
+          message: "fs.promises API 需要确认Node.js版本支持",
+          severity: "low",
+          suggestion: "建议确认Node.js版本 >= 10",
         },
       );
     }
 
-    if (language === 'go') {
+    if (language === "go") {
       apis.push({
-        pattern: 'os\\.ReadFile',
-        message: 'os.ReadFile 需要 Go 1.16+',
-        severity: 'medium',
-        suggestion: '请确认Go版本 >= 1.16，或使用 ioutil.ReadFile',
+        pattern: "os\\.ReadFile",
+        message: "os.ReadFile 需要 Go 1.16+",
+        severity: "medium",
+        suggestion: "请确认Go版本 >= 1.16，或使用 ioutil.ReadFile",
       });
     }
 
@@ -1032,7 +2363,7 @@ export class HallucinationDetector {
    */
   checkAIPatterns(code: string, language: Language): HallucinationReport[] {
     const reports: HallucinationReport[] = [];
-    const lines = code.split('\n');
+    const lines = code.split("\n");
 
     // 1. 检测伪造的API URL
     this.checkFabricatedURLs(code, reports);
@@ -1055,36 +2386,40 @@ export class HallucinationDetector {
   /**
    * 检测伪造的API URL
    */
-  private checkFabricatedURLs(code: string, reports: HallucinationReport[]): void {
+  private checkFabricatedURLs(
+    code: string,
+    reports: HallucinationReport[],
+  ): void {
     // 匹配看起来像API URL但可能伪造的模式
-    const urlRegex = /https?:\/\/api\.([a-z0-9-]+)\.(com|io|dev|org|net)\/(?:v\d+\/)?([a-z-]+)/gi;
+    const urlRegex =
+      /https?:\/\/api\.([a-z0-9-]+)\.(com|io|dev|org|net)\/(?:v\d+\/)?([a-z-]+)/gi;
     let match;
 
     while ((match = urlRegex.exec(code)) !== null) {
       const domain = match[1];
       // 常见的真实API域名
       const knownAPIs = new Set([
-        'github',
-        'openai',
-        'anthropic',
-        'google',
-        'stripe',
-        'cloudflare',
-        'aws',
-        'azure',
-        'firebase',
-        'vercel',
+        "github",
+        "openai",
+        "anthropic",
+        "google",
+        "stripe",
+        "cloudflare",
+        "aws",
+        "azure",
+        "firebase",
+        "vercel",
       ]);
 
       if (!knownAPIs.has(domain)) {
         const line = this.getLineNumber(code, match.index);
         reports.push({
-          category: 'ai_pattern',
-          severity: 'medium',
+          category: "ai_pattern",
+          severity: "medium",
           message: `可能伪造的API URL: "${match[0]}"`,
           line,
           snippet: match[0],
-          suggestion: '请确认此API端点是否真实存在，AI常生成不存在的API地址',
+          suggestion: "请确认此API端点是否真实存在，AI常生成不存在的API地址",
         });
       }
     }
@@ -1100,25 +2435,25 @@ export class HallucinationDetector {
   ): void {
     const patterns: { regex: RegExp; message: string }[] = [];
 
-    if (language === 'python') {
+    if (language === "python") {
       patterns.push({
         regex: /config\.get\(\s*['"][\w.]+['"]\)/g,
-        message: '通用配置键访问，请确认配置键是否真实存在',
+        message: "通用配置键访问，请确认配置键是否真实存在",
       });
       patterns.push({
         regex: /os\.environ\.get\(\s*['"][A-Z_]+['"]\)/g,
-        message: '环境变量访问，请确认变量名是否正确',
+        message: "环境变量访问，请确认变量名是否正确",
       });
     }
 
-    if (language === 'typescript' || language === 'javascript') {
+    if (language === "typescript" || language === "javascript") {
       patterns.push({
         regex: /process\.env\.[A-Z_]+/g,
-        message: '环境变量访问，请确认变量名是否正确',
+        message: "环境变量访问，请确认变量名是否正确",
       });
       patterns.push({
         regex: /config\[['"][\w.]+['"]\]/g,
-        message: '通用配置键访问，请确认配置键是否真实存在',
+        message: "通用配置键访问，请确认配置键是否真实存在",
       });
     }
 
@@ -1127,12 +2462,12 @@ export class HallucinationDetector {
       while ((match = pattern.regex.exec(code)) !== null) {
         const line = this.getLineNumber(code, match.index);
         reports.push({
-          category: 'ai_pattern',
-          severity: 'low',
+          category: "ai_pattern",
+          severity: "low",
           message: pattern.message,
           line,
           snippet: match[0],
-          suggestion: 'AI常生成看似合理但实际不存在的配置键，请验证',
+          suggestion: "AI常生成看似合理但实际不存在的配置键，请验证",
         });
       }
     }
@@ -1148,10 +2483,10 @@ export class HallucinationDetector {
   ): void {
     let catchRegex: RegExp;
 
-    if (language === 'python') {
+    if (language === "python") {
       // except: pass 或 except Exception: pass
       catchRegex = /except\s*(?:\w+\s*)?:\s*\n(\s*pass\s*\n)/g;
-    } else if (language === 'go') {
+    } else if (language === "go") {
       // Go没有try-catch，跳过
       return;
     } else {
@@ -1163,12 +2498,12 @@ export class HallucinationDetector {
     while ((match = catchRegex.exec(code)) !== null) {
       const line = this.getLineNumber(code, match.index);
       reports.push({
-        category: 'ai_pattern',
-        severity: 'medium',
-        message: '空的异常捕获块，AI常跳过错误处理',
+        category: "ai_pattern",
+        severity: "medium",
+        message: "空的异常捕获块，AI常跳过错误处理",
         line,
         snippet: match[0].trim(),
-        suggestion: '建议添加适当的错误处理逻辑，至少记录错误日志',
+        suggestion: "建议添加适当的错误处理逻辑，至少记录错误日志",
       });
     }
   }
@@ -1181,16 +2516,26 @@ export class HallucinationDetector {
     language: Language,
     reports: HallucinationReport[],
   ): void {
-    const genericNames = ['data', 'result', 'item', 'info', 'obj', 'temp', 'val', 'res', 'ret'];
-    const lines = code.split('\n');
+    const genericNames = [
+      "data",
+      "result",
+      "item",
+      "info",
+      "obj",
+      "temp",
+      "val",
+      "res",
+      "ret",
+    ];
+    const lines = code.split("\n");
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       // 匹配变量声明
       let declRegex: RegExp;
-      if (language === 'python') {
+      if (language === "python") {
         declRegex = /^(\s*)(\w+)\s*=/;
-      } else if (language === 'go') {
+      } else if (language === "go") {
         declRegex = /^(?:\s*)(?:(?:var|const)\s+|(\w+)\s*:=)/;
       } else {
         declRegex = /^(?:\s*)(?:(?:const|let|var)\s+)(\w+)/;
@@ -1201,15 +2546,16 @@ export class HallucinationDetector {
         const varName = declMatch[1] || declMatch[2];
         if (varName && genericNames.includes(varName.toLowerCase())) {
           // 检查变量是否在后续代码中被有意义地使用
-          const remainingCode = lines.slice(i + 1).join('\n');
-          const usageCount = (remainingCode.match(new RegExp(`\\b${varName}\\b`, 'g')) || [])
-            .length;
+          const remainingCode = lines.slice(i + 1).join("\n");
+          const usageCount = (
+            remainingCode.match(new RegExp(`\\b${varName}\\b`, "g")) || []
+          ).length;
 
           // 如果通用变量名只使用1-2次，可能缺乏上下文
           if (usageCount <= 2) {
             reports.push({
-              category: 'ai_pattern',
-              severity: 'low',
+              category: "ai_pattern",
+              severity: "low",
               message: `过于通用的变量名: "${varName}"，缺乏语义上下文`,
               line: i + 1,
               snippet: line.trim(),
@@ -1224,7 +2570,10 @@ export class HallucinationDetector {
   /**
    * 检测重复代码含义的注释（AI模式）
    */
-  private checkRestatingComments(lines: string[], reports: HallucinationReport[]): void {
+  private checkRestatingComments(
+    lines: string[],
+    reports: HallucinationReport[],
+  ): void {
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       // 匹配行内注释
@@ -1237,7 +2586,7 @@ export class HallucinationDetector {
       // 如果注释只是重复代码的含义
       if (codePart.length > 5 && commentPart.length > 3) {
         const codeWords = codePart
-          .replace(/[(){}[\];,.<>=+\-*/!@#$%^&|?:]/g, ' ')
+          .replace(/[(){}[\];,.<>=+\-*/!@#$%^&|?:]/g, " ")
           .split(/\s+/)
           .filter((w) => w.length > 2)
           .map((w) => w.toLowerCase());
@@ -1248,17 +2597,19 @@ export class HallucinationDetector {
           .map((w) => w.toLowerCase());
 
         // 计算重叠词数
-        const overlap = commentWords.filter((w) => codeWords.includes(w)).length;
+        const overlap = commentWords.filter((w) =>
+          codeWords.includes(w),
+        ).length;
         const similarity = overlap / Math.max(commentWords.length, 1);
 
         if (similarity > 0.6 && commentWords.length >= 2) {
           reports.push({
-            category: 'ai_pattern',
-            severity: 'info',
-            message: '注释重复了代码含义，这是AI生成代码的常见模式',
+            category: "ai_pattern",
+            severity: "info",
+            message: "注释重复了代码含义，这是AI生成代码的常见模式",
             line: i + 1,
             snippet: line.trim(),
-            suggestion: '建议删除重复代码含义的注释，或添加更有价值的说明',
+            suggestion: "建议删除重复代码含义的注释，或添加更有价值的说明",
           });
         }
       }
@@ -1291,7 +2642,7 @@ export class HallucinationDetector {
     language: Language,
     reports: HallucinationReport[],
   ): void {
-    const lines = code.split('\n');
+    const lines = code.split("\n");
     let foundReturn = false;
     let returnLine = -1;
 
@@ -1306,7 +2657,7 @@ export class HallucinationDetector {
       }
 
       // 检测块结束（大括号或缩进减少）
-      if (trimmed === '}' || trimmed === '') {
+      if (trimmed === "}" || trimmed === "") {
         foundReturn = false;
         continue;
       }
@@ -1315,16 +2666,16 @@ export class HallucinationDetector {
       if (
         foundReturn &&
         trimmed.length > 0 &&
-        !trimmed.startsWith('//') &&
-        !trimmed.startsWith('#')
+        !trimmed.startsWith("//") &&
+        !trimmed.startsWith("#")
       ) {
         reports.push({
-          category: 'logic_issue',
-          severity: 'high',
+          category: "logic_issue",
+          severity: "high",
           message: `不可达代码：第${returnLine}行的return/throw之后的代码永远不会执行`,
           line: i + 1,
           snippet: trimmed,
-          suggestion: '请删除不可达的代码，或检查控制流是否正确',
+          suggestion: "请删除不可达的代码，或检查控制流是否正确",
         });
         foundReturn = false;
       }
@@ -1352,19 +2703,19 @@ export class HallucinationDetector {
       /\bif\s*\(\s*0\s*\)/,
     ];
 
-    const lines = code.split('\n');
+    const lines = code.split("\n");
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
 
       for (const pattern of alwaysTruePatterns) {
         if (pattern.test(line)) {
           reports.push({
-            category: 'logic_issue',
-            severity: 'medium',
-            message: '条件永远为真，此分支总是执行',
+            category: "logic_issue",
+            severity: "medium",
+            message: "条件永远为真，此分支总是执行",
             line: i + 1,
             snippet: line.trim(),
-            suggestion: '请检查条件逻辑是否正确，或简化代码结构',
+            suggestion: "请检查条件逻辑是否正确，或简化代码结构",
           });
         }
       }
@@ -1372,12 +2723,12 @@ export class HallucinationDetector {
       for (const pattern of alwaysFalsePatterns) {
         if (pattern.test(line)) {
           reports.push({
-            category: 'logic_issue',
-            severity: 'medium',
-            message: '条件永远为假，此分支永远不会执行',
+            category: "logic_issue",
+            severity: "medium",
+            message: "条件永远为假，此分支永远不会执行",
             line: i + 1,
             snippet: line.trim(),
-            suggestion: '请检查条件逻辑是否正确，或删除死代码',
+            suggestion: "请检查条件逻辑是否正确，或删除死代码",
           });
         }
       }
@@ -1389,12 +2740,12 @@ export class HallucinationDetector {
     while ((match = selfCompareRegex.exec(code)) !== null) {
       const line = this.getLineNumber(code, match.index);
       reports.push({
-        category: 'logic_issue',
-        severity: 'medium',
+        category: "logic_issue",
+        severity: "medium",
         message: `自比较总是为真: "${match[0]}"`,
         line,
         snippet: match[0],
-        suggestion: '请检查是否应为不同的变量比较',
+        suggestion: "请检查是否应为不同的变量比较",
       });
     }
   }
@@ -1407,47 +2758,59 @@ export class HallucinationDetector {
     language: Language,
     reports: HallucinationReport[],
   ): void {
-    const lines = code.split('\n');
-    const declarations = new Map<string, { line: number; type: 'variable' | 'import' }>();
+    const lines = code.split("\n");
+    const declarations = new Map<
+      string,
+      { line: number; type: "variable" | "import" }
+    >();
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
 
       // 检测导入
-      if (language === 'python') {
+      if (language === "python") {
         const importMatch = /^import\s+(\w+)/.exec(line);
         if (importMatch) {
-          declarations.set(importMatch[1], { line: i + 1, type: 'import' });
+          declarations.set(importMatch[1], { line: i + 1, type: "import" });
         }
         const fromImportMatch = /^from\s+\S+\s+import\s+(.+)/.exec(line);
         if (fromImportMatch) {
-          const names = fromImportMatch[1].split(',').map((n) => n.trim());
+          const names = fromImportMatch[1].split(",").map((n) => n.trim());
           for (const name of names) {
-            declarations.set(name, { line: i + 1, type: 'import' });
+            declarations.set(name, { line: i + 1, type: "import" });
           }
         }
-      } else if (language === 'typescript' || language === 'javascript') {
-        const importMatch = /import\s+(?:\{([^}]+)\}|\*\s+as\s+(\w+)|(\w+))/.exec(line);
+      } else if (language === "typescript" || language === "javascript") {
+        const importMatch =
+          /import\s+(?:\{([^}]+)\}|\*\s+as\s+(\w+)|(\w+))/.exec(line);
         if (importMatch) {
-          const names = (importMatch[1] || importMatch[2] || importMatch[3] || '')
-            .split(',')
+          const names = (
+            importMatch[1] ||
+            importMatch[2] ||
+            importMatch[3] ||
+            ""
+          )
+            .split(",")
             .map((n) =>
               n
                 .trim()
-                .replace(/\s+as\s+\w+/, '')
+                .replace(/\s+as\s+\w+/, "")
                 .trim(),
             )
             .filter((n) => n.length > 0);
           for (const name of names) {
-            declarations.set(name, { line: i + 1, type: 'import' });
+            declarations.set(name, { line: i + 1, type: "import" });
           }
         }
-      } else if (language === 'go') {
+      } else if (language === "go") {
         const importMatch = /"([^"]+)"/.exec(line);
-        if (importMatch && (line.includes('import') || lines[i - 1]?.trim() === 'import (')) {
-          const pkgName = importMatch[1].split('/').pop() || '';
+        if (
+          importMatch &&
+          (line.includes("import") || lines[i - 1]?.trim() === "import (")
+        ) {
+          const pkgName = importMatch[1].split("/").pop() || "";
           if (pkgName) {
-            declarations.set(pkgName, { line: i + 1, type: 'import' });
+            declarations.set(pkgName, { line: i + 1, type: "import" });
           }
         }
       }
@@ -1456,22 +2819,22 @@ export class HallucinationDetector {
     // 检查每个声明是否被使用
     for (const [name, info] of declarations) {
       // 跳过下划线开头的变量（约定为有意不使用）
-      if (name.startsWith('_')) continue;
+      if (name.startsWith("_")) continue;
 
       // 计算使用次数（排除声明行本身）
-      const usageRegex = new RegExp(`\\b${name}\\b`, 'g');
+      const usageRegex = new RegExp(`\\b${name}\\b`, "g");
       const matches = code.match(usageRegex);
       const usageCount = (matches || []).length;
 
       // 如果只出现1次（声明本身），则未使用
       if (usageCount <= 1) {
         reports.push({
-          category: 'logic_issue',
-          severity: 'low',
-          message: `未使用的${info.type === 'import' ? '导入' : '变量'}: "${name}"`,
+          category: "logic_issue",
+          severity: "low",
+          message: `未使用的${info.type === "import" ? "导入" : "变量"}: "${name}"`,
           line: info.line,
           suggestion:
-            info.type === 'import'
+            info.type === "import"
               ? `请删除未使用的导入 "${name}"`
               : `请删除未使用的变量 "${name}"，或检查是否遗漏了使用`,
         });
@@ -1485,33 +2848,46 @@ export class HallucinationDetector {
    * 获取字符索引对应的行号
    */
   private getLineNumber(code: string, index: number): number {
-    return code.substring(0, index).split('\n').length;
+    return code.substring(0, index).split("\n").length;
   }
 
   /**
    * 检查是否为Python项目模块
    */
-  private isProjectModulePython(moduleName: string, projectDir: string): boolean {
+  private isProjectModulePython(
+    moduleName: string,
+    projectDir: string,
+  ): boolean {
     // 检查项目目录下是否有对应的.py文件或包目录
     const pyFile = path.join(projectDir, `${moduleName}.py`);
     const pkgDir = path.join(projectDir, moduleName);
 
     return (
       fs.existsSync(pyFile) ||
-      (fs.existsSync(pkgDir) && fs.existsSync(path.join(pkgDir, '__init__.py')))
+      (fs.existsSync(pkgDir) && fs.existsSync(path.join(pkgDir, "__init__.py")))
     );
   }
 
   /**
    * 检查Python包是否已安装
    */
-  private isInstalledPythonPackage(moduleName: string, projectDir: string): boolean {
+  private isInstalledPythonPackage(
+    moduleName: string,
+    projectDir: string,
+  ): boolean {
     // 简单检查：查找site-packages目录
     // 注意：这是简化实现，实际可能需要使用 pip show 或检查 sys.path
     const possiblePaths = [
-      path.join(projectDir, 'venv', 'Lib', 'site-packages', moduleName),
-      path.join(projectDir, '.venv', 'Lib', 'site-packages', moduleName),
-      path.join(projectDir, 'venv', 'lib', 'python3', 'site-packages', moduleName),
+      path.join(projectDir, "venv", "Lib", "site-packages", moduleName),
+      path.join(projectDir, ".venv", "Lib", "site-packages", moduleName),
+      path.join(
+        projectDir,
+        "venv",
+        "lib",
+        "python3",
+        "site-packages",
+        moduleName,
+      ),
     ];
 
     return possiblePaths.some((p) => fs.existsSync(p));
@@ -1522,27 +2898,33 @@ export class HallucinationDetector {
    */
   private extractNpmPackageName(modulePath: string): string {
     // @scope/package 格式
-    if (modulePath.startsWith('@')) {
-      const parts = modulePath.split('/');
+    if (modulePath.startsWith("@")) {
+      const parts = modulePath.split("/");
       return parts.length >= 2 ? `${parts[0]}/${parts[1]}` : modulePath;
     }
     // 普通包名，取第一段
-    return modulePath.split('/')[0];
+    return modulePath.split("/")[0];
   }
 
   /**
    * 检查npm包是否已安装
    */
-  private isInstalledNpmPackage(packageName: string, projectDir: string): boolean {
-    const pkgPath = path.join(projectDir, 'node_modules', packageName);
+  private isInstalledNpmPackage(
+    packageName: string,
+    projectDir: string,
+  ): boolean {
+    const pkgPath = path.join(projectDir, "node_modules", packageName);
     return fs.existsSync(pkgPath);
   }
 
   /**
    * 解析JS相对路径是否存在
    */
-  private resolveJSRelativePath(modulePath: string, projectDir: string): boolean {
-    const extensions = ['.ts', '.tsx', '.js', '.jsx', '.json'];
+  private resolveJSRelativePath(
+    modulePath: string,
+    projectDir: string,
+  ): boolean {
+    const extensions = [".ts", ".tsx", ".js", ".jsx", ".json"];
     const fullPath = path.resolve(projectDir, modulePath);
 
     // 检查精确路径
@@ -1564,15 +2946,17 @@ export class HallucinationDetector {
   /**
    * 解析go.mod文件
    */
-  private parseGoMod(projectDir: string): { moduleName: string; dependencies: Set<string> } | null {
-    const goModPath = path.join(projectDir, 'go.mod');
+  private parseGoMod(
+    projectDir: string,
+  ): { moduleName: string; dependencies: Set<string> } | null {
+    const goModPath = path.join(projectDir, "go.mod");
     if (!fs.existsSync(goModPath)) return null;
 
     try {
-      const content = fs.readFileSync(goModPath, 'utf-8');
-      const lines = content.split('\n');
+      const content = fs.readFileSync(goModPath, "utf-8");
+      const lines = content.split("\n");
 
-      let moduleName = '';
+      let moduleName = "";
       const dependencies = new Set<string>();
       let inRequire = false;
 
@@ -1586,13 +2970,13 @@ export class HallucinationDetector {
         }
 
         // require块开始
-        if (trimmed === 'require (') {
+        if (trimmed === "require (") {
           inRequire = true;
           continue;
         }
 
         // require块结束
-        if (inRequire && trimmed === ')') {
+        if (inRequire && trimmed === ")") {
           inRequire = false;
           continue;
         }

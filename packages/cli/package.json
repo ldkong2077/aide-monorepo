@@ -8,8 +8,26 @@
   "type": "module",
   "types": "./dist/index.d.ts",
   "version": "1.1.0",
-  "name": "@aide/cli",
+  "name": "@aide-dev/cli",
+  "license": "MIT",
   "main": "./dist/index.js",
+  "files": [
+    "dist",
+    "README.md",
+    "package.json"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ldkong2077/aide-monorepo.git",
+    "directory": "packages/cli"
+  },
+  "bugs": {
+    "url": "https://github.com/ldkong2077/aide-monorepo/issues"
+  },
+  "homepage": "https://github.com/ldkong2077/aide-monorepo/tree/main/packages/cli#readme",
+  "publishConfig": {
+    "access": "public"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -17,23 +35,26 @@
     }
   },
   "devDependencies": {
-    "vitest": "^3.0.0",
-    "typescript": "^5.7.0"
+    "vitest": "^3.1.0",
+    "typescript": "^5.8.0"
   },
   "dependencies": {
     "ora": "^8.1.1",
-    "@aide/mcp-server": "*",
-    "@aide/templates": "*",
-    "@aide/flow": "*",
-    "@aide/mind": "*",
-    "@aide/dashboard": "*",
+    "@aide-dev/mcp-server": "^1.1.0",
+    "@aide-dev/templates": "^1.0.0",
+    "@aide-dev/flow": "^1.0.0",
+    "@aide-dev/mind": "^1.0.0",
+    "@aide-dev/dashboard": "^1.0.0",
     "commander": "^13.0.0",
-    "@aide/guard": "*",
+    "@aide-dev/guard": "^1.1.0",
     "chalk": "^5.4.1",
-    "@aide/graph": "*",
-    "@aide/core": "*"
+    "@aide-dev/graph": "^1.1.0",
+    "@aide-dev/core": "^1.1.0"
   },
   "bin": {
     "aide": "./dist/bin.js"
+  },
+  "engines": {
+    "node": ">=20.0.0"
   }
 }

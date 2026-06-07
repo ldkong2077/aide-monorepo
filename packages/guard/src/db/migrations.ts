@@ -3,7 +3,7 @@
  * 借鉴CodeGraph的迁移模式，支持schema版本追踪和增量迁移
  */
 
-import type Database from 'better-sqlite3';
+import type Database from "better-sqlite3";
 
 /** 当前schema版本 */
 export const CURRENT_SCHEMA_VERSION = 1;
@@ -32,9 +32,9 @@ const migrations: Migration[] = [
  */
 export function getCurrentVersion(db: Database.Database): number {
   try {
-    const row = db.prepare('SELECT MAX(version) as version FROM schema_versions').get() as
-      | { version: number | null }
-      | undefined;
+    const row = db
+      .prepare("SELECT MAX(version) as version FROM schema_versions")
+      .get() as { version: number | null } | undefined;
     return row?.version ?? 0;
   } catch {
     return 0;
@@ -44,18 +44,23 @@ export function getCurrentVersion(db: Database.Database): number {
 /**
  * 记录已应用的迁移
  */
-function recordMigration(db: Database.Database, version: number, description: string): void {
-  db.prepare('INSERT INTO schema_versions (version, applied_at, description) VALUES (?, ?, ?)').run(
-    version,
-    Date.now(),
-    description,
-  );
+function recordMigration(
+  db: Database.Database,
+  version: number,
+  description: string,
+): void {
+  db.prepare(
+    "INSERT INTO schema_versions (version, applied_at, description) VALUES (?, ?, ?)",
+  ).run(version, Date.now(), description);
 }
 
 /**
  * 执行所有待处理的迁移
  */
-export function runMigrations(db: Database.Database, fromVersion: number): void {
+export function runMigrations(
+  db: Database.Database,
+  fromVersion: number,
+): void {
   const pending = migrations.filter((m) => m.version > fromVersion);
 
   if (pending.length === 0) return;
@@ -84,7 +89,9 @@ export function needsMigration(db: Database.Database): boolean {
  */
 export function getPendingMigrations(db: Database.Database): Migration[] {
   const current = getCurrentVersion(db);
-  return migrations.filter((m) => m.version > current).sort((a, b) => a.version - b.version);
+  return migrations
+    .filter((m) => m.version > current)
+    .sort((a, b) => a.version - b.version);
 }
 
 /**
@@ -95,8 +102,14 @@ export function getMigrationHistory(
 ): { version: number; appliedAt: number; description: string | null }[] {
   try {
     const rows = db
-      .prepare('SELECT version, applied_at, description FROM schema_versions ORDER BY version')
-      .all() as { version: number; applied_at: number; description: string | null }[];
+      .prepare(
+        "SELECT version, applied_at, description FROM schema_versions ORDER BY version",
+      )
+      .all() as {
+      version: number;
+      applied_at: number;
+      description: string | null;
+    }[];
 
     return rows.map((row) => ({
       version: row.version,

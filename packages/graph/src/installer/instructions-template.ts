@@ -35,7 +35,7 @@ export const CODEGRAPH_SECTION_END = "<!-- AIDE_END -->";
  * instructions file. Includes the start/end markers so the section
  * can be detected and replaced on re-install.
  *
- * Tool names MUST stay in sync with what `@aide/mcp-server` actually
+ * Tool names MUST stay in sync with what `@aide-dev/mcp-server` actually
  * exposes (see `packages/mcp-server/src/index.ts` `TOOLS` constant).
  * A previous version of this template listed tools
  * (`codegraph_search`, `codegraph_callers`, `codegraph_context`,

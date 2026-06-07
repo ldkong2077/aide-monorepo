@@ -1,5 +1,5 @@
 /**
- * @aide/mind - Project design and planning from ideas
+ * @aide-dev/mind - Project design and planning from ideas
  *
  * This package provides the Mind module for AIDE, which helps
  * non-professional programmers transform their ideas into
@@ -25,7 +25,7 @@ export type {
   BrainstormSession,
   MindProcessResult,
   ProjectContext,
-} from './types.js';
+} from "./types.js";
 
 // Brainstorming
 export {
@@ -37,13 +37,10 @@ export {
   generateDesign,
   selfReviewDesign,
   processStep,
-} from './brainstorming.js';
+} from "./brainstorming.js";
 
 // Writing Plans
-export {
-  generatePlan,
-  formatPlanAsMarkdown,
-} from './writing-plans.js';
+export { generatePlan, formatPlanAsMarkdown } from "./writing-plans.js";
 
 // Document Writer
 export {
@@ -51,7 +48,7 @@ export {
   writeDesignDocument,
   writePlanDocument,
   writeDocuments,
-} from './document-writer.js';
+} from "./document-writer.js";
 
 // Prompts (for advanced usage)
 export {
@@ -61,4 +58,4 @@ export {
   PROPOSE_APPROACHES_PROMPT,
   GENERATE_DESIGN_PROMPT,
   SELF_REVIEW_PROMPT,
-} from './prompts.js';
+} from "./prompts.js";

@@ -4,14 +4,22 @@
  * Handles SQLite database initialization and connection management.
  */
 
-import { type SqliteDatabase, type SqliteBackend, createDatabase } from './sqlite-adapter.js';
-import * as fs from 'fs';
-import * as path from 'path';
-import { fileURLToPath } from 'node:url';
-import { type SchemaVersion } from '../types.js';
-import { runMigrations, getCurrentVersion, CURRENT_SCHEMA_VERSION } from './migrations.js';
+import {
+  type SqliteDatabase,
+  type SqliteBackend,
+  createDatabase,
+} from "./sqlite-adapter.js";
+import * as fs from "fs";
+import * as path from "path";
+import { fileURLToPath } from "node:url";
+import { type SchemaVersion } from "../types.js";
+import {
+  runMigrations,
+  getCurrentVersion,
+  CURRENT_SCHEMA_VERSION,
+} from "./migrations.js";
 
-export { SqliteDatabase, SqliteBackend } from './sqlite-adapter.js';
+export { SqliteDatabase, SqliteBackend } from "./sqlite-adapter.js";
 
 /**
  * Apply connection-level PRAGMAs. Shared by `initialize` and `open` so the two
@@ -28,13 +36,13 @@ export { SqliteDatabase, SqliteBackend } from './sqlite-adapter.js';
  * (e.g. the git-hook `codegraph sync` running while the MCP server writes).
  */
 function configureConnection(db: SqliteDatabase): void {
-  db.pragma('busy_timeout = 5000'); // MUST be first — see above
-  db.pragma('foreign_keys = ON');
-  db.pragma('journal_mode = WAL'); // node:sqlite supports WAL on every platform
-  db.pragma('synchronous = NORMAL'); // safe with WAL mode
-  db.pragma('cache_size = -64000'); // 64 MB page cache
-  db.pragma('temp_store = MEMORY'); // temp tables in memory
-  db.pragma('mmap_size = 268435456'); // 256 MB memory-mapped I/O
+  db.pragma("busy_timeout = 5000"); // MUST be first — see above
+  db.pragma("foreign_keys = ON");
+  db.pragma("journal_mode = WAL"); // node:sqlite supports WAL on every platform
+  db.pragma("synchronous = NORMAL"); // safe with WAL mode
+  db.pragma("cache_size = -64000"); // 64 MB page cache
+  db.pragma("temp_store = MEMORY"); // temp tables in memory
+  db.pragma("mmap_size = 268435456"); // 256 MB memory-mapped I/O
 }
 
 /**
@@ -45,7 +53,11 @@ export class DatabaseConnection {
   private dbPath: string;
   private backend: SqliteBackend;
 
-  private constructor(db: SqliteDatabase, dbPath: string, backend: SqliteBackend) {
+  private constructor(
+    db: SqliteDatabase,
+    dbPath: string,
+    backend: SqliteBackend,
+  ) {
     this.db = db;
     this.dbPath = dbPath;
     this.backend = backend;
@@ -71,16 +83,20 @@ export class DatabaseConnection {
     // The schema.sql file is copied to dist/db/ by the package's postbuild script.
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = path.dirname(__filename);
-    const schemaPath = path.join(__dirname, 'schema.sql');
-    const schema = fs.readFileSync(schemaPath, 'utf-8');
+    const schemaPath = path.join(__dirname, "schema.sql");
+    const schema = fs.readFileSync(schemaPath, "utf-8");
     db.exec(schema);
 
     // Record current schema version so migrations aren't re-applied on open
     const currentVersion = getCurrentVersion(db);
     if (currentVersion < CURRENT_SCHEMA_VERSION) {
       db.prepare(
-        'INSERT OR IGNORE INTO schema_versions (version, applied_at, description) VALUES (?, ?, ?)',
-      ).run(CURRENT_SCHEMA_VERSION, Date.now(), 'Initial schema includes all migrations');
+        "INSERT OR IGNORE INTO schema_versions (version, applied_at, description) VALUES (?, ?, ?)",
+      ).run(
+        CURRENT_SCHEMA_VERSION,
+        Date.now(),
+        "Initial schema includes all migrations",
+      );
     }
 
     return new DatabaseConnection(db, dbPath, backend);
@@ -143,11 +159,13 @@ export class DatabaseConnection {
    * writer; anything else ⇒ they can. See issue #238.
    */
   getJournalMode(): string {
-    const raw = this.db.pragma('journal_mode');
+    const raw = this.db.pragma("journal_mode");
     const row = Array.isArray(raw) ? raw[0] : raw;
     const mode =
-      row && typeof row === 'object' ? (row as Record<string, unknown>).journal_mode : row;
-    return String(mode ?? '').toLowerCase();
+      row && typeof row === "object"
+        ? (row as Record<string, unknown>).journal_mode
+        : row;
+    return String(mode ?? "").toLowerCase();
   }
 
   /**
@@ -156,9 +174,11 @@ export class DatabaseConnection {
   getSchemaVersion(): SchemaVersion | null {
     const row = this.db
       .prepare(
-        'SELECT version, applied_at, description FROM schema_versions ORDER BY version DESC LIMIT 1',
+        "SELECT version, applied_at, description FROM schema_versions ORDER BY version DESC LIMIT 1",
       )
-      .get() as { version: number; applied_at: number; description: string | null } | undefined;
+      .get() as
+      | { version: number; applied_at: number; description: string | null }
+      | undefined;
 
     if (!row) return null;
 
@@ -188,8 +208,8 @@ export class DatabaseConnection {
    * Optimize database (vacuum and analyze)
    */
   optimize(): void {
-    this.db.exec('VACUUM');
-    this.db.exec('ANALYZE');
+    this.db.exec("VACUUM");
+    this.db.exec("ANALYZE");
   }
 
   /**
@@ -210,11 +230,11 @@ export class DatabaseConnection {
 /**
  * Default database filename
  */
-export const DATABASE_FILENAME = 'codegraph.db';
+export const DATABASE_FILENAME = "codegraph.db";
 
 /**
  * Get the default database path for a project
  */
 export function getDatabasePath(projectRoot: string): string {
-  return path.join(projectRoot, '.codegraph', DATABASE_FILENAME);
+  return path.join(projectRoot, ".codegraph", DATABASE_FILENAME);
 }

@@ -5,10 +5,10 @@ import {
   type ExtractionError,
   type UnresolvedReference,
   type Language,
-} from '../types.js';
-import { generateNodeId } from './tree-sitter-helpers.js';
-import { TreeSitterExtractor } from './tree-sitter.js';
-import { isLanguageSupported } from './grammars.js';
+} from "../types.js";
+import { generateNodeId } from "./tree-sitter-helpers.js";
+import { TreeSitterExtractor } from "./tree-sitter.js";
+import { isLanguageSupported } from "./grammars.js";
 
 /**
  * VueExtractor - Extracts code relationships from Vue Single-File Component files
@@ -51,7 +51,7 @@ export class VueExtractor {
     } catch (error) {
       this.errors.push({
         message: `Vue extraction error: ${error instanceof Error ? error.message : String(error)}`,
-        severity: 'error',
+        severity: "error",
       });
     }
 
@@ -68,18 +68,18 @@ export class VueExtractor {
    * Create a component node for the .vue file
    */
   private createComponentNode(): Node {
-    const lines = this.source.split('\n');
+    const lines = this.source.split("\n");
     const fileName = this.filePath.split(/[/\\]/).pop() || this.filePath;
-    const componentName = fileName.replace(/\.vue$/, '');
-    const id = generateNodeId(this.filePath, 'component', componentName, 1);
+    const componentName = fileName.replace(/\.vue$/, "");
+    const id = generateNodeId(this.filePath, "component", componentName, 1);
 
     const node: Node = {
       id,
-      kind: 'component',
+      kind: "component",
       name: componentName,
       qualifiedName: `${this.filePath}::${componentName}`,
       filePath: this.filePath,
-      language: 'vue',
+      language: "vue",
       startLine: 1,
       endLine: lines.length,
       startColumn: 0,
@@ -112,8 +112,8 @@ export class VueExtractor {
     let match;
 
     while ((match = scriptRegex.exec(this.source)) !== null) {
-      const attrs = match[1] || '';
-      const content = match.groups?.content || match[2] || '';
+      const attrs = match[1] || "";
+      const content = match.groups?.content || match[2] || "";
 
       // Detect TypeScript from lang attribute
       const isTypeScript = /lang\s*=\s*["'](ts|typescript)["']/.test(attrs);
@@ -125,7 +125,7 @@ export class VueExtractor {
       const beforeScript = this.source.substring(0, match.index);
       const scriptTagLine = (beforeScript.match(/\n/g) || []).length;
       // The content starts on the line after the opening <script> tag
-      const openingTag = match[0].substring(0, match[0].indexOf('>') + 1);
+      const openingTag = match[0].substring(0, match[0].indexOf(">") + 1);
       const openingTagLines = (openingTag.match(/\n/g) || []).length;
       const contentStartLine = scriptTagLine + openingTagLines + 1; // 0-indexed line
 
@@ -144,29 +144,40 @@ export class VueExtractor {
    * Process a script block by delegating to TreeSitterExtractor
    */
   private processScriptBlock(
-    block: { content: string; startLine: number; isSetup: boolean; isTypeScript: boolean },
+    block: {
+      content: string;
+      startLine: number;
+      isSetup: boolean;
+      isTypeScript: boolean;
+    },
     componentNodeId: string,
   ): void {
-    const scriptLanguage: Language = block.isTypeScript ? 'typescript' : 'javascript';
+    const scriptLanguage: Language = block.isTypeScript
+      ? "typescript"
+      : "javascript";
 
     // Check if the script language parser is available
     if (!isLanguageSupported(scriptLanguage)) {
       this.errors.push({
         message: `Parser for ${scriptLanguage} not available, cannot parse Vue script block`,
-        severity: 'warning',
+        severity: "warning",
       });
       return;
     }
 
     // Delegate to TreeSitterExtractor
-    const extractor = new TreeSitterExtractor(this.filePath, block.content, scriptLanguage);
+    const extractor = new TreeSitterExtractor(
+      this.filePath,
+      block.content,
+      scriptLanguage,
+    );
     const result = extractor.extract();
 
     // Offset line numbers from script block back to .vue file positions
     for (const node of result.nodes) {
       node.startLine += block.startLine;
       node.endLine += block.startLine;
-      node.language = 'vue'; // Mark as vue, not TS/JS
+      node.language = "vue"; // Mark as vue, not TS/JS
 
       this.nodes.push(node);
 
@@ -174,7 +185,7 @@ export class VueExtractor {
       this.edges.push({
         source: componentNodeId,
         target: node.id,
-        kind: 'contains',
+        kind: "contains",
       });
     }
 
@@ -190,7 +201,7 @@ export class VueExtractor {
     for (const ref of result.unresolvedReferences) {
       ref.line += block.startLine;
       ref.filePath = this.filePath;
-      ref.language = 'vue';
+      ref.language = "vue";
       this.unresolvedReferences.push(ref);
     }
 

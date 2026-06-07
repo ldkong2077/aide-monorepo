@@ -1,4 +1,4 @@
-# @aide/guard
+# @aide-dev/guard
 
 ## 1.1.0
 
@@ -13,14 +13,14 @@
   The new `vitest.config.ts`:
   - Sets the global floor at **15% lines / 15% statements / 80% branches / 65%
     functions**. The floor reflects the current state of the monorepo (most of
-    `@aide/graph`'s tree-sitter extraction pipeline is exercised by CLI
+    `@aide-dev/graph`'s tree-sitter extraction pipeline is exercised by CLI
     integration tests, not unit tests). The floor is a _regression gate_: it
     blocks new commits that drop coverage below the current baseline.
   - Adds **100% requirements** on five production-critical files:
     `proxy/rate-limit.ts`, `proxy/readiness.ts`, `provider/retry.ts`,
     `mcp-server/src/prompts.ts`, and `mcp-server/src/schemas.ts`. Any PR that
     drops coverage on one of these is a CI failure.
-  - Excludes the CLI bin entrypoints and the deprecated `@aide/router` barrel
+  - Excludes the CLI bin entrypoints and the deprecated `@aide-dev/router` barrel
     from the coverage denominator (they have no runtime code of their own).
 
   ### CI integration
@@ -49,7 +49,7 @@
 
   ### After
 
-  `ServerConfig.cors` (defined in both `@aide/core` and `@aide/guard`) accepts:
+  `ServerConfig.cors` (defined in both `@aide-dev/core` and `@aide-dev/guard`) accepts:
 
   ```ts
   interface CorsConfig {
@@ -230,7 +230,7 @@
   hard-killed during rolling updates, leaving in-flight SSE connections in an
   undefined state.
 
-  `installGracefulShutdown(server)` is now exported from `@aide/guard` and
+  `installGracefulShutdown(server)` is now exported from `@aide-dev/guard` and
   called by the `aide router start` CLI. It:
   - handles SIGINT and SIGTERM
   - flips the readiness flag immediately so `/readyz` returns 503 (drains the
@@ -347,12 +347,12 @@
   - Each package section lists the user-visible features shipped in v1.0 with
     cross-references to the underlying changesets.
   - Migration section at the end documents the two breaking changes:
-    `@aide/router` is now a re-export of `@aide/guard`, and `/metrics` is now
+    `@aide-dev/router` is now a re-export of `@aide-dev/guard`, and `/metrics` is now
     public (no auth required).
 
   ### TypeDoc API reference
-  - `typedoc.json` configured for two entry points (`@aide/core` and
-    `@aide/guard`), output to `docs/api/`.
+  - `typedoc.json` configured for two entry points (`@aide-dev/core` and
+    `@aide-dev/guard`), output to `docs/api/`.
   - `tsconfig.typedoc.json` is a dedicated non-emitting TypeScript config used
     by TypeDoc, so the doc generation is decoupled from the regular
     `tsc --build` invocation.
@@ -430,16 +430,16 @@
   - **36 warnings hand-fixed** in this commit:
     - 29 inline `import('...').Type` annotations converted to top-level
       `import type` declarations. This was a systemic pattern across
-      `@aide/graph` (extraction, directory, installer), `@aide/guard` (proxy),
-      `@aide/mcp-server` (resources), `@aide/cli` (bin), and `@aide/core`
+      `@aide-dev/graph` (extraction, directory, installer), `@aide-dev/guard` (proxy),
+      `@aide-dev/mcp-server` (resources), `@aide-dev/cli` (bin), and `@aide-dev/core`
       (config). All such annotations are now `import type { T } from '...'` at
       module top-level.
-    - 6 unused variables removed (`RouteStrategy` in `@aide/core`,
-      `RetryOptions` in `@aide/guard`, the `timeoutMs` left in
+    - 6 unused variables removed (`RouteStrategy` in `@aide-dev/core`,
+      `RetryOptions` in `@aide-dev/guard`, the `timeoutMs` left in
       `streamChatCompletion` after an earlier refactor, the `now` parameter on
       `TokenBucketRateLimiter.timeToFull`, the `makeRecorder` helper in
       `stream.test.ts`, the `config` parameter on `startMCPServer`).
-    - 1 `no-this-alias` rule violation in `@aide/core/src/metrics.ts` — the
+    - 1 `no-this-alias` rule violation in `@aide-dev/core/src/metrics.ts` — the
       `const collector = this;` pattern (used to capture the `MetricsCollector`
       instance for the timer's closure) was replaced with arrow-method syntax,
       which captures `this` lexically from the enclosing method body without

@@ -3,18 +3,18 @@
  * 编排所有检查流程，生成完整的验证报告
  */
 
-import * as fs from 'fs';
-import * as path from 'path';
-import { execFile } from 'child_process';
-import { promisify } from 'util';
-import crypto from 'crypto';
+import * as fs from "fs";
+import * as path from "path";
+import { execFile } from "child_process";
+import { promisify } from "util";
+import crypto from "crypto";
 
 const execFileAsync = promisify(execFile);
-import { HallucinationDetector } from './hallucination.js';
-import { ASTDiffAnalyzer } from './ast-diff.js';
-import { ConfidenceScorer } from './confidence.js';
-import { TestRunner } from './test-runner.js';
-import { ContextBuilder, countProjectFiles } from './context.js';
+import { HallucinationDetector } from "./hallucination.js";
+import { ASTDiffAnalyzer } from "./ast-diff.js";
+import { ConfidenceScorer } from "./confidence.js";
+import { TestRunner } from "./test-runner.js";
+import { ContextBuilder, countProjectFiles } from "./context.js";
 import type {
   VerifyOptions,
   VerificationReport,
@@ -22,18 +22,17 @@ import type {
   HallucinationReport,
   TestResult,
   Language,
-} from '../types.js';
-import type { Storage } from '../storage/index.js';
+} from "../types.js";
+import type { Storage } from "../storage/index.js";
 
 // Local logger sink for verifier-level warnings. This is the ONE place in
-// @aide/guard that writes to console directly — every other module should
+// @aide-dev/guard that writes to console directly — every other module should
 // import `logWarn` from a shared helper instead.
- 
+
 const logger = {
   warn: (msg: string, err?: unknown) =>
-    console.warn(`[CodeGuard] ${msg}`, err instanceof Error ? err.message : ''),
+    console.warn(`[CodeGuard] ${msg}`, err instanceof Error ? err.message : ""),
 };
- 
 
 /**
  * 主验证引擎
@@ -45,9 +44,11 @@ export class Verifier {
   private confidenceScorer: ConfidenceScorer;
   private testRunner: TestRunner;
   private storage?: Storage;
+  private projectDirOverride?: string;
 
-  constructor(storage?: Storage) {
+  constructor(storage?: Storage, projectDir?: string) {
     this.storage = storage;
+    this.projectDirOverride = projectDir;
     this.hallucinationDetector = new HallucinationDetector(storage);
     this.astDiffAnalyzer = new ASTDiffAnalyzer();
     this.confidenceScorer = new ConfidenceScorer();
@@ -77,7 +78,7 @@ export class Verifier {
     }
 
     // 默认验证当前目录
-    return this.verifyPath('.', options);
+    return this.verifyPath(".", options);
   }
 
   /**
@@ -97,20 +98,36 @@ export class Verifier {
 
     for (const filePath of diffFiles) {
       try {
-        const beforeContent = await this.getFileAtCommit(filePath, base, projectDir);
-        const afterContent = await this.getFileAtCommit(filePath, head, projectDir);
+        const beforeContent = await this.getFileAtCommit(
+          filePath,
+          base,
+          projectDir,
+        );
+        const afterContent = await this.getFileAtCommit(
+          filePath,
+          head,
+          projectDir,
+        );
 
         // 步骤2: AST差异分析
-        const diffResult = this.astDiffAnalyzer.analyzeDiff(beforeContent, afterContent, filePath);
+        const diffResult = this.astDiffAnalyzer.analyzeDiff(
+          beforeContent,
+          afterContent,
+          filePath,
+        );
         diffResults.push(diffResult);
 
         // 步骤3: 幻觉检测（只检测新代码）
         const language = this.detectLanguage(filePath);
-        const newCodeHalls = this.hallucinationDetector.detect(afterContent, language, projectDir);
+        const newCodeHalls = this.hallucinationDetector.detect(
+          afterContent,
+          language,
+          projectDir,
+        );
         hallucinations.push(...newCodeHalls);
       } catch (err) {
         // 文件可能不存在于某个提交中（新增/删除），跳过
-        logger.warn('获取diff文件内容失败，跳过', err);
+        logger.warn("获取diff文件内容失败，跳过", err);
       }
     }
 
@@ -121,7 +138,11 @@ export class Verifier {
     }
 
     // 步骤5: 计算置信度
-    const confidence = this.confidenceScorer.computeScore(diffResults, hallucinations, testResult);
+    const confidence = this.confidenceScorer.computeScore(
+      diffResults,
+      hallucinations,
+      testResult,
+    );
 
     // 步骤6: 生成报告
     const report = this.generateReport({
@@ -133,7 +154,7 @@ export class Verifier {
       hallucinations,
       testResult,
       confidence,
-      summary: '',
+      summary: "",
     });
 
     // 记录验证报告到存储
@@ -147,7 +168,10 @@ export class Verifier {
   /**
    * 验证单个文件
    */
-  async verifyFile(filePath: string, options?: VerifyOptions): Promise<VerificationReport> {
+  async verifyFile(
+    filePath: string,
+    options?: VerifyOptions,
+  ): Promise<VerificationReport> {
     const projectDir = this.findProjectRoot();
     const absolutePath = path.resolve(projectDir, filePath);
 
@@ -155,25 +179,37 @@ export class Verifier {
       throw new Error(`文件不存在: ${absolutePath}`);
     }
 
-    const content = fs.readFileSync(absolutePath, 'utf-8');
+    const content = fs.readFileSync(absolutePath, "utf-8");
     const language = this.detectLanguage(filePath);
     const diffResults: DiffResult[] = [];
     const hallucinations: HallucinationReport[] = [];
 
     // 对单文件进行幻觉检测
-    const detected = this.hallucinationDetector.detect(content, language, projectDir);
+    const detected = this.hallucinationDetector.detect(
+      content,
+      language,
+      projectDir,
+    );
     hallucinations.push(...detected);
 
     // 如果有git，与上一个版本对比
     try {
-      const beforeContent = await this.getFileAtCommit(filePath, 'HEAD', projectDir);
+      const beforeContent = await this.getFileAtCommit(
+        filePath,
+        "HEAD",
+        projectDir,
+      );
       if (beforeContent !== content) {
-        const diffResult = this.astDiffAnalyzer.analyzeDiff(beforeContent, content, filePath);
+        const diffResult = this.astDiffAnalyzer.analyzeDiff(
+          beforeContent,
+          content,
+          filePath,
+        );
         diffResults.push(diffResult);
       }
     } catch (err) {
       // 没有git历史，跳过差异分析
-      logger.warn('没有git历史，跳过差异分析', err);
+      logger.warn("没有git历史，跳过差异分析", err);
     }
 
     // 运行相关测试
@@ -183,7 +219,11 @@ export class Verifier {
     }
 
     // 计算置信度
-    const confidence = this.confidenceScorer.computeScore(diffResults, hallucinations, testResult);
+    const confidence = this.confidenceScorer.computeScore(
+      diffResults,
+      hallucinations,
+      testResult,
+    );
 
     const report = this.generateReport({
       id: this.generateReportId(),
@@ -194,7 +234,7 @@ export class Verifier {
       hallucinations,
       testResult,
       confidence,
-      summary: '',
+      summary: "",
     });
 
     if (this.storage) {
@@ -217,22 +257,36 @@ export class Verifier {
 
     for (const filePath of stagedFiles) {
       try {
-        const beforeContent = await this.getStagedFileBefore(filePath, projectDir);
-        const afterContent = await this.getStagedFileAfter(filePath, projectDir);
+        const beforeContent = await this.getStagedFileBefore(
+          filePath,
+          projectDir,
+        );
+        const afterContent = await this.getStagedFileAfter(
+          filePath,
+          projectDir,
+        );
 
         if (beforeContent === null || afterContent === null) continue;
 
         // AST差异分析
-        const diffResult = this.astDiffAnalyzer.analyzeDiff(beforeContent, afterContent, filePath);
+        const diffResult = this.astDiffAnalyzer.analyzeDiff(
+          beforeContent,
+          afterContent,
+          filePath,
+        );
         diffResults.push(diffResult);
 
         // 幻觉检测
         const language = this.detectLanguage(filePath);
-        const detected = this.hallucinationDetector.detect(afterContent, language, projectDir);
+        const detected = this.hallucinationDetector.detect(
+          afterContent,
+          language,
+          projectDir,
+        );
         hallucinations.push(...detected);
       } catch (err) {
         // 跳过无法处理的文件
-        logger.warn('跳过无法处理的暂存文件', err);
+        logger.warn("跳过无法处理的暂存文件", err);
       }
     }
 
@@ -243,7 +297,11 @@ export class Verifier {
     }
 
     // 计算置信度
-    const confidence = this.confidenceScorer.computeScore(diffResults, hallucinations, testResult);
+    const confidence = this.confidenceScorer.computeScore(
+      diffResults,
+      hallucinations,
+      testResult,
+    );
 
     const report = this.generateReport({
       id: this.generateReportId(),
@@ -254,7 +312,7 @@ export class Verifier {
       hallucinations,
       testResult,
       confidence,
-      summary: '',
+      summary: "",
     });
 
     if (this.storage) {
@@ -280,17 +338,25 @@ export class Verifier {
 
     for (const filePath of files) {
       try {
-        const content = fs.readFileSync(filePath, 'utf-8');
+        const content = fs.readFileSync(filePath, "utf-8");
         const language = this.detectLanguage(filePath);
 
         // 幻觉检测
-        const detected = this.hallucinationDetector.detect(content, language, projectDir);
+        const detected = this.hallucinationDetector.detect(
+          content,
+          language,
+          projectDir,
+        );
         hallucinations.push(...detected);
 
         // 差异分析：与 git 上一版本对比（如果有 git 历史）
         try {
           const relativePath = path.relative(projectDir, filePath);
-          const beforeContent = await this.getFileAtCommit(relativePath, 'HEAD', projectDir);
+          const beforeContent = await this.getFileAtCommit(
+            relativePath,
+            "HEAD",
+            projectDir,
+          );
           if (beforeContent && beforeContent !== content) {
             const diffResult = this.astDiffAnalyzer.analyzeDiff(
               beforeContent,
@@ -304,7 +370,7 @@ export class Verifier {
         }
       } catch (err) {
         // 跳过无法读取的文件
-        logger.warn('跳过无法读取的文件', err);
+        logger.warn("跳过无法读取的文件", err);
       }
     }
 
@@ -315,7 +381,11 @@ export class Verifier {
     }
 
     // 计算置信度
-    const confidence = this.confidenceScorer.computeScore(diffResults, hallucinations, testResult);
+    const confidence = this.confidenceScorer.computeScore(
+      diffResults,
+      hallucinations,
+      testResult,
+    );
 
     const report = this.generateReport({
       id: this.generateReportId(),
@@ -326,7 +396,7 @@ export class Verifier {
       hallucinations,
       testResult,
       confidence,
-      summary: '',
+      summary: "",
     });
 
     if (this.storage) {
@@ -357,15 +427,22 @@ export class Verifier {
    * 生成报告ID
    */
   private generateReportId(): string {
-    return `cg_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
+    return `cg_${Date.now()}_${crypto.randomBytes(4).toString("hex")}`;
   }
 
   /**
    * 查找项目根目录
    */
   private findProjectRoot(): string {
+    if (this.projectDirOverride) return this.projectDirOverride;
     let current = process.cwd();
-    const markers = ['package.json', 'go.mod', 'pyproject.toml', 'setup.py', '.git'];
+    const markers = [
+      "package.json",
+      "go.mod",
+      "pyproject.toml",
+      "setup.py",
+      ".git",
+    ];
 
     while (current !== path.dirname(current)) {
       for (const marker of markers) {
@@ -385,36 +462,68 @@ export class Verifier {
   private detectLanguage(filePath: string): Language {
     const ext = path.extname(filePath).toLowerCase();
     switch (ext) {
-      case '.py':
-        return 'python';
-      case '.ts':
-      case '.tsx':
-        return 'typescript';
-      case '.js':
-      case '.jsx':
-        return 'javascript';
-      case '.go':
-        return 'go';
+      case ".py":
+        return "python";
+      case ".ts":
+      case ".tsx":
+        return "typescript";
+      case ".js":
+      case ".jsx":
+        return "javascript";
+      case ".go":
+        return "go";
+      case ".java":
+        return "java";
+      case ".rs":
+        return "rust";
+      case ".rb":
+        return "ruby";
+      case ".php":
+        return "php";
+      case ".kt":
+      case ".kts":
+        return "kotlin";
+      case ".swift":
+        return "swift";
+      case ".cs":
+        return "csharp";
+      case ".c":
+        return "c";
+      case ".cpp":
+      case ".cc":
+      case ".cxx":
+      case ".h":
+      case ".hpp":
+      case ".hh":
+        return "cpp";
       default:
-        return 'unknown';
+        return "unknown";
     }
   }
 
   /**
    * 获取两个提交之间的差异文件列表
    */
-  private async getDiffFiles(base: string, head: string, projectDir: string): Promise<string[]> {
+  private async getDiffFiles(
+    base: string,
+    head: string,
+    projectDir: string,
+  ): Promise<string[]> {
     try {
-      const { stdout } = await execFileAsync('git', ['diff', '--name-only', base, head], {
-        cwd: projectDir,
-        encoding: 'utf-8',
-      });
+      const { stdout } = await execFileAsync(
+        "git",
+        ["diff", "--name-only", base, head],
+        {
+          cwd: projectDir,
+          encoding: "utf-8",
+        },
+      );
       return stdout
         .trim()
-        .split('\n')
+        .split("\n")
         .filter((f) => f.length > 0);
     } catch (err) {
-      logger.warn('获取diff文件列表失败', err);
+      logger.warn("获取diff文件列表失败", err);
       return [];
     }
   }
@@ -428,14 +537,18 @@ export class Verifier {
     projectDir: string,
   ): Promise<string> {
     try {
-      const { stdout } = await execFileAsync('git', ['show', `${commit}:${filePath}`], {
-        cwd: projectDir,
-        encoding: 'utf-8',
-      });
+      const { stdout } = await execFileAsync(
+        "git",
+        ["show", `${commit}:${filePath}`],
+        {
+          cwd: projectDir,
+          encoding: "utf-8",
+        },
+      );
       return stdout;
     } catch (err) {
-      logger.warn('获取提交中文件内容失败', err);
-      return '';
+      logger.warn("获取提交中文件内容失败", err);
+      return "";
     }
   }
 
@@ -444,16 +557,20 @@ export class Verifier {
    */
   private async getStagedFiles(projectDir: string): Promise<string[]> {
     try {
-      const { stdout } = await execFileAsync('git', ['diff', '--cached', '--name-only'], {
-        cwd: projectDir,
-        encoding: 'utf-8',
-      });
+      const { stdout } = await execFileAsync(
+        "git",
+        ["diff", "--cached", "--name-only"],
+        {
+          cwd: projectDir,
+          encoding: "utf-8",
+        },
+      );
       return stdout
         .trim()
-        .split('\n')
+        .split("\n")
         .filter((f) => f.length > 0);
     } catch (err) {
-      logger.warn('获取暂存区文件列表失败', err);
+      logger.warn("获取暂存区文件列表失败", err);
       return [];
     }
   }
@@ -461,16 +578,23 @@ export class Verifier {
   /**
    * 获取暂存区文件变更前内容
    */
-  private async getStagedFileBefore(filePath: string, projectDir: string): Promise<string | null> {
+  private async getStagedFileBefore(
+    filePath: string,
+    projectDir: string,
+  ): Promise<string | null> {
     try {
-      const { stdout } = await execFileAsync('git', ['show', `HEAD:${filePath}`], {
-        cwd: projectDir,
-        encoding: 'utf-8',
-      });
+      const { stdout } = await execFileAsync(
+        "git",
+        ["show", `HEAD:${filePath}`],
+        {
+          cwd: projectDir,
+          encoding: "utf-8",
+        },
+      );
       return stdout;
     } catch (err) {
       // 新文件，没有之前的内容
-      logger.warn('新文件，没有之前的内容', err);
+      logger.warn("新文件，没有之前的内容", err);
       return null;
     }
   }
@@ -478,15 +602,18 @@ export class Verifier {
   /**
    * 获取暂存区文件变更后内容
    */
-  private async getStagedFileAfter(filePath: string, projectDir: string): Promise<string | null> {
+  private async getStagedFileAfter(
+    filePath: string,
+    projectDir: string,
+  ): Promise<string | null> {
     try {
-      const { stdout } = await execFileAsync('git', ['show', `:${filePath}`], {
+      const { stdout } = await execFileAsync("git", ["show", `:${filePath}`], {
         cwd: projectDir,
-        encoding: 'utf-8',
+        encoding: "utf-8",
       });
       return stdout;
     } catch (err) {
-      logger.warn('获取暂存区文件变更后内容失败', err);
+      logger.warn("获取暂存区文件变更后内容失败", err);
       return null;
     }
   }
@@ -501,7 +628,10 @@ export class Verifier {
     const allTestFiles: string[] = [];
 
     for (const filePath of files) {
-      const relatedTests = this.testRunner.findRelatedTests(filePath, projectDir);
+      const relatedTests = this.testRunner.findRelatedTests(
+        filePath,
+        projectDir,
+      );
       allTestFiles.push(...relatedTests);
     }
 
@@ -518,18 +648,25 @@ export class Verifier {
    */
   private collectFiles(dir: string): string[] {
     const MAX_FILE_SIZE = 1024 * 1024; // 1MB
-    const codeExtensions = new Set(['.py', '.ts', '.tsx', '.js', '.jsx', '.go']);
+    const codeExtensions = new Set([
+      ".py",
+      ".ts",
+      ".tsx",
+      ".js",
+      ".jsx",
+      ".go",
+    ]);
     const ignoreDirs = new Set([
-      'node_modules',
-      '.git',
-      '__pycache__',
-      'dist',
-      'build',
-      '.venv',
-      'venv',
-      'vendor',
-      '.next',
-      '.nuxt',
+      "node_modules",
+      ".git",
+      "__pycache__",
+      "dist",
+      "build",
+      ".venv",
+      "venv",
+      "vendor",
+      ".next",
+      ".nuxt",
     ]);
     const files: string[] = [];
 
@@ -558,7 +695,7 @@ export class Verifier {
         }
       } catch (err) {
         // 跳过无权限目录
-        logger.warn('跳过无权限目录', err);
+        logger.warn("跳过无权限目录", err);
       }
     };
 

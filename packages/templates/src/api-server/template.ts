@@ -3,33 +3,34 @@
  * A RESTful API server with Express, TypeScript, and PostgreSQL.
  */
 
-import type { ProjectTemplate } from '../types.js';
+import type { ProjectTemplate } from "../types.js";
 
 export const apiServerTemplate: ProjectTemplate = {
-  id: 'api-server',
+  id: "api-server",
   config: {
-    name: 'API Server',
-    description: 'A RESTful API server with Express, TypeScript, PostgreSQL, and JWT authentication',
-    category: 'api',
-    difficulty: 'intermediate',
-    techStack: ['Express', 'TypeScript', 'PostgreSQL', 'Prisma', 'JWT'],
+    name: "API Server",
+    description:
+      "A RESTful API server with Express, TypeScript, PostgreSQL, and JWT authentication",
+    category: "api",
+    difficulty: "intermediate",
+    techStack: ["Express", "TypeScript", "PostgreSQL", "Prisma", "JWT"],
     features: [
-      'RESTful API endpoints',
-      'User authentication with JWT',
-      'Database with Prisma ORM',
-      'Input validation with Zod',
-      'Error handling middleware',
-      'Logging with Winston',
-      'Rate limiting',
-      'CORS configuration',
+      "RESTful API endpoints",
+      "User authentication with JWT",
+      "Database with Prisma ORM",
+      "Input validation with Zod",
+      "Error handling middleware",
+      "Logging with Winston",
+      "Rate limiting",
+      "CORS configuration",
     ],
-    estimatedTime: '4-6 hours',
-    author: 'AIDE Team',
-    version: '1.0.0',
+    estimatedTime: "4-6 hours",
+    author: "AIDE Team",
+    version: "1.0.0",
   },
   files: [
     {
-      path: 'package.json',
+      path: "package.json",
       content: `{
   "name": "{{projectName}}",
   "version": "0.1.0",
@@ -70,11 +71,12 @@ export const apiServerTemplate: ProjectTemplate = {
     "vitest": "^1.1.0"
   }
 }`,
-      description: 'Package configuration with Express, Prisma, and dependencies',
+      description:
+        "Package configuration with Express, Prisma, and dependencies",
       isRequired: true,
     },
     {
-      path: 'tsconfig.json',
+      path: "tsconfig.json",
       content: `{
   "compilerOptions": {
     "target": "ES2022",
@@ -94,11 +96,11 @@ export const apiServerTemplate: ProjectTemplate = {
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
 }`,
-      description: 'TypeScript configuration',
+      description: "TypeScript configuration",
       isRequired: true,
     },
     {
-      path: 'prisma/schema.prisma',
+      path: "prisma/schema.prisma",
       content: `// This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
@@ -131,11 +133,11 @@ model Post {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }`,
-      description: 'Prisma database schema',
+      description: "Prisma database schema",
       isRequired: true,
     },
     {
-      path: 'src/index.ts',
+      path: "src/index.ts",
       content: `import express from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
@@ -206,11 +208,11 @@ process.on('SIGTERM', async () => {
   await prisma.$disconnect()
   process.exit(0)
 })`,
-      description: 'Main server entry point with Express setup',
+      description: "Main server entry point with Express setup",
       isRequired: true,
     },
     {
-      path: 'src/routes/auth.ts',
+      path: "src/routes/auth.ts",
       content: `import { Router, Request, Response } from 'express'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
@@ -285,11 +287,11 @@ authRouter.post('/login', async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Internal server error' })
   }
 })`,
-      description: 'Authentication routes with register and login',
+      description: "Authentication routes with register and login",
       isRequired: true,
     },
     {
-      path: 'src/routes/posts.ts',
+      path: "src/routes/posts.ts",
       content: `import { Router, Request, Response } from 'express'
 import { z } from 'zod'
 import { prisma } from '../index'
@@ -407,11 +409,11 @@ postsRouter.delete('/:id', authenticate, async (req: AuthRequest, res: Response)
     res.status(500).json({ error: 'Internal server error' })
   }
 })`,
-      description: 'Posts CRUD routes with authentication',
+      description: "Posts CRUD routes with authentication",
       isRequired: true,
     },
     {
-      path: 'src/middleware/auth.ts',
+      path: "src/middleware/auth.ts",
       content: `import { Request, Response, NextFunction } from 'express'
 import jwt from 'jsonwebtoken'
 
@@ -436,11 +438,11 @@ export const authenticate = (req: AuthRequest, res: Response, next: NextFunction
     return res.status(401).json({ error: 'Invalid token' })
   }
 }`,
-      description: 'JWT authentication middleware',
+      description: "JWT authentication middleware",
       isRequired: true,
     },
     {
-      path: 'src/middleware/errorHandler.ts',
+      path: "src/middleware/errorHandler.ts",
       content: `import { Request, Response, NextFunction } from 'express'
 import { logger } from '../utils/logger'
 
@@ -462,11 +464,11 @@ export const errorHandler = (
     message: process.env.NODE_ENV === 'development' ? err.message : undefined,
   })
 }`,
-      description: 'Global error handling middleware',
+      description: "Global error handling middleware",
       isRequired: true,
     },
     {
-      path: 'src/utils/logger.ts',
+      path: "src/utils/logger.ts",
       content: `import winston from 'winston'
 
 export const logger = winston.createLogger({
@@ -488,11 +490,11 @@ if (process.env.NODE_ENV !== 'production') {
     format: winston.format.simple(),
   }))
 }`,
-      description: 'Winston logger configuration',
+      description: "Winston logger configuration",
       isRequired: true,
     },
     {
-      path: '.env.example',
+      path: ".env.example",
       content: `# Database
 DATABASE_URL="postgresql://user:password@localhost:5432/mydb"
 
@@ -508,11 +510,11 @@ CORS_ORIGIN="http://localhost:3000"
 
 # Logging
 LOG_LEVEL="info"`,
-      description: 'Environment variables template',
+      description: "Environment variables template",
       isRequired: true,
     },
     {
-      path: 'README.md',
+      path: "README.md",
       content: `# {{projectName}}
 
 A RESTful API server built with Express, TypeScript, PostgreSQL, and JWT authentication.
@@ -605,58 +607,58 @@ npm test
 
 MIT
 `,
-      description: 'Project documentation',
+      description: "Project documentation",
       isRequired: true,
     },
   ],
   dependencies: {
-    '@prisma/client': '^5.8.0',
-    bcryptjs: '^2.4.3',
-    cors: '^2.8.5',
-    dotenv: '^16.3.1',
-    express: '^4.18.2',
-    'express-rate-limit': '^7.1.5',
-    helmet: '^7.1.0',
-    jsonwebtoken: '^9.0.2',
-    winston: '^3.11.0',
-    zod: '^3.22.4',
+    "@prisma/client": "^5.8.0",
+    bcryptjs: "^2.4.3",
+    cors: "^2.8.5",
+    dotenv: "^16.3.1",
+    express: "^4.18.2",
+    "express-rate-limit": "^7.1.5",
+    helmet: "^7.1.0",
+    jsonwebtoken: "^9.0.2",
+    winston: "^3.11.0",
+    zod: "^3.22.4",
   },
   devDependencies: {
-    '@types/bcryptjs': '^2.4.6',
-    '@types/cors': '^2.8.17',
-    '@types/express': '^4.17.21',
-    '@types/jsonwebtoken': '^9.0.5',
-    '@types/node': '^20.10.0',
-    prisma: '^5.8.0',
-    tsx: '^4.7.0',
-    typescript: '^5.2.2',
-    vitest: '^1.1.0',
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/jsonwebtoken": "^9.0.5",
+    "@types/node": "^20.10.0",
+    prisma: "^5.8.0",
+    tsx: "^4.7.0",
+    typescript: "^5.2.2",
+    vitest: "^1.1.0",
   },
   scripts: {
-    dev: 'tsx watch src/index.ts',
-    build: 'tsc',
-    start: 'node dist/index.js',
-    lint: 'eslint . --ext ts',
-    test: 'vitest',
-    'db:generate': 'prisma generate',
-    'db:push': 'prisma db push',
-    'db:migrate': 'prisma migrate dev',
-    'db:seed': 'tsx prisma/seed.ts',
+    dev: "tsx watch src/index.ts",
+    build: "tsc",
+    start: "node dist/index.js",
+    lint: "eslint . --ext ts",
+    test: "vitest",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:migrate": "prisma migrate dev",
+    "db:seed": "tsx prisma/seed.ts",
   },
   setupInstructions: [
-    'Install dependencies: npm install',
-    'Copy .env.example to .env and configure',
-    'Set up database: npx prisma db push',
-    'Generate Prisma client: npx prisma generate',
-    'Start development server: npm run dev',
+    "Install dependencies: npm install",
+    "Copy .env.example to .env and configure",
+    "Set up database: npx prisma db push",
+    "Generate Prisma client: npx prisma generate",
+    "Start development server: npm run dev",
   ],
   verificationSteps: [
-    'npm run build completes without errors',
-    'npm run dev starts successfully',
-    'Health check endpoint responds: GET /health',
-    'Can register a new user: POST /api/auth/register',
-    'Can login with registered user: POST /api/auth/login',
-    'Can create a post with authentication: POST /api/posts',
-    'Can get all posts: GET /api/posts',
+    "npm run build completes without errors",
+    "npm run dev starts successfully",
+    "Health check endpoint responds: GET /health",
+    "Can register a new user: POST /api/auth/register",
+    "Can login with registered user: POST /api/auth/login",
+    "Can create a post with authentication: POST /api/posts",
+    "Can get all posts: GET /api/posts",
   ],
 };

@@ -3,14 +3,14 @@
  * 使用 better-sqlite3 管理成本记录、路由日志、验证报告和模型性能数据
  */
 
-import Database from 'better-sqlite3';
-import * as path from 'path';
-import * as fs from 'fs';
-import * as os from 'os';
+import Database from "better-sqlite3";
+import * as path from "path";
+import * as fs from "fs";
+import * as os from "os";
 import {
   getCurrentVersion as getDbVersion,
   runMigrations as runDbMigrations,
-} from '../db/migrations.js';
+} from "../db/migrations.js";
 import type {
   CostRecord,
   CostSummary,
@@ -18,14 +18,14 @@ import type {
   VerificationReport,
   ModelPerformance,
   TaskType,
-} from '../types.js';
+} from "../types.js";
 
 // ==================== 存储接口 ====================
 
 /** 存储层接口，供其他模块依赖注入 */
 export interface Storage {
   recordCost(record: CostRecord): void;
-  getCostSummary(period: 'today' | 'week' | 'month'): CostSummary;
+  getCostSummary(period: "today" | "week" | "month"): CostSummary;
   getCostByModel(): Record<string, number>;
   getCostByTask(): Record<string, number>;
   recordRouteLog(
@@ -90,23 +90,24 @@ export class SQLiteStorage implements Storage {
       defaultBaseDir = process.env.CODESHIELD_HOME;
     } else {
       const homeDir = os.homedir();
-      const homeDataDir = path.join(homeDir, '.codeshield', 'data');
+      const homeDataDir = path.join(homeDir, ".codeshield", "data");
       // 检查主目录是否可写（沙箱环境可能无法写入）
       try {
         if (!fs.existsSync(homeDataDir)) {
           fs.mkdirSync(homeDataDir, { recursive: true });
         }
         // 尝试在主目录创建临时文件验证可写性
-        const testFile = path.join(homeDataDir, '.write-test');
-        fs.writeFileSync(testFile, 'test');
+        const testFile = path.join(homeDataDir, ".write-test");
+        fs.writeFileSync(testFile, "test");
         fs.unlinkSync(testFile);
-        defaultBaseDir = path.join(homeDir, '.codeshield');
+        defaultBaseDir = path.join(homeDir, ".codeshield");
       } catch {
         // 主目录不可写，回退到当前工作目录
-        defaultBaseDir = path.resolve(process.cwd(), 'data');
+        defaultBaseDir = path.resolve(process.cwd(), "data");
       }
     }
-    const dbPath = options.dbPath || path.resolve(defaultBaseDir, 'data', 'codeshield.db');
+    const dbPath =
+      options.dbPath || path.resolve(defaultBaseDir, "data", "codeshield.db");
 
     // 确保数据目录存在
     const dbDir = path.dirname(dbPath);
@@ -118,7 +119,7 @@ export class SQLiteStorage implements Storage {
 
     // 启用 WAL 模式提升并发性能
     if (options.walMode !== false) {
-      this.db.pragma('journal_mode = WAL');
+      this.db.pragma("journal_mode = WAL");
     }
 
     this.initializeTables();
@@ -149,9 +150,9 @@ export class SQLiteStorage implements Storage {
 
   /** 加载schema.sql文件 */
   private loadSchemaSql(): string {
-    const schemaPath = path.join(__dirname, '..', 'db', 'schema.sql');
+    const schemaPath = path.join(__dirname, "..", "db", "schema.sql");
     if (fs.existsSync(schemaPath)) {
-      return fs.readFileSync(schemaPath, 'utf-8');
+      return fs.readFileSync(schemaPath, "utf-8");
     }
     // 如果schema.sql不存在（开发模式），使用内联schema
     return this.getInlineSchema();
@@ -303,7 +304,7 @@ export class SQLiteStorage implements Storage {
   }
 
   /** 获取成本汇总 */
-  getCostSummary(period: 'today' | 'week' | 'month'): CostSummary {
+  getCostSummary(period: "today" | "week" | "month"): CostSummary {
     const since = this.getPeriodStart(period);
 
     const totalRow = this.db
@@ -429,7 +430,15 @@ export class SQLiteStorage implements Storage {
       INSERT INTO route_logs (timestamp, task_type, from_model, to_model, to_provider, latency_ms, success)
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `);
-    stmt.run(Date.now(), taskType, fromModel, toModel, toProvider, latency, success ? 1 : 0);
+    stmt.run(
+      Date.now(),
+      taskType,
+      fromModel,
+      toModel,
+      toProvider,
+      latency,
+      success ? 1 : 0,
+    );
   }
 
   /** 获取路由日志 */
@@ -573,29 +582,35 @@ export class SQLiteStorage implements Storage {
       hallucinations: JSON.parse(row.hallucinations),
       confidence: JSON.parse(row.confidence),
       testResult: row.test_result ? JSON.parse(row.test_result) : null,
-      summary: '',
+      summary: "",
     }));
   }
 
   // ==================== 幻觉规则管理 ====================
 
   /** 验证正则表达式模式 */
-  private validateRegexPattern(pattern: string): { valid: boolean; error?: string } {
+  private validateRegexPattern(pattern: string): {
+    valid: boolean;
+    error?: string;
+  } {
     // 长度限制
     if (pattern.length > 1000) {
-      return { valid: false, error: 'Pattern too long (max 1000 chars)' };
+      return { valid: false, error: "Pattern too long (max 1000 chars)" };
     }
 
     // 检测嵌套量词（ReDoS 风险）
     const nestedQuantifiers = /(\+|\*|\{[0-9]+,?\})\s*\)/;
     if (nestedQuantifiers.test(pattern)) {
-      return { valid: false, error: 'Nested quantifiers detected (ReDoS risk)' };
+      return {
+        valid: false,
+        error: "Nested quantifiers detected (ReDoS risk)",
+      };
     }
 
     // 检测回溯引用
     const backreferences = /\\[1-9]/;
     if (backreferences.test(pattern)) {
-      return { valid: false, error: 'Backreferences not allowed' };
+      return { valid: false, error: "Backreferences not allowed" };
     }
 
     // 尝试编译正则表达式
@@ -623,12 +638,12 @@ export class SQLiteStorage implements Storage {
 
     // 验证类别
     if (!rule.category || rule.category.length < 3) {
-      errors.push('Category must be at least 3 characters');
+      errors.push("Category must be at least 3 characters");
     }
 
     // 验证模式
     if (!rule.pattern) {
-      errors.push('Pattern is required');
+      errors.push("Pattern is required");
     } else {
       const patternValidation = this.validateRegexPattern(rule.pattern);
       if (!patternValidation.valid) {
@@ -638,33 +653,33 @@ export class SQLiteStorage implements Storage {
 
     // 验证语言
     const validLanguages = [
-      'any',
-      'typescript',
-      'javascript',
-      'python',
-      'go',
-      'rust',
-      'java',
-      'c',
-      'cpp',
+      "any",
+      "typescript",
+      "javascript",
+      "python",
+      "go",
+      "rust",
+      "java",
+      "c",
+      "cpp",
     ];
     if (rule.language && !validLanguages.includes(rule.language)) {
       errors.push(
-        `Invalid language: ${rule.language}. Must be one of: ${validLanguages.join(', ')}`,
+        `Invalid language: ${rule.language}. Must be one of: ${validLanguages.join(", ")}`,
       );
     }
 
     // 验证严重程度
-    const validSeverities = ['low', 'medium', 'high', 'critical'];
+    const validSeverities = ["low", "medium", "high", "critical"];
     if (rule.severity && !validSeverities.includes(rule.severity)) {
       errors.push(
-        `Invalid severity: ${rule.severity}. Must be one of: ${validSeverities.join(', ')}`,
+        `Invalid severity: ${rule.severity}. Must be one of: ${validSeverities.join(", ")}`,
       );
     }
 
     // 验证消息
     if (!rule.message || rule.message.length < 10) {
-      errors.push('Message must be at least 10 characters');
+      errors.push("Message must be at least 10 characters");
     }
 
     return { valid: errors.length === 0, errors };
@@ -682,7 +697,7 @@ export class SQLiteStorage implements Storage {
     // 验证规则
     const validation = this.validateHallucinationRule(rule);
     if (!validation.valid) {
-      throw new Error(`Invalid rule: ${validation.errors.join('; ')}`);
+      throw new Error(`Invalid rule: ${validation.errors.join("; ")}`);
     }
 
     const stmt = this.db.prepare(`
@@ -693,8 +708,8 @@ export class SQLiteStorage implements Storage {
     stmt.run(
       rule.category,
       rule.pattern,
-      rule.language || 'any',
-      rule.severity || 'medium',
+      rule.language || "any",
+      rule.severity || "medium",
       rule.message,
       rule.suggestion || null,
       now,
@@ -712,12 +727,12 @@ export class SQLiteStorage implements Storage {
     message: string;
     suggestion: string | null;
   }[] {
-    if (language && language !== 'any') {
+    if (language && language !== "any") {
       return this.db
         .prepare(
-          'SELECT * FROM hallucination_rules WHERE enabled = 1 AND (language = ? OR language = ?) ORDER BY category',
+          "SELECT * FROM hallucination_rules WHERE enabled = 1 AND (language = ? OR language = ?) ORDER BY category",
         )
-        .all(language, 'any') as {
+        .all(language, "any") as {
         id: number;
         category: string;
         pattern: string;
@@ -728,7 +743,9 @@ export class SQLiteStorage implements Storage {
       }[];
     }
     return this.db
-      .prepare('SELECT * FROM hallucination_rules WHERE enabled = 1 ORDER BY category')
+      .prepare(
+        "SELECT * FROM hallucination_rules WHERE enabled = 1 ORDER BY category",
+      )
       .all() as {
       id: number;
       category: string;
@@ -774,7 +791,7 @@ export class SQLiteStorage implements Storage {
   // ==================== 可信包管理 ====================
 
   /** 添加可信包 */
-  addTrustedPackage(name: string, language = 'any'): void {
+  addTrustedPackage(name: string, language = "any"): void {
     const stmt = this.db.prepare(`
       INSERT OR IGNORE INTO trusted_packages (name, language, created_at)
       VALUES (?, ?, ?)
@@ -784,20 +801,24 @@ export class SQLiteStorage implements Storage {
 
   /** 获取所有可信包 */
   getTrustedPackages(language?: string): string[] {
-    if (language && language !== 'any') {
+    if (language && language !== "any") {
       const rows = this.db
-        .prepare('SELECT name FROM trusted_packages WHERE language = ? OR language = ?')
-        .all(language, 'any') as { name: string }[];
+        .prepare(
+          "SELECT name FROM trusted_packages WHERE language = ? OR language = ?",
+        )
+        .all(language, "any") as { name: string }[];
       return rows.map((r) => r.name);
     }
-    const rows = this.db.prepare('SELECT name FROM trusted_packages').all() as { name: string }[];
+    const rows = this.db.prepare("SELECT name FROM trusted_packages").all() as {
+      name: string;
+    }[];
     return rows.map((r) => r.name);
   }
 
   /** 移除可信包 */
-  removeTrustedPackage(name: string, language = 'any'): void {
+  removeTrustedPackage(name: string, language = "any"): void {
     this.db
-      .prepare('DELETE FROM trusted_packages WHERE name = ? AND language = ?')
+      .prepare("DELETE FROM trusted_packages WHERE name = ? AND language = ?")
       .run(name, language);
   }
 
@@ -838,23 +859,31 @@ export class SQLiteStorage implements Storage {
   // ==================== 工具方法 ====================
 
   private escapeFTS5Query(query: string): string {
-    return query.replace(/["*]/g, '').replace(/\b(AND|OR|NOT|NEAR)\b/gi, '');
+    return query.replace(/["*]/g, "").replace(/\b(AND|OR|NOT|NEAR)\b/gi, "");
   }
 
   /** 获取时间段起始时间戳 */
-  private getPeriodStart(period: 'today' | 'week' | 'month'): number {
+  private getPeriodStart(period: "today" | "week" | "month"): number {
     const now = new Date();
     switch (period) {
-      case 'today': {
-        const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      case "today": {
+        const start = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate(),
+        );
         return start.getTime();
       }
-      case 'week': {
+      case "week": {
         const dayOfWeek = now.getDay() || 7; // 周日为7
-        const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dayOfWeek + 1);
+        const start = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate() - dayOfWeek + 1,
+        );
         return start.getTime();
       }
-      case 'month': {
+      case "month": {
         const start = new Date(now.getFullYear(), now.getMonth(), 1);
         return start.getTime();
       }

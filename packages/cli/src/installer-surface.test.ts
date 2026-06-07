@@ -2,7 +2,7 @@
  * Smoke tests for the `aide install` subcommand and the AIDE
  * installer public surface.
  *
- * The subcommand is a thin wrapper around `@aide/graph`'s installer
+ * The subcommand is a thin wrapper around `@aide-dev/graph`'s installer
  * module, so the most valuable coverage is at the seam: does the
  * installer produce the right AIDE config / permission set, does
  * `aide install --print-config` resolve target ids correctly, and
@@ -19,7 +19,7 @@ import {
   listTargetIds,
   INSTRUCTIONS_TEMPLATE,
   type AgentTarget,
-} from "@aide/graph/installer";
+} from "@aide-dev/graph/installer";
 
 describe("aide installer public surface", () => {
   it("getMcpServerConfig points at the `aide` binary with `mcp serve` args", () => {
@@ -31,7 +31,7 @@ describe("aide installer public surface", () => {
     });
   });
 
-  it("getAidePermissions matches the tools `@aide/mcp-server` actually exposes", () => {
+  it("getAidePermissions matches the tools `@aide-dev/mcp-server` actually exposes", () => {
     // The permission list MUST stay in sync with the TOOLS constant in
     // packages/mcp-server/src/index.ts. Any new tool added there
     // without updating this list will silently fail permission-gated
@@ -150,9 +150,9 @@ describe("aide installer public surface", () => {
     // so we pin the MUST / ALWAYS / NEVER imperatives here.
     it("starts and ends with the marker block so it can be re-installed", () => {
       expect(INSTRUCTIONS_TEMPLATE).toMatch(/^<!-- AIDE_START -->/);
-      expect(INSTRUCTIONS_TEMPLATE.trimEnd().endsWith("<!-- AIDE_END -->")).toBe(
-        true,
-      );
+      expect(
+        INSTRUCTIONS_TEMPLATE.trimEnd().endsWith("<!-- AIDE_END -->"),
+      ).toBe(true);
     });
 
     it("tells the agent to call guard_verify after every code edit (imperative)", () => {
@@ -164,9 +164,7 @@ describe("aide installer public surface", () => {
     });
 
     it("tells the agent to query the code graph before claiming a symbol exists", () => {
-      expect(INSTRUCTIONS_TEMPLATE).toMatch(
-        /MUST call `?codegraph_query`?/i,
-      );
+      expect(INSTRUCTIONS_TEMPLATE).toMatch(/MUST call `?codegraph_query`?/i);
       expect(INSTRUCTIONS_TEMPLATE).toMatch(/kind[\s\S]{0,30}definition/i);
     });
 

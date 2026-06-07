@@ -19,6 +19,7 @@ aide init [options]
 ```
 
 **示例**：
+
 ```bash
 # 自动初始化
 aide init
@@ -47,6 +48,7 @@ aide install [options]
 ```
 
 **示例**：
+
 ```bash
 # 全局配置所有 AI 工具
 aide install -y
@@ -79,6 +81,7 @@ aide guard verify [options]
 ```
 
 **示例**：
+
 ```bash
 # 验证单个文件
 aide guard verify -f src/auth.ts
@@ -110,15 +113,19 @@ aide guard check -f <file>
 ```
 
 **示例**：
+
 ```bash
 aide guard check -f src/auth.ts
 ```
 
 **输出**：
+
 ```
 ✅ No hallucinations detected
 ```
+
 或
+
 ```
 ❌ Found 3 hallucination(s):
   [HIGH] L12: Import 'fancy-lib' does not exist
@@ -181,6 +188,7 @@ aide mind brainstorm "<idea>"
 ```
 
 **示例**：
+
 ```bash
 aide mind brainstorm "我想做一个博客系统"
 ```
@@ -212,6 +220,7 @@ aide mind full "<idea>"
 ```
 
 **示例**：
+
 ```bash
 aide mind full "我想做一个待办事项应用"
 ```
@@ -243,6 +252,7 @@ aide template info <template-id>
 ```
 
 **示例**：
+
 ```bash
 aide template info todo-app
 ```
@@ -261,6 +271,7 @@ aide template create <template-id> <project-name> [options]
 ```
 
 **示例**：
+
 ```bash
 aide template create todo-app my-todo-app
 ```
@@ -390,19 +401,19 @@ aide <command> --help
 
 ## 退出码
 
-| 退出码 | 含义 |
-|--------|------|
-| 0 | 成功 |
-| 1 | 验证失败或错误 |
+| 退出码 | 含义           |
+| ------ | -------------- |
+| 0      | 成功           |
+| 1      | 验证失败或错误 |
 
 ---
 
 ## 环境变量
 
-| 变量 | 说明 |
-|------|------|
-| `AIDE_CONFIG_PATH` | 自定义配置文件路径 |
-| `AIDE_LOG_LEVEL` | 日志级别（debug, info, warn, error） |
+| 变量               | 说明                                 |
+| ------------------ | ------------------------------------ |
+| `AIDE_CONFIG_PATH` | 自定义配置文件路径                   |
+| `AIDE_LOG_LEVEL`   | 日志级别（debug, info, warn, error） |
 
 ---
 

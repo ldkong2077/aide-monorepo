@@ -1,5 +1,5 @@
 /**
- * @aide/guard — In-process token-bucket rate limiter.
+ * @aide-dev/guard — In-process token-bucket rate limiter.
  *
  * Used by the proxy to cap per-token request volume. The algorithm is
  * the classic continuous-token-bucket: each key has a bucket of size
@@ -49,10 +49,14 @@ export class TokenBucketRateLimiter {
   constructor(config: Partial<RateLimitConfig> = {}) {
     this.config = { ...DEFAULT_RATE_LIMIT, ...config };
     if (this.config.limit <= 0) {
-      throw new Error(`RateLimitConfig.limit must be > 0, got ${this.config.limit}`);
+      throw new Error(
+        `RateLimitConfig.limit must be > 0, got ${this.config.limit}`,
+      );
     }
     if (this.config.windowMs <= 0) {
-      throw new Error(`RateLimitConfig.windowMs must be > 0, got ${this.config.windowMs}`);
+      throw new Error(
+        `RateLimitConfig.windowMs must be > 0, got ${this.config.windowMs}`,
+      );
     }
   }
 
@@ -98,7 +102,9 @@ export class TokenBucketRateLimiter {
     // Bucket is empty. Caller must wait until at least one token
     // has refilled.
     const tokensNeeded = 1 - bucket.tokens;
-    const retryAfterMs = Math.ceil((tokensNeeded / this.config.limit) * this.config.windowMs);
+    const retryAfterMs = Math.ceil(
+      (tokensNeeded / this.config.limit) * this.config.windowMs,
+    );
     this.buckets.set(key, bucket);
     return {
       allowed: false,

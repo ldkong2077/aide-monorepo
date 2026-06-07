@@ -4,10 +4,10 @@
  */
 
 /** Template category */
-export type TemplateCategory = 'web' | 'api' | 'cli' | 'library' | 'fullstack';
+export type TemplateCategory = "web" | "api" | "cli" | "library" | "fullstack";
 
 /** Template difficulty level */
-export type TemplateDifficulty = 'beginner' | 'intermediate' | 'advanced';
+export type TemplateDifficulty = "beginner" | "intermediate" | "advanced";
 
 /** Template file */
 export interface TemplateFile {

@@ -1,5 +1,5 @@
 /**
- * @aide/mcp-server — Graceful shutdown helper.
+ * @aide-dev/mcp-server — Graceful shutdown helper.
  *
  * Installs OS-signal handlers that call `server.close()` and exit cleanly.
  * The MCP transport runs over stdio, so we intentionally use `console.error`
@@ -14,7 +14,7 @@
  *  - Reentrant: the returned cleanup function removes every listener
  *    that was added, so tests don't leak handlers between cases.
  */
-import type { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
 
 export interface ShutdownOptions {
   /** Signals to handle. Default: SIGINT and SIGTERM. */
@@ -33,7 +33,7 @@ export function installShutdownHandlers(
   server: Server,
   opts: ShutdownOptions = {},
 ): ShutdownCleanup {
-  const signals = opts.signals ?? (['SIGINT', 'SIGTERM'] as const);
+  const signals = opts.signals ?? (["SIGINT", "SIGTERM"] as const);
   const logger =
     opts.logger ??
     ((msg: string) => {

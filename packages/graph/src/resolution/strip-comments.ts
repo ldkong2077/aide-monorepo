@@ -24,37 +24,41 @@
  */
 
 export type CommentLang =
-  | 'python'
-  | 'javascript'
-  | 'typescript'
-  | 'php'
-  | 'ruby'
-  | 'java'
-  | 'csharp'
-  | 'swift'
-  | 'go'
-  | 'rust';
+  | "python"
+  | "javascript"
+  | "typescript"
+  | "php"
+  | "ruby"
+  | "java"
+  | "csharp"
+  | "swift"
+  | "go"
+  | "rust";
 
-export function stripCommentsForRegex(content: string, lang: CommentLang): string {
+export function stripCommentsForRegex(
+  content: string,
+  lang: CommentLang,
+): string {
   switch (lang) {
-    case 'python':
+    case "python":
       return stripPython(content);
-    case 'ruby':
+    case "ruby":
       return stripRuby(content);
-    case 'rust':
+    case "rust":
       return stripRust(content);
-    case 'php':
+    case "php":
       return stripPhp(content);
-    case 'go':
+    case "go":
       return stripGo(content);
-    case 'javascript':
-    case 'typescript':
-    case 'java':
-    case 'csharp':
-    case 'swift':
+    case "javascript":
+    case "typescript":
+    case "java":
+    case "csharp":
+    case "swift":
       return stripCStyle(
         content,
-        /* allowSingleQuoteStrings */ lang === 'javascript' || lang === 'typescript',
+        /* allowSingleQuoteStrings */ lang === "javascript" ||
+          lang === "typescript",
       );
     default:
       return content;
@@ -65,23 +69,28 @@ export function stripCommentsForRegex(content: string, lang: CommentLang): strin
  * Replace every char in a slice with spaces, but keep newlines so line
  * numbers computed downstream remain valid.
  */
-function blankRange(buf: string[], start: number, end: number, src: string): void {
+function blankRange(
+  buf: string[],
+  start: number,
+  end: number,
+  src: string,
+): void {
   for (let i = start; i < end; i++) {
-    buf[i] = src[i] === '\n' ? '\n' : ' ';
+    buf[i] = src[i] === "\n" ? "\n" : " ";
   }
 }
 
 // ---------- Python ----------
 
 function stripPython(src: string): string {
-  const out = src.split('');
+  const out = src.split("");
   let i = 0;
   const n = src.length;
 
   while (i < n) {
     const c = src[i];
-    const c2 = src[i + 1] ?? '';
-    const c3 = src[i + 2] ?? '';
+    const c2 = src[i + 1] ?? "";
+    const c3 = src[i + 2] ?? "";
 
     // Triple-quoted string: """...""" or '''...'''
     if ((c === '"' || c === "'") && c2 === c && c3 === c) {
@@ -89,7 +98,7 @@ function stripPython(src: string): string {
       const start = i;
       i += 3;
       while (i < n) {
-        if (src[i] === '\\' && i + 1 < n) {
+        if (src[i] === "\\" && i + 1 < n) {
           i += 2;
           continue;
         }
@@ -108,11 +117,11 @@ function stripPython(src: string): string {
       const quote = c;
       i++;
       while (i < n && src[i] !== quote) {
-        if (src[i] === '\\' && i + 1 < n) {
+        if (src[i] === "\\" && i + 1 < n) {
           i += 2;
           continue;
         }
-        if (src[i] === '\n') break; // unterminated
+        if (src[i] === "\n") break; // unterminated
         i++;
       }
       if (i < n && src[i] === quote) i++;
@@ -120,9 +129,9 @@ function stripPython(src: string): string {
     }
 
     // Line comment
-    if (c === '#') {
+    if (c === "#") {
       const start = i;
-      while (i < n && src[i] !== '\n') i++;
+      while (i < n && src[i] !== "\n") i++;
       blankRange(out, start, i, src);
       continue;
     }
@@ -130,13 +139,13 @@ function stripPython(src: string): string {
     i++;
   }
 
-  return out.join('');
+  return out.join("");
 }
 
 // ---------- Ruby ----------
 
 function stripRuby(src: string): string {
-  const out = src.split('');
+  const out = src.split("");
   let i = 0;
   const n = src.length;
   let atLineStart = true;
@@ -145,26 +154,26 @@ function stripRuby(src: string): string {
     const c = src[i];
 
     // =begin / =end block comments must be at start of line (after optional whitespace)
-    if (atLineStart && c === '=' && src.startsWith('=begin', i)) {
+    if (atLineStart && c === "=" && src.startsWith("=begin", i)) {
       const start = i;
       // consume to matching =end at line start
-      i += '=begin'.length;
+      i += "=begin".length;
       while (i < n) {
-        if (src[i] === '\n') {
+        if (src[i] === "\n") {
           // check next line for =end
           let j = i + 1;
-          while (j < n && (src[j] === ' ' || src[j] === '\t')) j++;
-          if (src.startsWith('=end', j)) {
-            i = j + '=end'.length;
+          while (j < n && (src[j] === " " || src[j] === "\t")) j++;
+          if (src.startsWith("=end", j)) {
+            i = j + "=end".length;
             // consume rest of that line
-            while (i < n && src[i] !== '\n') i++;
+            while (i < n && src[i] !== "\n") i++;
             break;
           }
         }
         i++;
       }
       blankRange(out, start, i, src);
-      atLineStart = i > 0 && src[i - 1] === '\n';
+      atLineStart = i > 0 && src[i - 1] === "\n";
       continue;
     }
 
@@ -173,11 +182,11 @@ function stripRuby(src: string): string {
       const quote = c;
       i++;
       while (i < n && src[i] !== quote) {
-        if (src[i] === '\\' && i + 1 < n) {
+        if (src[i] === "\\" && i + 1 < n) {
           i += 2;
           continue;
         }
-        if (src[i] === '\n') break;
+        if (src[i] === "\n") break;
         i++;
       }
       if (i < n && src[i] === quote) i++;
@@ -186,20 +195,20 @@ function stripRuby(src: string): string {
     }
 
     // Line comment
-    if (c === '#') {
+    if (c === "#") {
       const start = i;
-      while (i < n && src[i] !== '\n') i++;
+      while (i < n && src[i] !== "\n") i++;
       blankRange(out, start, i, src);
       atLineStart = false;
       continue;
     }
 
-    if (c === '\n') {
+    if (c === "\n") {
       atLineStart = true;
       i++;
       continue;
     }
-    if (c === ' ' || c === '\t') {
+    if (c === " " || c === "\t") {
       // whitespace doesn't change atLineStart
       i++;
       continue;
@@ -208,49 +217,49 @@ function stripRuby(src: string): string {
     i++;
   }
 
-  return out.join('');
+  return out.join("");
 }
 
 // ---------- C-style (JS/TS/Java/C#/Swift) ----------
 
 function stripCStyle(src: string, allowSingleQuoteStrings: boolean): string {
-  const out = src.split('');
+  const out = src.split("");
   let i = 0;
   const n = src.length;
 
   while (i < n) {
     const c = src[i];
-    const c2 = src[i + 1] ?? '';
+    const c2 = src[i + 1] ?? "";
 
     // Block comment
-    if (c === '/' && c2 === '*') {
+    if (c === "/" && c2 === "*") {
       const start = i;
       i += 2;
-      while (i < n && !(src[i] === '*' && src[i + 1] === '/')) i++;
+      while (i < n && !(src[i] === "*" && src[i + 1] === "/")) i++;
       if (i < n) i += 2;
       blankRange(out, start, i, src);
       continue;
     }
 
     // Line comment
-    if (c === '/' && c2 === '/') {
+    if (c === "/" && c2 === "/") {
       const start = i;
-      while (i < n && src[i] !== '\n') i++;
+      while (i < n && src[i] !== "\n") i++;
       blankRange(out, start, i, src);
       continue;
     }
 
     // String literals
-    if (c === '"' || (allowSingleQuoteStrings && c === "'") || c === '`') {
+    if (c === '"' || (allowSingleQuoteStrings && c === "'") || c === "`") {
       const quote = c;
       i++;
       while (i < n && src[i] !== quote) {
-        if (src[i] === '\\' && i + 1 < n) {
+        if (src[i] === "\\" && i + 1 < n) {
           i += 2;
           continue;
         }
         // Template literal can span lines; regular strings break on newline (treat as unterminated)
-        if (quote !== '`' && src[i] === '\n') break;
+        if (quote !== "`" && src[i] === "\n") break;
         i++;
       }
       if (i < n && src[i] === quote) i++;
@@ -260,57 +269,57 @@ function stripCStyle(src: string, allowSingleQuoteStrings: boolean): string {
     i++;
   }
 
-  return out.join('');
+  return out.join("");
 }
 
 // ---------- PHP ----------
 
 function stripPhp(src: string): string {
-  const out = src.split('');
+  const out = src.split("");
   let i = 0;
   const n = src.length;
 
   while (i < n) {
     const c = src[i];
-    const c2 = src[i + 1] ?? '';
+    const c2 = src[i + 1] ?? "";
 
     // Block comment
-    if (c === '/' && c2 === '*') {
+    if (c === "/" && c2 === "*") {
       const start = i;
       i += 2;
-      while (i < n && !(src[i] === '*' && src[i + 1] === '/')) i++;
+      while (i < n && !(src[i] === "*" && src[i + 1] === "/")) i++;
       if (i < n) i += 2;
       blankRange(out, start, i, src);
       continue;
     }
 
     // // line comment
-    if (c === '/' && c2 === '/') {
+    if (c === "/" && c2 === "/") {
       const start = i;
-      while (i < n && src[i] !== '\n') i++;
+      while (i < n && src[i] !== "\n") i++;
       blankRange(out, start, i, src);
       continue;
     }
 
     // # line comment (PHP supports both)
-    if (c === '#') {
+    if (c === "#") {
       const start = i;
-      while (i < n && src[i] !== '\n') i++;
+      while (i < n && src[i] !== "\n") i++;
       blankRange(out, start, i, src);
       continue;
     }
 
     // String literals: ', ", ` (PHP doesn't really use backticks for strings,
     // but it does have shell-exec backticks; treating as a string is fine here)
-    if (c === '"' || c === "'" || c === '`') {
+    if (c === '"' || c === "'" || c === "`") {
       const quote = c;
       i++;
       while (i < n && src[i] !== quote) {
-        if (src[i] === '\\' && i + 1 < n) {
+        if (src[i] === "\\" && i + 1 < n) {
           i += 2;
           continue;
         }
-        if (src[i] === '\n') break;
+        if (src[i] === "\n") break;
         i++;
       }
       if (i < n && src[i] === quote) i++;
@@ -320,42 +329,42 @@ function stripPhp(src: string): string {
     i++;
   }
 
-  return out.join('');
+  return out.join("");
 }
 
 // ---------- Go ----------
 
 function stripGo(src: string): string {
-  const out = src.split('');
+  const out = src.split("");
   let i = 0;
   const n = src.length;
 
   while (i < n) {
     const c = src[i];
-    const c2 = src[i + 1] ?? '';
+    const c2 = src[i + 1] ?? "";
 
     // Block comment
-    if (c === '/' && c2 === '*') {
+    if (c === "/" && c2 === "*") {
       const start = i;
       i += 2;
-      while (i < n && !(src[i] === '*' && src[i + 1] === '/')) i++;
+      while (i < n && !(src[i] === "*" && src[i + 1] === "/")) i++;
       if (i < n) i += 2;
       blankRange(out, start, i, src);
       continue;
     }
 
     // Line comment
-    if (c === '/' && c2 === '/') {
+    if (c === "/" && c2 === "/") {
       const start = i;
-      while (i < n && src[i] !== '\n') i++;
+      while (i < n && src[i] !== "\n") i++;
       blankRange(out, start, i, src);
       continue;
     }
 
     // Raw string with backticks (no escapes, can span lines)
-    if (c === '`') {
+    if (c === "`") {
       i++;
-      while (i < n && src[i] !== '`') i++;
+      while (i < n && src[i] !== "`") i++;
       if (i < n) i++;
       continue;
     }
@@ -364,11 +373,11 @@ function stripGo(src: string): string {
     if (c === '"') {
       i++;
       while (i < n && src[i] !== '"') {
-        if (src[i] === '\\' && i + 1 < n) {
+        if (src[i] === "\\" && i + 1 < n) {
           i += 2;
           continue;
         }
-        if (src[i] === '\n') break;
+        if (src[i] === "\n") break;
         i++;
       }
       if (i < n && src[i] === '"') i++;
@@ -379,11 +388,11 @@ function stripGo(src: string): string {
     if (c === "'") {
       i++;
       while (i < n && src[i] !== "'") {
-        if (src[i] === '\\' && i + 1 < n) {
+        if (src[i] === "\\" && i + 1 < n) {
           i += 2;
           continue;
         }
-        if (src[i] === '\n') break;
+        if (src[i] === "\n") break;
         i++;
       }
       if (i < n && src[i] === "'") i++;
@@ -393,30 +402,30 @@ function stripGo(src: string): string {
     i++;
   }
 
-  return out.join('');
+  return out.join("");
 }
 
 // ---------- Rust ----------
 
 function stripRust(src: string): string {
-  const out = src.split('');
+  const out = src.split("");
   let i = 0;
   const n = src.length;
 
   while (i < n) {
     const c = src[i];
-    const c2 = src[i + 1] ?? '';
+    const c2 = src[i + 1] ?? "";
 
     // Nested block comment /* ... /* ... */ ... */
-    if (c === '/' && c2 === '*') {
+    if (c === "/" && c2 === "*") {
       const start = i;
       i += 2;
       let depth = 1;
       while (i < n && depth > 0) {
-        if (src[i] === '/' && src[i + 1] === '*') {
+        if (src[i] === "/" && src[i + 1] === "*") {
           depth++;
           i += 2;
-        } else if (src[i] === '*' && src[i + 1] === '/') {
+        } else if (src[i] === "*" && src[i + 1] === "/") {
           depth--;
           i += 2;
         } else {
@@ -428,9 +437,9 @@ function stripRust(src: string): string {
     }
 
     // Line comment
-    if (c === '/' && c2 === '/') {
+    if (c === "/" && c2 === "/") {
       const start = i;
-      while (i < n && src[i] !== '\n') i++;
+      while (i < n && src[i] !== "\n") i++;
       blankRange(out, start, i, src);
       continue;
     }
@@ -439,7 +448,7 @@ function stripRust(src: string): string {
     if (c === '"') {
       i++;
       while (i < n && src[i] !== '"') {
-        if (src[i] === '\\' && i + 1 < n) {
+        if (src[i] === "\\" && i + 1 < n) {
           i += 2;
           continue;
         }
@@ -454,11 +463,11 @@ function stripRust(src: string): string {
       // Could be a lifetime, e.g. 'a, but those don't contain routing text
       i++;
       while (i < n && src[i] !== "'") {
-        if (src[i] === '\\' && i + 1 < n) {
+        if (src[i] === "\\" && i + 1 < n) {
           i += 2;
           continue;
         }
-        if (src[i] === '\n') break;
+        if (src[i] === "\n") break;
         i++;
       }
       if (i < n && src[i] === "'") i++;
@@ -468,5 +477,5 @@ function stripRust(src: string): string {
     i++;
   }
 
-  return out.join('');
+  return out.join("");
 }

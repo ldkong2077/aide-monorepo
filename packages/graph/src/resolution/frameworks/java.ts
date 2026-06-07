@@ -4,34 +4,44 @@
  * Handles Spring Boot and general Java patterns.
  */
 
-import { type Node } from '../../types.js';
-import { type FrameworkResolver, type UnresolvedRef, type ResolvedRef, type ResolutionContext } from '../types.js';
-import { stripCommentsForRegex } from '../strip-comments.js';
+import { type Node } from "../../types.js";
+import {
+  type FrameworkResolver,
+  type UnresolvedRef,
+  type ResolvedRef,
+  type ResolutionContext,
+} from "../types.js";
+import { stripCommentsForRegex } from "../strip-comments.js";
 
 export const springResolver: FrameworkResolver = {
-  name: 'spring',
-  languages: ['java'],
+  name: "spring",
+  languages: ["java"],
 
   detect(context: ResolutionContext): boolean {
     // Check for pom.xml with Spring
-    const pomXml = context.readFile('pom.xml');
-    if (pomXml && (pomXml.includes('spring-boot') || pomXml.includes('springframework'))) {
-      return true;
-    }
-
-    // Check for build.gradle with Spring
-    const buildGradle = context.readFile('build.gradle');
+    const pomXml = context.readFile("pom.xml");
     if (
-      buildGradle &&
-      (buildGradle.includes('spring-boot') || buildGradle.includes('springframework'))
+      pomXml &&
+      (pomXml.includes("spring-boot") || pomXml.includes("springframework"))
     ) {
       return true;
     }
 
-    const buildGradleKts = context.readFile('build.gradle.kts');
+    // Check for build.gradle with Spring
+    const buildGradle = context.readFile("build.gradle");
+    if (
+      buildGradle &&
+      (buildGradle.includes("spring-boot") ||
+        buildGradle.includes("springframework"))
+    ) {
+      return true;
+    }
+
+    const buildGradleKts = context.readFile("build.gradle.kts");
     if (
       buildGradleKts &&
-      (buildGradleKts.includes('spring-boot') || buildGradleKts.includes('springframework'))
+      (buildGradleKts.includes("spring-boot") ||
+        buildGradleKts.includes("springframework"))
     ) {
       return true;
     }
@@ -39,14 +49,14 @@ export const springResolver: FrameworkResolver = {
     // Check for Spring annotations in Java files
     const allFiles = context.getAllFiles();
     for (const file of allFiles) {
-      if (file.endsWith('.java')) {
+      if (file.endsWith(".java")) {
         const content = context.readFile(file);
         if (
           content &&
-          (content.includes('@SpringBootApplication') ||
-            content.includes('@RestController') ||
-            content.includes('@Service') ||
-            content.includes('@Repository'))
+          (content.includes("@SpringBootApplication") ||
+            content.includes("@RestController") ||
+            content.includes("@Service") ||
+            content.includes("@Repository"))
         ) {
           return true;
         }
@@ -58,66 +68,94 @@ export const springResolver: FrameworkResolver = {
 
   resolve(ref: UnresolvedRef, context: ResolutionContext): ResolvedRef | null {
     // Pattern 1: Service references (dependency injection)
-    if (ref.referenceName.endsWith('Service')) {
-      const result = resolveByNameAndKind(ref.referenceName, SERVICE_KINDS, SERVICE_DIRS, context);
+    if (ref.referenceName.endsWith("Service")) {
+      const result = resolveByNameAndKind(
+        ref.referenceName,
+        SERVICE_KINDS,
+        SERVICE_DIRS,
+        context,
+      );
       if (result) {
         return {
           original: ref,
           targetNodeId: result,
           confidence: 0.85,
-          resolvedBy: 'framework',
+          resolvedBy: "framework",
         };
       }
     }
 
     // Pattern 2: Repository references
-    if (ref.referenceName.endsWith('Repository')) {
-      const result = resolveByNameAndKind(ref.referenceName, SERVICE_KINDS, REPO_DIRS, context);
+    if (ref.referenceName.endsWith("Repository")) {
+      const result = resolveByNameAndKind(
+        ref.referenceName,
+        SERVICE_KINDS,
+        REPO_DIRS,
+        context,
+      );
       if (result) {
         return {
           original: ref,
           targetNodeId: result,
           confidence: 0.85,
-          resolvedBy: 'framework',
+          resolvedBy: "framework",
         };
       }
     }
 
     // Pattern 3: Controller references
-    if (ref.referenceName.endsWith('Controller')) {
-      const result = resolveByNameAndKind(ref.referenceName, CLASS_KINDS, CONTROLLER_DIRS, context);
+    if (ref.referenceName.endsWith("Controller")) {
+      const result = resolveByNameAndKind(
+        ref.referenceName,
+        CLASS_KINDS,
+        CONTROLLER_DIRS,
+        context,
+      );
       if (result) {
         return {
           original: ref,
           targetNodeId: result,
           confidence: 0.85,
-          resolvedBy: 'framework',
+          resolvedBy: "framework",
         };
       }
     }
 
     // Pattern 4: Entity/Model references
     if (/^[A-Z][a-zA-Z]+$/.test(ref.referenceName)) {
-      const result = resolveByNameAndKind(ref.referenceName, CLASS_KINDS, ENTITY_DIRS, context);
+      const result = resolveByNameAndKind(
+        ref.referenceName,
+        CLASS_KINDS,
+        ENTITY_DIRS,
+        context,
+      );
       if (result) {
         return {
           original: ref,
           targetNodeId: result,
           confidence: 0.7,
-          resolvedBy: 'framework',
+          resolvedBy: "framework",
         };
       }
     }
 
     // Pattern 5: Component references
-    if (ref.referenceName.endsWith('Component') || ref.referenceName.endsWith('Config')) {
-      const result = resolveByNameAndKind(ref.referenceName, CLASS_KINDS, COMPONENT_DIRS, context);
+    if (
+      ref.referenceName.endsWith("Component") ||
+      ref.referenceName.endsWith("Config")
+    ) {
+      const result = resolveByNameAndKind(
+        ref.referenceName,
+        CLASS_KINDS,
+        COMPONENT_DIRS,
+        context,
+      );
       if (result) {
         return {
           original: ref,
           targetNodeId: result,
           confidence: 0.8,
-          resolvedBy: 'framework',
+          resolvedBy: "framework",
         };
       }
     }
@@ -126,11 +164,11 @@ export const springResolver: FrameworkResolver = {
   },
 
   extract(filePath, content) {
-    if (!filePath.endsWith('.java')) return { nodes: [], references: [] };
+    if (!filePath.endsWith(".java")) return { nodes: [], references: [] };
     const nodes: Node[] = [];
     const references: UnresolvedRef[] = [];
     const now = Date.now();
-    const safe = stripCommentsForRegex(content, 'java');
+    const safe = stripCommentsForRegex(content, "java");
 
     // @GetMapping("/path"), @PostMapping(value = "/path"), @RequestMapping("/path")
     const mappingRegex =
@@ -138,15 +176,15 @@ export const springResolver: FrameworkResolver = {
     let match: RegExpExecArray | null;
     while ((match = mappingRegex.exec(safe)) !== null) {
       const [, mappingName, routePath] = match;
-      const line = safe.slice(0, match.index).split('\n').length;
+      const line = safe.slice(0, match.index).split("\n").length;
       const method =
-        mappingName === 'RequestMapping'
-          ? 'ANY'
-          : mappingName.replace(/Mapping$/, '').toUpperCase();
+        mappingName === "RequestMapping"
+          ? "ANY"
+          : mappingName.replace(/Mapping$/, "").toUpperCase();
 
       const routeNode: Node = {
         id: `route:${filePath}:${line}:${method}:${routePath}`,
-        kind: 'route',
+        kind: "route",
         name: `${method} ${routePath}`,
         qualifiedName: `${filePath}::route:${routePath}`,
         filePath,
@@ -154,23 +192,24 @@ export const springResolver: FrameworkResolver = {
         endLine: line,
         startColumn: 0,
         endColumn: match[0].length,
-        language: 'java',
+        language: "java",
         updatedAt: now,
       };
       nodes.push(routeNode);
 
       // Look for the next public/private/protected method after the annotation
       const tail = safe.slice(match.index + match[0].length);
-      const methodMatch = /\b(?:public|private|protected)\s+[^;{]*?\s+(\w+)\s*\(/.exec(tail);
+      const methodMatch =
+        /\b(?:public|private|protected)\s+[^;{]*?\s+(\w+)\s*\(/.exec(tail);
       if (methodMatch) {
         references.push({
           fromNodeId: routeNode.id,
           referenceName: methodMatch[1],
-          referenceKind: 'references',
+          referenceKind: "references",
           line,
           column: 0,
           filePath,
-          language: 'java',
+          language: "java",
         });
       }
     }
@@ -180,14 +219,20 @@ export const springResolver: FrameworkResolver = {
 };
 
 // Directory patterns
-const SERVICE_DIRS = ['/service/', '/services/'];
-const REPO_DIRS = ['/repository/', '/repositories/'];
-const CONTROLLER_DIRS = ['/controller/', '/controllers/'];
-const ENTITY_DIRS = ['/entity/', '/entities/', '/model/', '/models/', '/domain/'];
-const COMPONENT_DIRS = ['/component/', '/components/', '/config/'];
+const SERVICE_DIRS = ["/service/", "/services/"];
+const REPO_DIRS = ["/repository/", "/repositories/"];
+const CONTROLLER_DIRS = ["/controller/", "/controllers/"];
+const ENTITY_DIRS = [
+  "/entity/",
+  "/entities/",
+  "/model/",
+  "/models/",
+  "/domain/",
+];
+const COMPONENT_DIRS = ["/component/", "/components/", "/config/"];
 
-const CLASS_KINDS = new Set(['class']);
-const SERVICE_KINDS = new Set(['class', 'interface']);
+const CLASS_KINDS = new Set(["class"]);
+const SERVICE_KINDS = new Set(["class", "interface"]);
 
 /**
  * Resolve a symbol by name using indexed queries instead of scanning all files.

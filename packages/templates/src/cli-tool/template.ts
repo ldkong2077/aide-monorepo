@@ -3,32 +3,33 @@
  * A command-line tool with Commander.js and TypeScript.
  */
 
-import type { ProjectTemplate } from '../types.js';
+import type { ProjectTemplate } from "../types.js";
 
 export const cliToolTemplate: ProjectTemplate = {
-  id: 'cli-tool',
+  id: "cli-tool",
   config: {
-    name: 'CLI Tool',
-    description: 'A command-line tool with Commander.js, TypeScript, and interactive prompts',
-    category: 'cli',
-    difficulty: 'beginner',
-    techStack: ['Node.js', 'TypeScript', 'Commander.js', 'Inquirer.js'],
+    name: "CLI Tool",
+    description:
+      "A command-line tool with Commander.js, TypeScript, and interactive prompts",
+    category: "cli",
+    difficulty: "beginner",
+    techStack: ["Node.js", "TypeScript", "Commander.js", "Inquirer.js"],
     features: [
-      'Command-line argument parsing',
-      'Interactive prompts',
-      'Colored output',
-      'Help system',
-      'Version support',
-      'File system operations',
-      'Configuration management',
+      "Command-line argument parsing",
+      "Interactive prompts",
+      "Colored output",
+      "Help system",
+      "Version support",
+      "File system operations",
+      "Configuration management",
     ],
-    estimatedTime: '2-3 hours',
-    author: 'AIDE Team',
-    version: '1.0.0',
+    estimatedTime: "2-3 hours",
+    author: "AIDE Team",
+    version: "1.0.0",
   },
   files: [
     {
-      path: 'package.json',
+      path: "package.json",
       content: `{
   "name": "{{projectName}}",
   "version": "0.1.0",
@@ -58,11 +59,11 @@ export const cliToolTemplate: ProjectTemplate = {
     "vitest": "^1.1.0"
   }
 }`,
-      description: 'Package configuration with CLI dependencies',
+      description: "Package configuration with CLI dependencies",
       isRequired: true,
     },
     {
-      path: 'tsconfig.json',
+      path: "tsconfig.json",
       content: `{
   "compilerOptions": {
     "target": "ES2022",
@@ -82,11 +83,11 @@ export const cliToolTemplate: ProjectTemplate = {
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
 }`,
-      description: 'TypeScript configuration',
+      description: "TypeScript configuration",
       isRequired: true,
     },
     {
-      path: 'src/index.ts',
+      path: "src/index.ts",
       content: `#!/usr/bin/env node
 
 import { Command } from 'commander'
@@ -243,11 +244,11 @@ program
   })
 
 program.parse()`,
-      description: 'Main CLI entry point with Commander.js',
+      description: "Main CLI entry point with Commander.js",
       isRequired: true,
     },
     {
-      path: 'README.md',
+      path: "README.md",
       content: `# {{projectName}}
 
 A command-line tool built with Commander.js and TypeScript.
@@ -353,42 +354,42 @@ src/
 
 MIT
 `,
-      description: 'Project documentation',
+      description: "Project documentation",
       isRequired: true,
     },
   ],
   dependencies: {
-    chalk: '^5.3.0',
-    commander: '^11.1.0',
-    inquirer: '^9.2.12',
-    ora: '^7.0.1',
+    chalk: "^5.3.0",
+    commander: "^11.1.0",
+    inquirer: "^9.2.12",
+    ora: "^7.0.1",
   },
   devDependencies: {
-    '@types/inquirer': '^9.0.7',
-    '@types/node': '^20.10.0',
-    tsx: '^4.7.0',
-    typescript: '^5.2.2',
-    vitest: '^1.1.0',
+    "@types/inquirer": "^9.0.7",
+    "@types/node": "^20.10.0",
+    tsx: "^4.7.0",
+    typescript: "^5.2.2",
+    vitest: "^1.1.0",
   },
   scripts: {
-    dev: 'tsx src/index.ts',
-    build: 'tsc',
-    start: 'node dist/index.js',
-    lint: 'eslint . --ext ts',
-    test: 'vitest',
+    dev: "tsx src/index.ts",
+    build: "tsc",
+    start: "node dist/index.js",
+    lint: "eslint . --ext ts",
+    test: "vitest",
   },
   setupInstructions: [
-    'Install dependencies: npm install',
-    'Start development: npm run dev',
-    'Build for production: npm run build',
-    'Link globally: npm link',
+    "Install dependencies: npm install",
+    "Start development: npm run dev",
+    "Build for production: npm run build",
+    "Link globally: npm link",
   ],
   verificationSteps: [
-    'npm run build completes without errors',
-    'npm run dev starts successfully',
-    'CLI help works: npm run dev -- --help',
-    'Can create a file: npm run dev -- create test.txt',
-    'Can read a file: npm run dev -- read test.txt',
-    'Can list files: npm run dev -- list',
+    "npm run build completes without errors",
+    "npm run dev starts successfully",
+    "CLI help works: npm run dev -- --help",
+    "Can create a file: npm run dev -- create test.txt",
+    "Can read a file: npm run dev -- read test.txt",
+    "Can list files: npm run dev -- list",
   ],
 };

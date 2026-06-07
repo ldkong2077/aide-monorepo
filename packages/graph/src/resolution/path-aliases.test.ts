@@ -5,52 +5,52 @@
  * apply-aliases rewrite. These run in-memory against a temp tsconfig —
  * no need to spin up the full graph pipeline.
  */
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, writeFileSync, rmSync, mkdirSync } from 'node:fs';
-import { join } from 'node:path';
-import { tmpdir } from 'node:os';
-import { loadProjectAliases, applyAliases } from './path-aliases.js';
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { mkdtempSync, writeFileSync, rmSync, mkdirSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import { loadProjectAliases, applyAliases } from "./path-aliases.js";
 
 let projectRoot: string;
 
 beforeEach(() => {
-  projectRoot = mkdtempSync(join(tmpdir(), 'aide-path-aliases-'));
+  projectRoot = mkdtempSync(join(tmpdir(), "aide-path-aliases-"));
 });
 
 afterEach(() => {
   rmSync(projectRoot, { recursive: true, force: true });
 });
 
-function writeTsconfig(content: string, filename = 'tsconfig.json'): void {
-  writeFileSync(join(projectRoot, filename), content, 'utf-8');
+function writeTsconfig(content: string, filename = "tsconfig.json"): void {
+  writeFileSync(join(projectRoot, filename), content, "utf-8");
 }
 
-describe('loadProjectAliases', () => {
-  it('returns null when no tsconfig or jsconfig is present', () => {
+describe("loadProjectAliases", () => {
+  it("returns null when no tsconfig or jsconfig is present", () => {
     expect(loadProjectAliases(projectRoot)).toBeNull();
   });
 
-  it('returns null for a tsconfig with no paths entry', () => {
+  it("returns null for a tsconfig with no paths entry", () => {
     writeTsconfig(JSON.stringify({ compilerOptions: { strict: true } }));
     expect(loadProjectAliases(projectRoot)).toBeNull();
   });
 
-  it('returns null for a tsconfig with empty paths object', () => {
+  it("returns null for a tsconfig with empty paths object", () => {
     writeTsconfig(JSON.stringify({ compilerOptions: { paths: {} } }));
     expect(loadProjectAliases(projectRoot)).toBeNull();
   });
 
-  it('returns null for malformed JSON', () => {
-    writeTsconfig('{ this is not json');
+  it("returns null for malformed JSON", () => {
+    writeTsconfig("{ this is not json");
     expect(loadProjectAliases(projectRoot)).toBeNull();
   });
 
-  it('loads a single non-wildcard alias', () => {
+  it("loads a single non-wildcard alias", () => {
     writeTsconfig(
       JSON.stringify({
         compilerOptions: {
-          baseUrl: '.',
-          paths: { '~config': ['./src/config.ts'] },
+          baseUrl: ".",
+          paths: { "~config": ["./src/config.ts"] },
         },
       }),
     );
@@ -58,19 +58,19 @@ describe('loadProjectAliases', () => {
     expect(aliases).not.toBeNull();
     expect(aliases!.patterns).toHaveLength(1);
     expect(aliases!.patterns[0]).toMatchObject({
-      prefix: '~config',
-      suffix: '',
+      prefix: "~config",
+      suffix: "",
       hasWildcard: false,
-      replacements: ['./src/config.ts'],
+      replacements: ["./src/config.ts"],
     });
   });
 
-  it('loads wildcard alias and records prefix/suffix', () => {
+  it("loads wildcard alias and records prefix/suffix", () => {
     writeTsconfig(
       JSON.stringify({
         compilerOptions: {
-          baseUrl: './src',
-          paths: { '@/*': ['./*'] },
+          baseUrl: "./src",
+          paths: { "@/*": ["./*"] },
         },
       }),
     );
@@ -78,8 +78,8 @@ describe('loadProjectAliases', () => {
     expect(aliases).not.toBeNull();
     expect(aliases!.patterns).toHaveLength(1);
     expect(aliases!.patterns[0]).toMatchObject({
-      prefix: '@/',
-      suffix: '',
+      prefix: "@/",
+      suffix: "",
       hasWildcard: true,
     });
   });
@@ -88,41 +88,41 @@ describe('loadProjectAliases', () => {
     writeTsconfig(
       JSON.stringify({
         compilerOptions: {
-          paths: { '*.css': ['./styles/*'] },
+          paths: { "*.css": ["./styles/*"] },
         },
       }),
     );
     const aliases = loadProjectAliases(projectRoot);
     expect(aliases!.patterns[0]).toMatchObject({
-      prefix: '',
-      suffix: '.css',
+      prefix: "",
+      suffix: ".css",
       hasWildcard: true,
     });
   });
 
-  it('sorts patterns by specificity: longer prefix first', () => {
+  it("sorts patterns by specificity: longer prefix first", () => {
     writeTsconfig(
       JSON.stringify({
         compilerOptions: {
           paths: {
-            '@/*': ['./src/*'],
-            '@components/*': ['./src/components/*'],
+            "@/*": ["./src/*"],
+            "@components/*": ["./src/components/*"],
           },
         },
       }),
     );
     const aliases = loadProjectAliases(projectRoot);
-    expect(aliases!.patterns[0].prefix).toBe('@components/');
-    expect(aliases!.patterns[1].prefix).toBe('@/');
+    expect(aliases!.patterns[0].prefix).toBe("@components/");
+    expect(aliases!.patterns[1].prefix).toBe("@/");
   });
 
-  it('sorts literal patterns before wildcard patterns of equal prefix length', () => {
+  it("sorts literal patterns before wildcard patterns of equal prefix length", () => {
     writeTsconfig(
       JSON.stringify({
         compilerOptions: {
           paths: {
-            '@ui/*': ['./wildcard/*'],
-            '@ui/Button': ['./literal/Button.ts'],
+            "@ui/*": ["./wildcard/*"],
+            "@ui/Button": ["./literal/Button.ts"],
           },
         },
       }),
@@ -132,27 +132,29 @@ describe('loadProjectAliases', () => {
     expect(aliases!.patterns[1].hasWildcard).toBe(true);
   });
 
-  it('honors baseUrl when resolving replacements', () => {
-    mkdirSync(join(projectRoot, 'src'));
+  it("honors baseUrl when resolving replacements", () => {
+    mkdirSync(join(projectRoot, "src"));
     writeTsconfig(
       JSON.stringify({
         compilerOptions: {
-          baseUrl: './src',
-          paths: { '~lib/*': ['./lib/*'] },
+          baseUrl: "./src",
+          paths: { "~lib/*": ["./lib/*"] },
         },
       }),
     );
     const aliases = loadProjectAliases(projectRoot);
-    expect(aliases!.baseUrl).toBe(join(projectRoot, 'src'));
+    expect(aliases!.baseUrl).toBe(join(projectRoot, "src"));
   });
 
-  it('defaults baseUrl to project root when omitted', () => {
-    writeTsconfig(JSON.stringify({ compilerOptions: { paths: { '~x': ['./x'] } } }));
+  it("defaults baseUrl to project root when omitted", () => {
+    writeTsconfig(
+      JSON.stringify({ compilerOptions: { paths: { "~x": ["./x"] } } }),
+    );
     const aliases = loadProjectAliases(projectRoot);
     expect(aliases!.baseUrl).toBe(projectRoot);
   });
 
-  it('strips JSONC line comments before parsing', () => {
+  it("strips JSONC line comments before parsing", () => {
     writeTsconfig(
       `{
         // this is a comment
@@ -164,10 +166,10 @@ describe('loadProjectAliases', () => {
     );
     const aliases = loadProjectAliases(projectRoot);
     expect(aliases).not.toBeNull();
-    expect(aliases!.patterns[0].prefix).toBe('~x');
+    expect(aliases!.patterns[0].prefix).toBe("~x");
   });
 
-  it('strips JSONC block comments before parsing', () => {
+  it("strips JSONC block comments before parsing", () => {
     writeTsconfig(
       `{
         /* block comment */
@@ -178,14 +180,14 @@ describe('loadProjectAliases', () => {
     expect(aliases).not.toBeNull();
   });
 
-  it('strips trailing commas before } and ]', () => {
+  it("strips trailing commas before } and ]", () => {
     writeTsconfig(`{ "compilerOptions": { "paths": { "~z": ["./z",] }, } }`);
     const aliases = loadProjectAliases(projectRoot);
     expect(aliases).not.toBeNull();
-    expect(aliases!.patterns[0].replacements).toEqual(['./z']);
+    expect(aliases!.patterns[0].replacements).toEqual(["./z"]);
   });
 
-  it('preserves // inside string values (URL with scheme)', () => {
+  it("preserves // inside string values (URL with scheme)", () => {
     // The `//` inside the URL string must not be treated as the start of a
     // JSONC line comment — otherwise every value that looks like a URL
     // (`https://...`, `file://...`, protocol-relative `//cdn...`) would be
@@ -208,92 +210,123 @@ describe('loadProjectAliases', () => {
     // path.resolve() is applied to it, so we only assert non-null.
     expect(aliases).not.toBeNull();
     expect(aliases!.patterns).toHaveLength(1);
-    expect(aliases!.patterns[0].prefix).toBe('@/');
+    expect(aliases!.patterns[0].prefix).toBe("@/");
   });
 
-  it('falls back to jsconfig.json when no tsconfig.json is present', () => {
-    writeTsconfig(JSON.stringify({ compilerOptions: { paths: { '~j': ['./j'] } } }), 'jsconfig.json');
+  it("falls back to jsconfig.json when no tsconfig.json is present", () => {
+    writeTsconfig(
+      JSON.stringify({ compilerOptions: { paths: { "~j": ["./j"] } } }),
+      "jsconfig.json",
+    );
     const aliases = loadProjectAliases(projectRoot);
     expect(aliases).not.toBeNull();
-    expect(aliases!.patterns[0].prefix).toBe('~j');
+    expect(aliases!.patterns[0].prefix).toBe("~j");
   });
 
-  it('prefers tsconfig.json over jsconfig.json when both exist', () => {
-    writeTsconfig(JSON.stringify({ compilerOptions: { paths: { '~t': ['./t'] } } }));
-    writeTsconfig(JSON.stringify({ compilerOptions: { paths: { '~j': ['./j'] } } }), 'jsconfig.json');
+  it("prefers tsconfig.json over jsconfig.json when both exist", () => {
+    writeTsconfig(
+      JSON.stringify({ compilerOptions: { paths: { "~t": ["./t"] } } }),
+    );
+    writeTsconfig(
+      JSON.stringify({ compilerOptions: { paths: { "~j": ["./j"] } } }),
+      "jsconfig.json",
+    );
     const aliases = loadProjectAliases(projectRoot);
-    expect(aliases!.patterns[0].prefix).toBe('~t');
+    expect(aliases!.patterns[0].prefix).toBe("~t");
   });
 
-  it('skips pattern entries whose replacement array is not all strings', () => {
+  it("skips pattern entries whose replacement array is not all strings", () => {
     writeTsconfig(
       JSON.stringify({
         compilerOptions: {
           paths: {
-            '~ok': ['./a'],
-            '~mixed': ['./a', 42, './b'],
+            "~ok": ["./a"],
+            "~mixed": ["./a", 42, "./b"],
           },
         },
       }),
     );
     const aliases = loadProjectAliases(projectRoot);
     // ~ok is loaded; ~mixed is filtered to just the string entries
-    expect(aliases!.patterns.find((p) => p.prefix === '~ok')).toBeDefined();
-    const mixed = aliases!.patterns.find((p) => p.prefix === '~mixed');
+    expect(aliases!.patterns.find((p) => p.prefix === "~ok")).toBeDefined();
+    const mixed = aliases!.patterns.find((p) => p.prefix === "~mixed");
     expect(mixed).toBeDefined();
-    expect(mixed!.replacements).toEqual(['./a', './b']);
+    expect(mixed!.replacements).toEqual(["./a", "./b"]);
   });
 });
 
-describe('applyAliases', () => {
-  it('returns [] when no pattern matches', () => {
+describe("applyAliases", () => {
+  it("returns [] when no pattern matches", () => {
     const aliases = {
       baseUrl: projectRoot,
-      patterns: [{ prefix: '@/', suffix: '', hasWildcard: true, replacements: ['./*'] }],
+      patterns: [
+        { prefix: "@/", suffix: "", hasWildcard: true, replacements: ["./*"] },
+      ],
     };
-    expect(applyAliases('lodash', aliases, projectRoot)).toEqual([]);
+    expect(applyAliases("lodash", aliases, projectRoot)).toEqual([]);
   });
 
-  it('rewrites a wildcard alias to the captured suffix', () => {
-    const aliases = {
-      baseUrl: projectRoot,
-      patterns: [{ prefix: '@/', suffix: '', hasWildcard: true, replacements: ['./src/*'] }],
-    };
-    const out = applyAliases('@/foo/bar', aliases, projectRoot);
-    expect(out).toEqual(['src/foo/bar']);
-  });
-
-  it('returns the literal replacement for non-wildcard patterns', () => {
-    const aliases = {
-      baseUrl: projectRoot,
-      patterns: [{ prefix: '~config', suffix: '', hasWildcard: false, replacements: ['./cfg.ts'] }],
-    };
-    const out = applyAliases('~config', aliases, projectRoot);
-    expect(out).toEqual(['cfg.ts']);
-  });
-
-  it('returns [] when literal pattern does not match exactly', () => {
-    const aliases = {
-      baseUrl: projectRoot,
-      patterns: [{ prefix: '~config', suffix: '', hasWildcard: false, replacements: ['./cfg.ts'] }],
-    };
-    expect(applyAliases('~config/extra', aliases, projectRoot)).toEqual([]);
-  });
-
-  it('returns all replacements in order when a pattern has multiple targets', () => {
+  it("rewrites a wildcard alias to the captured suffix", () => {
     const aliases = {
       baseUrl: projectRoot,
       patterns: [
         {
-          prefix: '@/',
-          suffix: '',
+          prefix: "@/",
+          suffix: "",
           hasWildcard: true,
-          replacements: ['./src/*', './legacy/*'],
+          replacements: ["./src/*"],
         },
       ],
     };
-    const out = applyAliases('@/foo', aliases, projectRoot);
-    expect(out).toEqual(['src/foo', 'legacy/foo']);
+    const out = applyAliases("@/foo/bar", aliases, projectRoot);
+    expect(out).toEqual(["src/foo/bar"]);
+  });
+
+  it("returns the literal replacement for non-wildcard patterns", () => {
+    const aliases = {
+      baseUrl: projectRoot,
+      patterns: [
+        {
+          prefix: "~config",
+          suffix: "",
+          hasWildcard: false,
+          replacements: ["./cfg.ts"],
+        },
+      ],
+    };
+    const out = applyAliases("~config", aliases, projectRoot);
+    expect(out).toEqual(["cfg.ts"]);
+  });
+
+  it("returns [] when literal pattern does not match exactly", () => {
+    const aliases = {
+      baseUrl: projectRoot,
+      patterns: [
+        {
+          prefix: "~config",
+          suffix: "",
+          hasWildcard: false,
+          replacements: ["./cfg.ts"],
+        },
+      ],
+    };
+    expect(applyAliases("~config/extra", aliases, projectRoot)).toEqual([]);
+  });
+
+  it("returns all replacements in order when a pattern has multiple targets", () => {
+    const aliases = {
+      baseUrl: projectRoot,
+      patterns: [
+        {
+          prefix: "@/",
+          suffix: "",
+          hasWildcard: true,
+          replacements: ["./src/*", "./legacy/*"],
+        },
+      ],
+    };
+    const out = applyAliases("@/foo", aliases, projectRoot);
+    expect(out).toEqual(["src/foo", "legacy/foo"]);
   });
 
   it('matches suffix-bound patterns (e.g. "*.css")', () => {
@@ -303,25 +336,34 @@ describe('applyAliases', () => {
     // replacement "./styles/*" becomes "./styles/main" (NOT .css).
     const aliases = {
       baseUrl: projectRoot,
-      patterns: [{ prefix: '', suffix: '.css', hasWildcard: true, replacements: ['./styles/*'] }],
+      patterns: [
+        {
+          prefix: "",
+          suffix: ".css",
+          hasWildcard: true,
+          replacements: ["./styles/*"],
+        },
+      ],
     };
-    expect(applyAliases('main.css', aliases, projectRoot)).toEqual(['styles/main']);
-    expect(applyAliases('main.scss', aliases, projectRoot)).toEqual([]);
+    expect(applyAliases("main.css", aliases, projectRoot)).toEqual([
+      "styles/main",
+    ]);
+    expect(applyAliases("main.scss", aliases, projectRoot)).toEqual([]);
   });
 
-  it('skips replacements that escape the project root', () => {
+  it("skips replacements that escape the project root", () => {
     const aliases = {
       baseUrl: projectRoot,
       patterns: [
         {
-          prefix: '@/',
-          suffix: '',
+          prefix: "@/",
+          suffix: "",
           hasWildcard: true,
-          replacements: ['./safe/*', '../../../etc/*'],
+          replacements: ["./safe/*", "../../../etc/*"],
         },
       ],
     };
-    const out = applyAliases('@/secret', aliases, projectRoot);
-    expect(out).toEqual(['safe/secret']);
+    const out = applyAliases("@/secret", aliases, projectRoot);
+    expect(out).toEqual(["safe/secret"]);
   });
 });

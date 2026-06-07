@@ -2,12 +2,20 @@
  * CodeGuard 上下文构建器测试
  */
 
-import { describe, it, expect } from 'vitest';
-import { getVerifyOutputBudget, countProjectFiles, ContextBuilder } from '../guard/context.js';
-import type { VerificationReport, HallucinationReport, ConfidenceScore } from '../types.js';
+import { describe, it, expect } from "vitest";
+import {
+  getVerifyOutputBudget,
+  countProjectFiles,
+  ContextBuilder,
+} from "../guard/context.js";
+import type {
+  VerificationReport,
+  HallucinationReport,
+  ConfidenceScore,
+} from "../types.js";
 
-describe('getVerifyOutputBudget', () => {
-  it('小项目（<50文件）返回精简预算', () => {
+describe("getVerifyOutputBudget", () => {
+  it("小项目（<50文件）返回精简预算", () => {
     const budget = getVerifyOutputBudget(10);
     expect(budget.maxOutputChars).toBe(4000);
     expect(budget.maxDiffDetailLines).toBe(5);
@@ -16,27 +24,27 @@ describe('getVerifyOutputBudget', () => {
     expect(budget.includeBudgetNote).toBe(false);
   });
 
-  it('中小项目（50-500文件）返回中等预算', () => {
+  it("中小项目（50-500文件）返回中等预算", () => {
     const budget = getVerifyOutputBudget(100);
     expect(budget.maxOutputChars).toBe(8000);
     expect(budget.includeConfidenceDimensions).toBe(true);
     expect(budget.includeBudgetNote).toBe(true);
   });
 
-  it('中大型项目（500-5000文件）返回较大预算', () => {
+  it("中大型项目（500-5000文件）返回较大预算", () => {
     const budget = getVerifyOutputBudget(1000);
     expect(budget.maxOutputChars).toBe(15000);
     expect(budget.maxHallucinationReports).toBe(30);
   });
 
-  it('大型项目（>5000文件）返回完整预算', () => {
+  it("大型项目（>5000文件）返回完整预算", () => {
     const budget = getVerifyOutputBudget(10000);
     expect(budget.maxOutputChars).toBe(25000);
     expect(budget.maxHallucinationReports).toBe(50);
     expect(budget.maxSnippetLength).toBe(800);
   });
 
-  it('边界值正确', () => {
+  it("边界值正确", () => {
     const small = getVerifyOutputBudget(49);
     expect(small.maxOutputChars).toBe(4000);
 
@@ -57,48 +65,48 @@ describe('getVerifyOutputBudget', () => {
   });
 });
 
-describe('countProjectFiles', () => {
-  it('不存在的目录返回0', () => {
-    expect(countProjectFiles('/nonexistent/path/12345')).toBe(0);
+describe("countProjectFiles", () => {
+  it("不存在的目录返回0", () => {
+    expect(countProjectFiles("/nonexistent/path/12345")).toBe(0);
   });
 });
 
-describe('ContextBuilder', () => {
+describe("ContextBuilder", () => {
   const mockConfidence: ConfidenceScore = {
     overall: 75,
-    verdict: 'REVIEW',
+    verdict: "REVIEW",
     dimensions: {
       diffSafety: 80,
       hallucinationFree: 70,
       testPassRate: 75,
       typeCheck: 85,
     },
-    riskFactors: ['New function added without tests', 'API signature changed'],
+    riskFactors: ["New function added without tests", "API signature changed"],
   };
 
   const mockReport: VerificationReport = {
     timestamp: Date.now(),
-    files_checked: ['src/main.ts', 'src/utils.ts'],
+    files_checked: ["src/main.ts", "src/utils.ts"],
     diffResults: [
       {
-        filePath: 'src/main.ts',
+        filePath: "src/main.ts",
         changes: [],
-        riskScore: 40,
-        summary: '2 changes: 1 new function, 1 signature change',
+        riskScore: 0.4,
+        summary: "2 changes: 1 new function, 1 signature change",
       },
     ],
     hallucinations: [
       {
-        severity: 'high',
+        severity: "high",
         message: 'Package "nonexistent-lib" not found',
-        suggestion: 'Check package name or install it',
-        category: 'package_import',
+        suggestion: "Check package name or install it",
+        category: "package_import",
       },
       {
-        severity: 'medium',
-        message: 'API call uses wrong parameter order',
-        suggestion: 'Check API documentation',
-        category: 'api_signature',
+        severity: "medium",
+        message: "API call uses wrong parameter order",
+        suggestion: "Check API documentation",
+        category: "api_signature",
       },
     ],
     testResult: {
@@ -106,35 +114,35 @@ describe('ContextBuilder', () => {
       failed: 2,
       total: 10,
       errors: [
-        { testName: 'testAuth', message: 'Expected 200, got 401' },
-        { testName: 'testDB', message: 'Connection timeout' },
+        { testName: "testAuth", message: "Expected 200, got 401" },
+        { testName: "testDB", message: "Connection timeout" },
       ],
       duration: 1500,
     },
     confidence: mockConfidence,
-    summary: '',
+    summary: "",
   };
 
-  it('小项目报告包含基本信息', () => {
+  it("小项目报告包含基本信息", () => {
     const builder = new ContextBuilder(10);
     const report = builder.buildReport(mockReport);
 
-    expect(report).toContain('CodeGuard Report');
-    expect(report).toContain('REVIEW');
-    expect(report).toContain('75/100');
-    expect(report).toContain('Issues Found');
+    expect(report).toContain("CodeGuard Report");
+    expect(report).toContain("REVIEW");
+    expect(report).toContain("75/100");
+    expect(report).toContain("Issues Found");
   });
 
-  it('大项目报告包含置信度维度', () => {
+  it("大项目报告包含置信度维度", () => {
     const builder = new ContextBuilder(1000);
     const report = builder.buildReport(mockReport);
 
-    expect(report).toContain('Confidence Breakdown');
-    expect(report).toContain('Diff Safety');
-    expect(report).toContain('Hallucination Free');
+    expect(report).toContain("Confidence Breakdown");
+    expect(report).toContain("Diff Safety");
+    expect(report).toContain("Hallucination Free");
   });
 
-  it('无幻觉时不显示Issues部分', () => {
+  it("无幻觉时不显示Issues部分", () => {
     const cleanReport: VerificationReport = {
       ...mockReport,
       hallucinations: [],
@@ -143,15 +151,18 @@ describe('ContextBuilder', () => {
     const builder = new ContextBuilder(100);
     const report = builder.buildReport(cleanReport);
 
-    expect(report).not.toContain('Issues Found');
+    expect(report).not.toContain("Issues Found");
   });
 
-  it('报告被裁剪到最大字符数', () => {
-    const manyHallucinations: HallucinationReport[] = Array.from({ length: 100 }, (_, i) => ({
-      severity: 'medium' as const,
-      message: `Issue ${i}: ${'x'.repeat(200)}`,
-      category: 'ai_pattern' as const,
-    }));
+  it("报告被裁剪到最大字符数", () => {
+    const manyHallucinations: HallucinationReport[] = Array.from(
+      { length: 100 },
+      (_, i) => ({
+        severity: "medium" as const,
+        message: `Issue ${i}: ${"x".repeat(200)}`,
+        category: "ai_pattern" as const,
+      }),
+    );
 
     const largeReport: VerificationReport = {
       ...mockReport,
@@ -164,50 +175,53 @@ describe('ContextBuilder', () => {
     expect(report.length).toBeLessThanOrEqual(4020); // 允许截断标记的额外字符
   });
 
-  it('buildHallucinationReport无幻觉时返回简洁消息', () => {
+  it("buildHallucinationReport无幻觉时返回简洁消息", () => {
     const builder = new ContextBuilder(100);
-    const report = builder.buildHallucinationReport([], 'python');
-    expect(report).toContain('No hallucinations detected');
+    const report = builder.buildHallucinationReport([], "python");
+    expect(report).toContain("No hallucinations detected");
   });
 
-  it('buildHallucinationReport有幻觉时显示详情', () => {
+  it("buildHallucinationReport有幻觉时显示详情", () => {
     const builder = new ContextBuilder(100);
     const hallucinations: HallucinationReport[] = [
       {
-        severity: 'critical',
-        message: 'Package not found',
+        severity: "critical",
+        message: "Package not found",
         line: 10,
-        suggestion: 'Install the package',
-        category: 'package_import',
+        suggestion: "Install the package",
+        category: "package_import",
       },
     ];
-    const report = builder.buildHallucinationReport(hallucinations, 'typescript');
-    expect(report).toContain('CRITICAL');
-    expect(report).toContain('Package not found');
-    expect(report).toContain('Install the package');
+    const report = builder.buildHallucinationReport(
+      hallucinations,
+      "typescript",
+    );
+    expect(report).toContain("CRITICAL");
+    expect(report).toContain("Package not found");
+    expect(report).toContain("Install the package");
   });
 
-  it('TRUST判定显示正面建议', () => {
+  it("TRUST判定显示正面建议", () => {
     const trustReport: VerificationReport = {
       ...mockReport,
-      confidence: { ...mockConfidence, overall: 90, verdict: 'TRUST' },
+      confidence: { ...mockConfidence, overall: 90, verdict: "TRUST" },
     };
 
     const builder = new ContextBuilder(100);
     const report = builder.buildReport(trustReport);
-    expect(report).toContain('PASS');
-    expect(report).toContain('safe to merge');
+    expect(report).toContain("PASS");
+    expect(report).toContain("safe to merge");
   });
 
-  it('REJECT判定显示警告建议', () => {
+  it("REJECT判定显示警告建议", () => {
     const rejectReport: VerificationReport = {
       ...mockReport,
-      confidence: { ...mockConfidence, overall: 20, verdict: 'REJECT' },
+      confidence: { ...mockConfidence, overall: 20, verdict: "REJECT" },
     };
 
     const builder = new ContextBuilder(100);
     const report = builder.buildReport(rejectReport);
-    expect(report).toContain('REJECT');
-    expect(report).toContain('High risk');
+    expect(report).toContain("REJECT");
+    expect(report).toContain("High risk");
   });
 });

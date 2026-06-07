@@ -1,5 +1,5 @@
 /**
- * @aide/guard — Redis-backed LLM response cache.
+ * @aide-dev/guard — Redis-backed LLM response cache.
  *
  * Simpler than the SQLite-based {@link LLMCache} because Redis's
  * built-in eviction policies (e.g. `allkeys-lru`) handle the LRU
@@ -34,9 +34,12 @@
  * the config is absent or `cache.type` is `'sqlite'` (the default),
  * the proxy falls back to the SQLite-based {@link LLMCache}.
  */
-import { type Redis } from 'ioredis';
-import { createHash } from 'node:crypto';
-import type { ChatCompletionRequest, ChatCompletionResponse } from '../types.js';
+import { type Redis } from "ioredis";
+import { createHash } from "node:crypto";
+import type {
+  ChatCompletionRequest,
+  ChatCompletionResponse,
+} from "../types.js";
 
 // ==================== Types ====================
 
@@ -72,7 +75,26 @@ export interface RedisCacheHit {
 // ==================== Defaults ====================
 
 const DEFAULT_TTL_MS = 60 * 60 * 1000; // 1 hour
-const DEFAULT_KEY_PREFIX = 'aide:llm-cache:';
+const DEFAULT_KEY_PREFIX = "aide:llm-cache:";
+
+// ==================== Helpers ====================
+
+/**
+ * Safely iterate over keys matching a pattern using SCAN instead of KEYS.
+ * SCAN is non-blocking and better suited for large datasets.
+ */
+async function scanKeys(redis: Redis, pattern: string): Promise<string[]> {
+  const keys: string[] = [];
+  let cursor = "0";
+
+  do {
+    const result = await redis.scan(cursor, "MATCH", pattern, "COUNT", 100);
+    cursor = result[0];
+    keys.push(...result[1]);
+  } while (cursor !== "0");
+
+  return keys;
+}
 
 // ==================== RedisLLMCache ====================
 
@@ -106,14 +128,17 @@ export class RedisLLMCache {
       // non-streaming requests only, but being defensive doesn't cost
       // anything.
     });
-    return createHash('sha256').update(canonical).digest('hex');
+    return createHash("sha256").update(canonical).digest("hex");
   }
 
   /**
    * Look up a cached response. Returns the cached response when
    * found (and not expired), or `null` on miss.
    */
-  async lookup(model: string, request: ChatCompletionRequest): Promise<RedisCacheHit | null> {
+  async lookup(
+    model: string,
+    request: ChatCompletionRequest,
+  ): Promise<RedisCacheHit | null> {
     const key = RedisLLMCache.computeKey(model, request);
     const raw = await this.redis.get(`${this.prefix}data:${key}`);
     if (!raw) return null;
@@ -130,7 +155,10 @@ export class RedisLLMCache {
    * Check whether a request has a cache entry (without fetching the
    * full response body). Useful for metrics / pre-flight checks.
    */
-  async exists(model: string, request: ChatCompletionRequest): Promise<boolean> {
+  async exists(
+    model: string,
+    request: ChatCompletionRequest,
+  ): Promise<boolean> {
     const key = RedisLLMCache.computeKey(model, request);
     const result = await this.redis.exists(`${this.prefix}data:${key}`);
     return result === 1;
@@ -172,10 +200,10 @@ export class RedisLLMCache {
 
   /**
    * Clear the entire cache (all entries sharing our key prefix).
-   * Uses `KEYS` — expensive on large caches.
+   * Uses `SCAN` for non-blocking iteration over large caches.
    */
   async clear(): Promise<void> {
-    const keys = await this.redis.keys(`${this.prefix}*`);
+    const keys = await scanKeys(this.redis, `${this.prefix}*`);
     if (keys.length > 0) {
       await this.redis.del(...keys);
     }
@@ -185,8 +213,8 @@ export class RedisLLMCache {
    * Get cache statistics.
    */
   async stats(): Promise<RedisCacheStats> {
-    const keys = await this.redis.keys(`${this.prefix}data:*`);
-    const info = await this.redis.info('memory');
+    const keys = await scanKeys(this.redis, `${this.prefix}data:*`);
+    const info = await this.redis.info("memory");
     const maxmemoryPolicy = this.extractMaxmemoryPolicy(info);
 
     // Sample memory usage from the first few entries (MEMORY USAGE is O(1)
@@ -194,11 +222,13 @@ export class RedisLLMCache {
     let estimatedMemoryBytes = 0;
     const sampleSize = Math.min(keys.length, 20);
     for (let i = 0; i < sampleSize; i++) {
-      const bytes = await this.redis.memory('USAGE', keys[i]);
-      estimatedMemoryBytes += typeof bytes === 'number' ? bytes : 0;
+      const bytes = await this.redis.memory("USAGE", keys[i]);
+      estimatedMemoryBytes += typeof bytes === "number" ? bytes : 0;
     }
     if (keys.length > 0) {
-      estimatedMemoryBytes = Math.round((estimatedMemoryBytes / sampleSize) * keys.length);
+      estimatedMemoryBytes = Math.round(
+        (estimatedMemoryBytes / sampleSize) * keys.length,
+      );
     }
 
     return {
@@ -220,11 +250,11 @@ export class RedisLLMCache {
    * Extract `maxmemory-policy` from Redis INFO output.
    */
   private extractMaxmemoryPolicy(info: string): string {
-    for (const line of info.split('\n')) {
-      if (line.startsWith('maxmemory_policy:')) {
-        return line.split(':')[1]?.trim() ?? 'unknown';
+    for (const line of info.split("\n")) {
+      if (line.startsWith("maxmemory_policy:")) {
+        return line.split(":")[1]?.trim() ?? "unknown";
       }
     }
-    return 'unknown';
+    return "unknown";
   }
 }

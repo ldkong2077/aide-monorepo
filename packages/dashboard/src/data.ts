@@ -11,7 +11,7 @@ import type {
   VerificationSummary,
   CostSummary,
   DashboardFilter,
-} from './types.js';
+} from "./types.js";
 
 /** Flow state interface (simplified) */
 interface FlowState {
@@ -55,8 +55,10 @@ export class DataCollector {
   }
 
   /** Collect flow summaries */
-  private async collectFlows(filter?: DashboardFilter): Promise<FlowSummary[]> {
-    // In a real implementation, this would import from @aide/flow
+  private async collectFlows(
+    _filter?: DashboardFilter,
+  ): Promise<FlowSummary[]> {
+    // In a real implementation, this would import from @aide-dev/flow
     // For now, return empty array to avoid module resolution issues
     return [];
   }
@@ -65,10 +67,10 @@ export class DataCollector {
   private calculateProgress(state: FlowState): number {
     // This is a simplified calculation
     // In a real implementation, this would use the actual task results
-    if (state.status === 'completed') return 100;
-    if (state.status === 'failed') return 0;
-    if (state.status === 'pending') return 0;
-    
+    if (state.status === "completed") return 100;
+    if (state.status === "failed") return 0;
+    if (state.status === "pending") return 0;
+
     // For running flows, estimate based on current task index
     const estimatedTotalTasks = 10; // Default estimate
     return Math.round((state.currentTaskIndex / estimatedTotalTasks) * 100);
@@ -76,20 +78,20 @@ export class DataCollector {
 
   /** Estimate time remaining */
   private estimateTimeRemaining(state: FlowState): string | undefined {
-    if (state.status === 'completed' || state.status === 'failed') {
+    if (state.status === "completed" || state.status === "failed") {
       return undefined;
     }
 
     // Simplified estimation
-    return 'Calculating...';
+    return "Calculating...";
   }
 
   /** Calculate summary from flows */
   private calculateSummary(flows: FlowSummary[]): DashboardSummary {
     const totalFlows = flows.length;
-    const activeFlows = flows.filter(f => f.status === 'running').length;
-    const completedFlows = flows.filter(f => f.status === 'completed').length;
-    const failedFlows = flows.filter(f => f.status === 'failed').length;
+    const activeFlows = flows.filter((f) => f.status === "running").length;
+    const completedFlows = flows.filter((f) => f.status === "completed").length;
+    const failedFlows = flows.filter((f) => f.status === "failed").length;
 
     const totalTasks = flows.reduce((sum, f) => sum + f.tasksTotal, 0);
     const completedTasks = flows.reduce((sum, f) => sum + f.tasksCompleted, 0);
@@ -139,7 +141,7 @@ export class DataCollector {
   /** Collect cost data */
   private async collectCosts(flows: FlowSummary[]): Promise<CostSummary> {
     const totalCost = flows.reduce((sum, f) => sum + (f.cost || 0), 0);
-    
+
     // Group by flow
     const costByFlow: Record<string, number> = {};
     for (const flow of flows) {
@@ -150,9 +152,9 @@ export class DataCollector {
 
     // Cost by provider (simulated)
     const costByProvider: Record<string, number> = {
-      'deepseek': totalCost * 0.6,
-      'openai': totalCost * 0.3,
-      'anthropic': totalCost * 0.1,
+      deepseek: totalCost * 0.6,
+      openai: totalCost * 0.3,
+      anthropic: totalCost * 0.1,
     };
 
     // Cost trend (simulated)
@@ -175,7 +177,7 @@ export class DataCollector {
       const date = new Date(now);
       date.setDate(date.getDate() - i);
       trend.push({
-        date: date.toISOString().split('T')[0],
+        date: date.toISOString().split("T")[0],
         cost: Math.random() * 5 + 1, // Random cost between $1-6
       });
     }

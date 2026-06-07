@@ -1,7 +1,7 @@
-import { parentPort, workerData } from 'worker_threads';
-import { writeSync } from 'fs';
-import { getGlyphs } from './glyphs.js';
-import type { ShimmerWorkerMessage } from './types.js';
+import { parentPort, workerData } from "worker_threads";
+import { writeSync } from "fs";
+import { getGlyphs } from "./glyphs.js";
+import type { ShimmerWorkerMessage } from "./types.js";
 
 // Write directly to fd 1 (stdout) instead of writeStdout().
 // In Node.js worker threads, process.stdout is proxied through the main
@@ -21,10 +21,10 @@ const SPINNER_GLYPHS = G.spinner;
 const ANIM_INTERVAL = 150;
 const FRAMES_PER_GLYPH = 3;
 
-const RST = '\x1b[0m';
-const DM = '\x1b[2m';
-const GRN = '\x1b[32m';
-const BOLD = '\x1b[1m';
+const RST = "\x1b[0m";
+const DM = "\x1b[2m";
+const GRN = "\x1b[32m";
+const BOLD = "\x1b[1m";
 
 const startTime: number = workerData.startTime;
 
@@ -53,7 +53,7 @@ function renderBar(frame: number, filled: number, empty: number): string {
   const cycleFrames = 24;
   const shimmerPos = ((frame % cycleFrames) / cycleFrames) * (filled + 6) - 3;
   const shimmerWidth = 3;
-  let bar = '';
+  let bar = "";
   for (let i = 0; i < filled; i++) {
     const dist = Math.abs(i - shimmerPos);
     const t = Math.max(0, 1 - dist / shimmerWidth);
@@ -67,7 +67,7 @@ function renderBar(frame: number, filled: number, empty: number): string {
 }
 
 // Mutable state
-let currentMessage = '';
+let currentMessage = "";
 let currentPercent = -1;
 let currentCount = 0;
 
@@ -75,7 +75,7 @@ function render(): void {
   if (!currentMessage) return;
   const frame = animFrame();
   const glyphIdx = Math.floor(frame / FRAMES_PER_GLYPH) % SPINNER_GLYPHS.length;
-  const glyph = SPINNER_GLYPHS[glyphIdx] ?? SPINNER_GLYPHS[0] ?? '.';
+  const glyph = SPINNER_GLYPHS[glyphIdx] ?? SPINNER_GLYPHS[0] ?? ".";
   const color = shimmerColor(frame);
 
   let line: string;
@@ -96,11 +96,14 @@ function render(): void {
 function finishPhase(): void {
   if (!currentMessage) return;
   writeStdout(`\r\x1b[K`);
-  let detail = '';
+  let detail = "";
   if (currentPercent >= 0) detail = ` ${G.dash} done`;
-  else if (currentCount > 0) detail = ` ${G.dash} ${formatNumber(currentCount)} found`;
-  writeStdout(`${DM}${G.rail}${RST}  ${GRN}${G.phaseDone}${RST} ${currentMessage}${detail}\n`);
-  currentMessage = '';
+  else if (currentCount > 0)
+    detail = ` ${G.dash} ${formatNumber(currentCount)} found`;
+  writeStdout(
+    `${DM}${G.rail}${RST}  ${GRN}${G.phaseDone}${RST} ${currentMessage}${detail}\n`,
+  );
+  currentMessage = "";
   currentPercent = -1;
   currentCount = 0;
 }
@@ -108,16 +111,16 @@ function finishPhase(): void {
 // Render loop — independent of main thread
 const tickInterval = setInterval(render, 50);
 
-parentPort!.on('message', (msg: ShimmerWorkerMessage) => {
-  if (msg.type === 'update') {
+parentPort!.on("message", (msg: ShimmerWorkerMessage) => {
+  if (msg.type === "update") {
     currentMessage = msg.phaseName;
     currentPercent = msg.percent;
     currentCount = msg.count;
-  } else if (msg.type === 'finish-phase') {
+  } else if (msg.type === "finish-phase") {
     finishPhase();
-  } else if (msg.type === 'stop') {
+  } else if (msg.type === "stop") {
     clearInterval(tickInterval);
     finishPhase();
-    parentPort!.postMessage({ type: 'stopped' });
+    parentPort!.postMessage({ type: "stopped" });
   }
 });

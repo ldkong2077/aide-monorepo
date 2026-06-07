@@ -18,7 +18,7 @@ import { logWarn } from "../../errors.js";
  * surrounding wrapper differs. Codex (TOML) builds its own block.
  *
  * The binary name (`aide`) and argv (`mcp serve`) match the
- * `aide mcp serve` command exposed by `@aide/cli`. The MCP server
+ * `aide mcp serve` command exposed by `@aide-dev/cli`. The MCP server
  * name (i.e. the key under `mcpServers` / `mcp` / `mcp_servers`)
  * is `aide` too — see each target's `writeMcpEntry` for where it
  * is set.
@@ -41,7 +41,7 @@ export function getMcpServerConfig(): {
  * permission strings follow Claude's `mcp__<server>__<tool>` format
  * where `<server>` is the MCP-server name (here: `aide`).
  *
- * Tool names MUST stay in sync with what `@aide/mcp-server` actually
+ * Tool names MUST stay in sync with what `@aide-dev/mcp-server` actually
  * exposes (see `packages/mcp-server/src/index.ts` `TOOLS` constant).
  * Wrong entries here would make `aide install` grant permissions for
  * tools that don't exist, and miss permissions for tools that do.

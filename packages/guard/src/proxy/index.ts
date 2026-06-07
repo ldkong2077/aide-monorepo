@@ -8,9 +8,9 @@ import Fastify, {
   type FastifyRequest,
   type FastifyReply,
   type FastifyError,
-} from 'fastify';
-import cors from '@fastify/cors';
-import crypto from 'crypto';
+} from "fastify";
+import cors from "@fastify/cors";
+import crypto from "crypto";
 import type {
   AppConfig,
   ChatCompletionRequest,
@@ -21,37 +21,55 @@ import type {
   VerificationReport,
   Language,
   SSEEvent,
-} from '../types.js';
-import { ProviderRegistry, type BaseProvider, type ProviderCallOptions } from '../provider/index.js';
-import { RouteEngine, MODEL_CONFIGS } from '../router/index.js';
-import { forwardSSE, extractTokenUsageFromSSE, estimateTokenUsage } from './stream.js';
-import type { Storage } from '../storage/index.js';
-import { Verifier } from '../guard/verifier.js';
-import { readiness } from './readiness.js';
-import { TokenBucketRateLimiter, DEFAULT_RATE_LIMIT } from './rate-limit.js';
-import { RedisTokenBucketRateLimiter } from './redis-rate-limit.js';
-import { createMetrics, bucketStatusCode, type MetricsBundle } from './metrics.js';
-import { TenantCostTracker, DEFAULT_TENANT_CIRCUIT } from './tenant-circuit.js';
-import { RedisTenantCostTracker } from './redis-tenant-circuit.js';
-import { UpstreamTimeoutError } from '../provider/retry.js';
-import { type LLMCache, computeRequestHash } from '../cache/index.js';
-import { TokenBudgetEnforcer } from './token-budget.js';
-import { Redis, type RedisOptions } from 'ioredis';
+} from "../types.js";
+import {
+  ProviderRegistry,
+  type BaseProvider,
+  type ProviderCallOptions,
+} from "../provider/index.js";
+import { RouteEngine, MODEL_CONFIGS } from "../router/index.js";
+import {
+  forwardSSE,
+  extractTokenUsageFromSSE,
+  estimateTokenUsage,
+} from "./stream.js";
+import type { Storage } from "../storage/index.js";
+import { Verifier } from "../guard/verifier.js";
+import { readiness } from "./readiness.js";
+import { TokenBucketRateLimiter, DEFAULT_RATE_LIMIT } from "./rate-limit.js";
+import { RedisTokenBucketRateLimiter } from "./redis-rate-limit.js";
+import {
+  createMetrics,
+  bucketStatusCode,
+  type MetricsBundle,
+} from "./metrics.js";
+import { TenantCostTracker, DEFAULT_TENANT_CIRCUIT } from "./tenant-circuit.js";
+import { RedisTenantCostTracker } from "./redis-tenant-circuit.js";
+import { UpstreamTimeoutError } from "../provider/retry.js";
+import { type LLMCache, computeRequestHash } from "../cache/index.js";
+import { TokenBudgetEnforcer } from "./token-budget.js";
+import { Redis, type RedisOptions } from "ioredis";
 
 /** Paths exempt from Bearer-token auth. Health endpoints and the
  *  Prometheus scrape endpoint are always reachable so liveness /
  *  readiness probes and metrics scrapers don't need credentials. */
-const PUBLIC_PATHS: ReadonlySet<string> = new Set(['/health', '/readyz', '/metrics']);
+const PUBLIC_PATHS: ReadonlySet<string> = new Set([
+  "/health",
+  "/readyz",
+  "/metrics",
+]);
 
 /** Extract the inbound request id, honouring an explicit
  *  `X-Request-Id` from the client and falling back to Fastify's
  *  auto-generated `request.id`. The returned value is what we
  *  surface in the response header and forward to upstream. */
-function resolveRequestId(
-  request: FastifyRequest,
-): string {
-  const inbound = request.headers['x-request-id'];
-  if (typeof inbound === 'string' && inbound.length > 0 && inbound.length <= 200) {
+function resolveRequestId(request: FastifyRequest): string {
+  const inbound = request.headers["x-request-id"];
+  if (
+    typeof inbound === "string" &&
+    inbound.length > 0 &&
+    inbound.length <= 200
+  ) {
     return inbound;
   }
   return request.id;
@@ -62,17 +80,15 @@ function resolveRequestId(
  *  so single-tenant deployments do not have to configure anything.
  *  The header is length-bounded to keep label cardinality bounded
  *  in Prometheus metrics. */
-function resolveTenantId(
-  request: FastifyRequest,
-): string {
-  const inbound = request.headers['x-tenant-id'];
-  if (typeof inbound === 'string' && inbound.length > 0) {
+function resolveTenantId(request: FastifyRequest): string {
+  const inbound = request.headers["x-tenant-id"];
+  if (typeof inbound === "string" && inbound.length > 0) {
     // Bound the value defensively. Tenant ids in the wild are
     // short opaque strings (UUIDs, slugs, org names). Anything
     // longer is almost certainly a misconfiguration.
     return inbound.slice(0, 64);
   }
-  return 'default';
+  return "default";
 }
 
 /** Decide which Fastify logger config to use.
@@ -83,15 +99,16 @@ function resolveTenantId(
  *
  *  Extracted so it can be unit-tested without spinning up a
  *  real server. */
-export function resolveLoggerConfig(format?: 'json' | 'pretty') {
-  const effective: 'json' | 'pretty' = format ?? (process.env.LOG_FORMAT === 'json' ? 'json' : 'pretty');
-  if (effective === 'json') {
-    return { level: process.env.LOG_LEVEL ?? 'info' };
+export function resolveLoggerConfig(format?: "json" | "pretty") {
+  const effective: "json" | "pretty" =
+    format ?? (process.env.LOG_FORMAT === "json" ? "json" : "pretty");
+  if (effective === "json") {
+    return { level: process.env.LOG_LEVEL ?? "info" };
   }
   return {
-    level: process.env.LOG_LEVEL ?? 'info',
+    level: process.env.LOG_LEVEL ?? "info",
     transport: {
-      target: 'pino-pretty',
+      target: "pino-pretty",
       options: { colorize: true },
     },
   };
@@ -103,8 +120,14 @@ export function resolveLoggerConfig(format?: 'json' | 'pretty') {
 function timingSafeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) {
     const maxLen = Math.max(a.length, b.length);
-    const bufA = Buffer.concat([Buffer.from(a), Buffer.alloc(maxLen - a.length)]);
-    const bufB = Buffer.concat([Buffer.from(b), Buffer.alloc(maxLen - b.length)]);
+    const bufA = Buffer.concat([
+      Buffer.from(a),
+      Buffer.alloc(maxLen - a.length),
+    ]);
+    const bufB = Buffer.concat([
+      Buffer.from(b),
+      Buffer.alloc(maxLen - b.length),
+    ]);
     return crypto.timingSafeEqual(bufA, bufB);
   }
   return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
@@ -141,7 +164,9 @@ export interface ProxyServerOptions {
 /**
  * 创建并配置代理服务器
  */
-export async function createProxyServer(options: ProxyServerOptions): Promise<FastifyInstance> {
+export async function createProxyServer(
+  options: ProxyServerOptions,
+): Promise<FastifyInstance> {
   const { config, storage } = options;
 
   // One isolated metrics bundle per server instance. Tests get fresh
@@ -155,7 +180,7 @@ export async function createProxyServer(options: ProxyServerOptions): Promise<Fa
   });
 
   // CORS — fully config-driven. The defaults (see
-  // `getDefaultServer()` in `@aide/core`) give a localhost-only
+  // `getDefaultServer()` in `@aide-dev/core`) give a localhost-only
   // allow-list so the bundled dashboard works out of the box;
   // production deployments MUST override `server.cors.origins`
   // via `aide.config.yaml` to the public origin.
@@ -163,11 +188,11 @@ export async function createProxyServer(options: ProxyServerOptions): Promise<Fa
   if (corsConfig?.enabled) {
     await fastify.register(cors, {
       origin: corsConfig.origins,
-      methods: corsConfig.methods ?? ['GET', 'POST', 'OPTIONS'],
+      methods: corsConfig.methods ?? ["GET", "POST", "OPTIONS"],
       allowedHeaders: corsConfig.allowedHeaders ?? [
-        'Content-Type',
-        'Authorization',
-        'X-Request-Id',
+        "Content-Type",
+        "Authorization",
+        "X-Request-Id",
       ],
       credentials: corsConfig.credentials ?? false,
     });
@@ -177,16 +202,16 @@ export async function createProxyServer(options: ProxyServerOptions): Promise<Fa
   // 这些头防御 MIME 嗅探、点击劫持、引用泄露；不影响功能，仅强化默认安全姿态。
   // 注意：HSTS 在 HTTP 下无意义（浏览器会忽略），且本代理的 CORS 允许列表限定
   // 为 localhost（仅本机访问），生产部署应放在反向代理后并由该层加 HSTS。
-  fastify.addHook('onSend', async (request, reply) => {
+  fastify.addHook("onSend", async (request, reply) => {
     const headers: Record<string, string> = {
-      'X-Content-Type-Options': 'nosniff',
-      'X-Frame-Options': 'DENY',
-      'Referrer-Policy': 'no-referrer',
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY",
+      "Referrer-Policy": "no-referrer",
       // Request-id correlation: every response echoes the id used in
       // the proxy logs and forwarded to upstream providers. Clients
       // can supply their own via X-Request-Id; we fall back to
       // Fastify's auto-generated id.
-      'X-Request-Id': resolveRequestId(request),
+      "X-Request-Id": resolveRequestId(request),
     };
     for (const [k, v] of Object.entries(headers)) {
       if (!reply.hasHeader(k)) reply.header(k, v);
@@ -206,7 +231,10 @@ export async function createProxyServer(options: ProxyServerOptions): Promise<Fa
     try {
       await redis.connect();
     } catch (err) {
-      fastify.log.warn({ err }, 'Failed to connect to Redis — falling back to in-process state');
+      fastify.log.warn(
+        { err },
+        "Failed to connect to Redis — falling back to in-process state",
+      );
       redis = null;
     }
   }
@@ -216,23 +244,29 @@ export async function createProxyServer(options: ProxyServerOptions): Promise<Fa
     ? redis
       ? new RedisTokenBucketRateLimiter(redis, {
           limit: config.server.rateLimit.limit ?? DEFAULT_RATE_LIMIT.limit,
-          windowMs: config.server.rateLimit.windowMs ?? DEFAULT_RATE_LIMIT.windowMs,
+          windowMs:
+            config.server.rateLimit.windowMs ?? DEFAULT_RATE_LIMIT.windowMs,
         })
       : new TokenBucketRateLimiter({
           limit: config.server.rateLimit.limit ?? DEFAULT_RATE_LIMIT.limit,
-          windowMs: config.server.rateLimit.windowMs ?? DEFAULT_RATE_LIMIT.windowMs,
+          windowMs:
+            config.server.rateLimit.windowMs ?? DEFAULT_RATE_LIMIT.windowMs,
         })
     : null;
 
   // Tenant cost circuit breaker: Redis-backed when available, in-process otherwise.
   const tenantTracker = redis
     ? new RedisTenantCostTracker(redis, {
-        budgetDaily: config.cost.budgetDaily ?? DEFAULT_TENANT_CIRCUIT.budgetDaily,
-        alertThreshold: config.cost.alertThreshold ?? DEFAULT_TENANT_CIRCUIT.alertThreshold,
+        budgetDaily:
+          config.cost.budgetDaily ?? DEFAULT_TENANT_CIRCUIT.budgetDaily,
+        alertThreshold:
+          config.cost.alertThreshold ?? DEFAULT_TENANT_CIRCUIT.alertThreshold,
       })
     : new TenantCostTracker({
-        budgetDaily: config.cost.budgetDaily ?? DEFAULT_TENANT_CIRCUIT.budgetDaily,
-        alertThreshold: config.cost.alertThreshold ?? DEFAULT_TENANT_CIRCUIT.alertThreshold,
+        budgetDaily:
+          config.cost.budgetDaily ?? DEFAULT_TENANT_CIRCUIT.budgetDaily,
+        alertThreshold:
+          config.cost.alertThreshold ?? DEFAULT_TENANT_CIRCUIT.alertThreshold,
       });
 
   // Optional per-tenant token budget enforcer. Constructed from
@@ -244,13 +278,15 @@ export async function createProxyServer(options: ProxyServerOptions): Promise<Fa
     options.tokenBudget ??
     (config.server.tokenBudget
       ? new TokenBudgetEnforcer({
-          maxPromptTokensPerRequest: config.server.tokenBudget.maxPromptTokensPerRequest,
-          maxTokensPerTenantPerDay: config.server.tokenBudget.maxTokensPerTenantPerDay,
+          maxPromptTokensPerRequest:
+            config.server.tokenBudget.maxPromptTokensPerRequest,
+          maxTokensPerTenantPerDay:
+            config.server.tokenBudget.maxTokensPerTenantPerDay,
           circuitResetMs: config.server.tokenBudget.circuitResetMs,
         })
       : null);
 
-  fastify.addHook('onRequest', async (request, reply) => {
+  fastify.addHook("onRequest", async (request, reply) => {
     if (PUBLIC_PATHS.has(request.url)) return;
 
     // Tenant cost circuit breaker. Runs BEFORE the rate limiter
@@ -262,11 +298,11 @@ export async function createProxyServer(options: ProxyServerOptions): Promise<Fa
     const tenantId = resolveTenantId(request);
     if (await tenantTracker.isCircuitOpen(tenantId)) {
       metrics.tenantCircuitRejections.inc({ tenant: tenantId });
-      reply.header('X-Tenant-Id', tenantId);
+      reply.header("X-Tenant-Id", tenantId);
       return reply.status(429).send({
         error: {
           message: `Tenant "${tenantId}" cost circuit is open. Daily budget exhausted.`,
-          type: 'cost_circuit_open',
+          type: "cost_circuit_open",
           tenant: tenantId,
         },
         request_id: resolveRequestId(request),
@@ -281,27 +317,33 @@ export async function createProxyServer(options: ProxyServerOptions): Promise<Fa
       // Skip the rate limit when the request will 401 anyway — we
       // don't want random anonymous traffic to consume slots of a
       // token the attacker doesn't actually have.
-      if (authHeader && authHeader.startsWith('Bearer ')) {
-        const tokenKey = authHeader.slice('Bearer '.length);
+      if (authHeader && authHeader.startsWith("Bearer ")) {
+        const tokenKey = authHeader.slice("Bearer ".length);
         const result = await rateLimiter.check(tokenKey);
         // Always advertise the limit state on the response.
-        reply.header('X-RateLimit-Limit', String(rateLimiter.getConfig().limit));
+        reply.header(
+          "X-RateLimit-Limit",
+          String(rateLimiter.getConfig().limit),
+        );
         if (!result.allowed) {
-          reply.header('Retry-After', String(Math.ceil(result.retryAfterMs / 1000)));
-          reply.header('X-RateLimit-Remaining', '0');
-          reply.header('X-Tenant-Id', tenantId);
+          reply.header(
+            "Retry-After",
+            String(Math.ceil(result.retryAfterMs / 1000)),
+          );
+          reply.header("X-RateLimit-Remaining", "0");
+          reply.header("X-Tenant-Id", tenantId);
           metrics.rateLimitRejections.inc();
           return reply.status(429).send({
             error: {
-              message: 'Rate limit exceeded',
-              type: 'rate_limit_error',
+              message: "Rate limit exceeded",
+              type: "rate_limit_error",
               retry_after_ms: result.retryAfterMs,
               tenant: tenantId,
             },
           });
         }
-        reply.header('X-RateLimit-Remaining', String(result.remaining));
-        reply.header('X-Tenant-Id', tenantId);
+        reply.header("X-RateLimit-Remaining", String(result.remaining));
+        reply.header("X-Tenant-Id", tenantId);
       }
     }
 
@@ -311,8 +353,8 @@ export async function createProxyServer(options: ProxyServerOptions): Promise<Fa
       const expected = `Bearer ${config.server.token}`;
       if (!authHeader || !timingSafeEqual(authHeader, expected)) {
         metrics.authFailures.inc();
-        reply.status(401).send({
-          error: { message: 'Unauthorized', type: 'auth_error' },
+        return reply.status(401).send({
+          error: { message: "Unauthorized", type: "auth_error" },
           request_id: resolveRequestId(request),
         });
       }
@@ -323,16 +365,18 @@ export async function createProxyServer(options: ProxyServerOptions): Promise<Fa
   // We store the start time on the request object so the onResponse
   // hook (which fires after the response is fully sent) can compute
   // the wall-clock duration.
-  fastify.addHook('onRequest', async (request) => {
+  fastify.addHook("onRequest", async (request) => {
     metrics.httpInFlight.inc();
-    (request as FastifyRequest & { _aideStartNs?: bigint })._aideStartNs = process.hrtime.bigint();
+    (request as FastifyRequest & { _aideStartNs?: bigint })._aideStartNs =
+      process.hrtime.bigint();
   });
-  fastify.addHook('onResponse', async (request, reply) => {
+  fastify.addHook("onResponse", async (request, reply) => {
     metrics.httpInFlight.dec();
-    const startNs = (request as FastifyRequest & { _aideStartNs?: bigint })._aideStartNs;
+    const startNs = (request as FastifyRequest & { _aideStartNs?: bigint })
+      ._aideStartNs;
     if (startNs !== undefined) {
       const seconds = Number(process.hrtime.bigint() - startNs) / 1e9;
-      const route = request.routeOptions?.url ?? 'unknown';
+      const route = request.routeOptions?.url ?? "unknown";
       metrics.httpDuration.observe({ method: request.method, route }, seconds);
       metrics.httpRequests.inc({
         method: request.method,
@@ -343,7 +387,7 @@ export async function createProxyServer(options: ProxyServerOptions): Promise<Fa
   });
 
   if (!config.server.token) {
-    fastify.log.warn('⚠️ 未配置 server.token，代理服务器 API 无认证保护！');
+    fastify.log.warn("⚠️ 未配置 server.token，代理服务器 API 无认证保护！");
   }
 
   // 使用外部传入或内部创建的 Provider 注册表
@@ -374,8 +418,8 @@ export async function createProxyServer(options: ProxyServerOptions): Promise<Fa
   // ==================== 中间件 ====================
 
   // 请求日志
-  fastify.addHook('onRequest', async (request) => {
-    request.log.info({ method: request.method, url: request.url }, '收到请求');
+  fastify.addHook("onRequest", async (request) => {
+    request.log.info({ method: request.method, url: request.url }, "收到请求");
   });
 
   // 错误处理
@@ -383,8 +427,8 @@ export async function createProxyServer(options: ProxyServerOptions): Promise<Fa
     request.log.error(error);
     reply.status(error.statusCode || 500).send({
       error: {
-        message: error.message || '内部服务器错误',
-        type: error.name || 'internal_error',
+        message: error.message || "内部服务器错误",
+        type: error.name || "internal_error",
       },
       request_id: resolveRequestId(request),
     });
@@ -406,130 +450,151 @@ export async function createProxyServer(options: ProxyServerOptions): Promise<Fa
    * a later error could not send a 502 (headers were flushed) and
    * silently left the connection in an undefined state.
    */
-  fastify.post('/v1/chat/completions', async (request: FastifyRequest, reply: FastifyReply) => {
-    const body = request.body as ChatCompletionRequest;
-    if (!body?.messages || body.messages.length === 0) {
-      return reply.status(400).send({
-        error: { message: '缺少 messages 字段', type: 'invalid_request_error' },
-        request_id: resolveRequestId(request),
-      });
-    }
-
-    const startTime = Date.now();
-    const originalModel = body.model;
-    const taskType = routeEngine.classifyTask(body.messages);
-    const route = routeEngine.route(taskType, originalModel);
-    const tenantId = resolveTenantId(request);
-
-    const ctx: RouteContext = {
-      originalModel,
-      route,
-      taskType,
-      startTime,
-      routeEngine,
-      storage,
-      config,
-      requestId: resolveRequestId(request),
-      tenantId,
-      metrics,
-      tenantTracker,
-      cache: options.cache,
-      tokenBudget,
-    };
-
-    // Token budget pre-flight. Runs before provider lookup so a
-    // tenant that has already exhausted its daily budget is not
-    // even charged the cost of constructing a RouteContext. The
-    // decision is informational (recorded on the metrics bundle)
-    // but the prompt is never sent upstream on a rejection.
-    if (tokenBudget) {
-      const decision = tokenBudget.check(tenantId, body.messages, route.model);
-      if (!decision.allowed) {
-        metrics.tokenBudgetRejections.inc({ tenant: tenantId, reason: decision.reason });
-        reply.header('X-Tenant-Id', tenantId);
-        if (decision.reason === 'per_request') {
-          return reply.status(413).send({
-            error: {
-              message: `Request exceeds per-request prompt-token cap`,
-              type: 'token_budget_exceeded',
-              reason: 'per_request',
-              estimated_prompt_tokens: decision.estimatedPromptTokens,
-            },
-            request_id: resolveRequestId(request),
-          });
-        }
-        if (decision.retryAfterMs > 0) {
-          reply.header('Retry-After', String(Math.ceil(decision.retryAfterMs / 1000)));
-        }
-        return reply.status(429).send({
+  fastify.post(
+    "/v1/chat/completions",
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const body = request.body as ChatCompletionRequest;
+      if (!body?.messages || body.messages.length === 0) {
+        return reply.status(400).send({
           error: {
-            message: `Tenant "${tenantId}" has reached its daily token budget`,
-            type: 'token_budget_exceeded',
-            reason: 'per_tenant_daily',
-            tenant_daily_tokens: decision.tenantDailyBefore,
-            retry_after_ms: decision.retryAfterMs,
+            message: "缺少 messages 字段",
+            type: "invalid_request_error",
           },
           request_id: resolveRequestId(request),
         });
       }
-      // Stash the pre-flight estimate so the handler can pass it
-      // to `tokenBudget.record()` after the upstream returns.
-      (
-        ctx as RouteContext & { _tokenEstimate?: { promptTokens: number } }
-      )._tokenEstimate = { promptTokens: decision.estimatedPromptTokens };
-    }
 
-    const provider = registry.getProvider(route.provider);
-    if (!provider) {
-      return reply.status(502).send({
-        error: {
-          message: `Provider "${route.provider}" 不可用`,
-          type: 'provider_error',
-        },
-        request_id: resolveRequestId(request),
-      });
-    }
+      const startTime = Date.now();
+      const originalModel = body.model;
+      const taskType = routeEngine.classifyTask(body.messages);
+      const route = routeEngine.route(taskType, originalModel);
+      const tenantId = resolveTenantId(request);
 
-    const routedRequest: ChatCompletionRequest = {
-      ...body,
-      model: route.model,
-    };
+      const ctx: RouteContext = {
+        originalModel,
+        route,
+        taskType,
+        startTime,
+        routeEngine,
+        storage,
+        config,
+        requestId: resolveRequestId(request),
+        tenantId,
+        metrics,
+        tenantTracker,
+        cache: options.cache,
+        tokenBudget,
+      };
 
-    try {
-      if (body.stream) {
-        return await handleStreaming(provider, routedRequest, reply, ctx);
-      } else {
-        return await handleNonStreaming(provider, routedRequest, reply, ctx);
+      // Token budget pre-flight. Runs before provider lookup so a
+      // tenant that has already exhausted its daily budget is not
+      // even charged the cost of constructing a RouteContext. The
+      // decision is informational (recorded on the metrics bundle)
+      // but the prompt is never sent upstream on a rejection.
+      if (tokenBudget) {
+        const decision = tokenBudget.check(
+          tenantId,
+          body.messages,
+          route.model,
+        );
+        if (!decision.allowed) {
+          metrics.tokenBudgetRejections.inc({
+            tenant: tenantId,
+            reason: decision.reason,
+          });
+          reply.header("X-Tenant-Id", tenantId);
+          if (decision.reason === "per_request") {
+            return reply.status(413).send({
+              error: {
+                message: `Request exceeds per-request prompt-token cap`,
+                type: "token_budget_exceeded",
+                reason: "per_request",
+                estimated_prompt_tokens: decision.estimatedPromptTokens,
+              },
+              request_id: resolveRequestId(request),
+            });
+          }
+          if (decision.retryAfterMs > 0) {
+            reply.header(
+              "Retry-After",
+              String(Math.ceil(decision.retryAfterMs / 1000)),
+            );
+          }
+          return reply.status(429).send({
+            error: {
+              message: `Tenant "${tenantId}" has reached its daily token budget`,
+              type: "token_budget_exceeded",
+              reason: "per_tenant_daily",
+              tenant_daily_tokens: decision.tenantDailyBefore,
+              retry_after_ms: decision.retryAfterMs,
+            },
+            request_id: resolveRequestId(request),
+          });
+        }
+        // Stash the pre-flight estimate so the handler can pass it
+        // to `tokenBudget.record()` after the upstream returns.
+        (
+          ctx as RouteContext & { _tokenEstimate?: { promptTokens: number } }
+        )._tokenEstimate = { promptTokens: decision.estimatedPromptTokens };
       }
-    } catch (error) {
-      return await handleErrorFallback(
-        error,
-        registry,
-        provider,
-        routedRequest,
-        reply,
-        request,
-        ctx,
-      );
-    }
-  });
+
+      const provider = registry.getProvider(route.provider);
+      if (!provider) {
+        return reply.status(502).send({
+          error: {
+            message: `Provider "${route.provider}" 不可用`,
+            type: "provider_error",
+          },
+          request_id: resolveRequestId(request),
+        });
+      }
+
+      const routedRequest: ChatCompletionRequest = {
+        ...body,
+        model: route.model,
+      };
+
+      try {
+        if (body.stream) {
+          return await handleStreaming(provider, routedRequest, reply, ctx);
+        } else {
+          return await handleNonStreaming(provider, routedRequest, reply, ctx);
+        }
+      } catch (error) {
+        return await handleErrorFallback(
+          error,
+          registry,
+          provider,
+          routedRequest,
+          reply,
+          request,
+          ctx,
+        );
+      }
+    },
+  );
 
   /**
    * POST /v1/models - 列出可用模型
    */
-  fastify.get('/v1/models', async () => {
-    const models: { id: string; object: string; created: number; owned_by: string }[] = [];
+  fastify.get("/v1/models", async () => {
+    const models: {
+      id: string;
+      object: string;
+      created: number;
+      owned_by: string;
+    }[] = [];
     for (const [providerName, provider] of registry.getAllProviders()) {
       for (const modelId of provider.getModels()) {
         models.push({
           id: modelId,
-          object: 'model',
+          object: "model",
           created: Math.floor(Date.now() / 1000),
           owned_by: providerName,
         });
       }
     }
-    return { object: 'list', data: models };
+    return { object: "list", data: models };
   });
 
   /**
@@ -539,11 +604,11 @@ export async function createProxyServer(options: ProxyServerOptions): Promise<Fa
    * NOT gate this on upstream provider health — a transient OpenAI
    * outage should not get the pod killed and restarted.
    */
-  fastify.get('/health', async () => {
+  fastify.get("/health", async () => {
     const health = await registry.healthCheckAll();
     const allHealthy = Object.values(health).every((v) => v);
     return {
-      status: allHealthy ? 'ok' : 'degraded',
+      status: allHealthy ? "ok" : "degraded",
       providers: health,
       timestamp: Date.now(),
     };
@@ -559,18 +624,18 @@ export async function createProxyServer(options: ProxyServerOptions): Promise<Fa
    * before the new pod is ready, so the old pod keeps receiving
    * traffic until it's drained.
    */
-  fastify.get('/readyz', async (_request, reply) => {
+  fastify.get("/readyz", async (_request, reply) => {
     if (!readiness.hasStarted()) {
       return reply.status(503).send({
         ready: false,
-        reason: 'starting',
+        reason: "starting",
         timestamp: Date.now(),
       });
     }
     if (readiness.isShuttingDown()) {
       return reply.status(503).send({
         ready: false,
-        reason: 'shutting_down',
+        reason: "shutting_down",
         timestamp: Date.now(),
       });
     }
@@ -579,7 +644,7 @@ export async function createProxyServer(options: ProxyServerOptions): Promise<Fa
     if (!allHealthy) {
       return reply.status(503).send({
         ready: false,
-        reason: 'upstream_unhealthy',
+        reason: "upstream_unhealthy",
         providers: health,
         timestamp: Date.now(),
       });
@@ -595,8 +660,8 @@ export async function createProxyServer(options: ProxyServerOptions): Promise<Fa
    * metrics are read-only operational data; no upstream secrets or
    * request bodies are exposed.
    */
-  fastify.get('/metrics', async (_request, reply) => {
-    reply.type('text/plain; version=0.0.4; charset=utf-8');
+  fastify.get("/metrics", async (_request, reply) => {
+    reply.type("text/plain; version=0.0.4; charset=utf-8");
     return await metrics.register.metrics();
   });
 
@@ -610,22 +675,25 @@ export async function createProxyServer(options: ProxyServerOptions): Promise<Fa
    * Bearer-token flow; the response body is intentionally
    * aggregate-only (no per-request cost data).
    */
-  fastify.get('/v1/tenants/cost', async (request: FastifyRequest, reply: FastifyReply) => {
-    const query = request.query as { tenant?: string };
-    const wanted = query.tenant ?? 'default';
-    if (wanted === 'all') {
+  fastify.get(
+    "/v1/tenants/cost",
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const query = request.query as { tenant?: string };
+      const wanted = query.tenant ?? "default";
+      if (wanted === "all") {
+        return reply.send({
+          config: tenantTracker.getConfig(),
+          tenants: await collectAllTenantSnapshots(tenantTracker),
+        });
+      }
+      const snap = await tenantTracker.snapshot(wanted);
       return reply.send({
         config: tenantTracker.getConfig(),
-        tenants: await collectAllTenantSnapshots(tenantTracker),
+        tenant: wanted,
+        ...(snap ?? { dailyUsd: 0, thresholdUsd: 0, circuitOpen: false }),
       });
-    }
-    const snap = await tenantTracker.snapshot(wanted);
-    return reply.send({
-      config: tenantTracker.getConfig(),
-      tenant: wanted,
-      ...(snap ?? { dailyUsd: 0, thresholdUsd: 0, circuitOpen: false }),
-    });
-  });
+    },
+  );
 
   /**
    * POST /v1/tenants/:id/reset-circuit - Reset a single tenant's
@@ -636,12 +704,16 @@ export async function createProxyServer(options: ProxyServerOptions): Promise<Fa
    * is auth-gated; the request body is ignored.
    */
   fastify.post<{ Params: { id: string } }>(
-    '/v1/tenants/:id/reset-circuit',
+    "/v1/tenants/:id/reset-circuit",
     async (request, reply) => {
       const tenantId = request.params.id;
-      if (typeof tenantId !== 'string' || tenantId.length === 0 || tenantId.length > 64) {
+      if (
+        typeof tenantId !== "string" ||
+        tenantId.length === 0 ||
+        tenantId.length > 64
+      ) {
         return reply.status(400).send({
-          error: { message: 'Invalid tenant id', type: 'invalid_request' },
+          error: { message: "Invalid tenant id", type: "invalid_request" },
         });
       }
       await tenantTracker.reset(tenantId);
@@ -659,27 +731,35 @@ export async function createProxyServer(options: ProxyServerOptions): Promise<Fa
    * gets a 200 so dashboards can render an "unconfigured" state
    * without special-casing 404s.
    */
-  fastify.get('/v1/tenants/tokens', async (request: FastifyRequest, reply: FastifyReply) => {
-    const query = request.query as { tenant?: string };
-    const wanted = query.tenant ?? 'default';
-    if (!tokenBudget) {
-      return reply.send({ enabled: false, tenants: [] });
-    }
-    if (wanted === 'all') {
+  fastify.get(
+    "/v1/tenants/tokens",
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const query = request.query as { tenant?: string };
+      const wanted = query.tenant ?? "default";
+      if (!tokenBudget) {
+        return reply.send({ enabled: false, tenants: [] });
+      }
+      if (wanted === "all") {
+        return reply.send({
+          enabled: true,
+          config: tokenBudget.getConfig(),
+          tenants: tokenBudget.snapshotAll(),
+        });
+      }
+      const snap = tokenBudget.snapshot(wanted);
       return reply.send({
         enabled: true,
         config: tokenBudget.getConfig(),
-        tenants: tokenBudget.snapshotAll(),
+        tenant: wanted,
+        ...(snap ?? {
+          dailyTokens: 0,
+          dailyResetAt: 0,
+          circuitOpenUntil: 0,
+          percentOfDailyBudget: 0,
+        }),
       });
-    }
-    const snap = tokenBudget.snapshot(wanted);
-    return reply.send({
-      enabled: true,
-      config: tokenBudget.getConfig(),
-      tenant: wanted,
-      ...(snap ?? { dailyTokens: 0, dailyResetAt: 0, circuitOpenUntil: 0, percentOfDailyBudget: 0 }),
-    });
-  });
+    },
+  );
 
   /**
    * POST /v1/tenants/:id/reset-token-budget - Reset a single
@@ -687,17 +767,24 @@ export async function createProxyServer(options: ProxyServerOptions): Promise<Fa
    * `reset-circuit` for the token budget. Auth-gated.
    */
   fastify.post<{ Params: { id: string } }>(
-    '/v1/tenants/:id/reset-token-budget',
+    "/v1/tenants/:id/reset-token-budget",
     async (request, reply) => {
       if (!tokenBudget) {
         return reply.status(400).send({
-          error: { message: 'Token budget enforcer is not configured', type: 'unconfigured' },
+          error: {
+            message: "Token budget enforcer is not configured",
+            type: "unconfigured",
+          },
         });
       }
       const tenantId = request.params.id;
-      if (typeof tenantId !== 'string' || tenantId.length === 0 || tenantId.length > 64) {
+      if (
+        typeof tenantId !== "string" ||
+        tenantId.length === 0 ||
+        tenantId.length > 64
+      ) {
         return reply.status(400).send({
-          error: { message: 'Invalid tenant id', type: 'invalid_request' },
+          error: { message: "Invalid tenant id", type: "invalid_request" },
         });
       }
       tokenBudget.reset(tenantId);
@@ -720,98 +807,109 @@ export async function createProxyServer(options: ProxyServerOptions): Promise<Fa
    * POST /v1/guard/verify - 异步验证代码
    * 对 AI 生成的代码进行幻觉检测、AST差异分析和置信度评分
    */
-  fastify.post('/v1/guard/verify', async (request: FastifyRequest, reply: FastifyReply) => {
-    const body = request.body as {
-      path?: string;
-      code?: string;
-      language?: string;
-      diff?: { base: string; head: string };
-      staged?: boolean;
-      skipTests?: boolean;
-    };
+  fastify.post(
+    "/v1/guard/verify",
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const body = request.body as {
+        path?: string;
+        code?: string;
+        language?: string;
+        diff?: { base: string; head: string };
+        staged?: boolean;
+        skipTests?: boolean;
+      };
 
-    if (!config.guard.enabled) {
-      return reply.status(400).send({
-        error: {
-          message: 'CodeGuard 未启用，请在配置中设置 guard.enabled = true',
-          type: 'guard_disabled',
-        },
-      });
-    }
-
-    const verifier = new Verifier(storage);
-
-    try {
-      // 如果提供了代码片段，直接进行幻觉检测
-      if (body.code && body.language) {
-        const { HallucinationDetector } = await import('../guard/hallucination.js');
-        const detector = new HallucinationDetector(storage);
-        const hallucinations = detector.detect(
-          body.code,
-          body.language as Language,
-          process.cwd(),
-        );
-
-        const report: VerificationReport = {
-          id: `cg_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`,
-          timestamp: Date.now(),
-          options: { format: 'json' },
-          files_checked: ['inline-code'],
-          diffResults: [],
-          hallucinations,
-          testResult: undefined,
-          confidence: {
-            overall:
-              hallucinations.length === 0 ? 100 : Math.max(0, 100 - hallucinations.length * 15),
-            verdict:
-              hallucinations.length === 0
-                ? 'TRUST'
-                : hallucinations.some((h) => h.severity === 'high' || h.severity === 'critical')
-                  ? 'REJECT'
-                  : 'REVIEW',
-            dimensions: {
-              diffSafety: 100,
-              hallucinationFree:
-                hallucinations.length === 0 ? 100 : Math.max(0, 100 - hallucinations.length * 20),
-              testPassRate: 100,
-              typeCheck: 100,
-            },
-            riskFactors: hallucinations.map((h) => h.message),
+      if (!config.guard.enabled) {
+        return reply.status(400).send({
+          error: {
+            message: "CodeGuard 未启用，请在配置中设置 guard.enabled = true",
+            type: "guard_disabled",
           },
-          summary:
-            hallucinations.length === 0
-              ? '未检测到幻觉问题'
-              : `检测到 ${hallucinations.length} 个潜在问题`,
-        };
-
-        if (storage) {
-          storage.recordVerification(report);
-        }
-
-        return reply.send(report);
+        });
       }
 
-      // 否则按路径验证
-      const report = await verifier.verify({
-        path: body.path || process.cwd(),
-        diff: body.diff,
-        staged: body.staged,
-        noTest: body.skipTests ?? true,
-      });
+      const verifier = new Verifier(storage);
 
-      return reply.send(report);
-    } catch (error: unknown) {
-      const errMsg = error instanceof Error ? error.message : String(error);
-      return reply.status(500).send({
-        error: { message: `验证失败: ${errMsg}`, type: 'guard_error' },
-      });
-    }
-  });
+      try {
+        // 如果提供了代码片段，直接进行幻觉检测
+        if (body.code && body.language) {
+          const { HallucinationDetector } =
+            await import("../guard/hallucination.js");
+          const detector = new HallucinationDetector(storage);
+          const hallucinations = detector.detect(
+            body.code,
+            body.language as Language,
+            process.cwd(),
+          );
+
+          const report: VerificationReport = {
+            id: `cg_${Date.now()}_${crypto.randomBytes(4).toString("hex")}`,
+            timestamp: Date.now(),
+            options: { format: "json" },
+            files_checked: ["inline-code"],
+            diffResults: [],
+            hallucinations,
+            testResult: undefined,
+            confidence: {
+              overall:
+                hallucinations.length === 0
+                  ? 100
+                  : Math.max(0, 100 - hallucinations.length * 15),
+              verdict:
+                hallucinations.length === 0
+                  ? "TRUST"
+                  : hallucinations.some(
+                        (h) =>
+                          h.severity === "high" || h.severity === "critical",
+                      )
+                    ? "REJECT"
+                    : "REVIEW",
+              dimensions: {
+                diffSafety: 100,
+                hallucinationFree:
+                  hallucinations.length === 0
+                    ? 100
+                    : Math.max(0, 100 - hallucinations.length * 20),
+                testPassRate: 100,
+                typeCheck: 100,
+              },
+              riskFactors: hallucinations.map((h) => h.message),
+            },
+            summary:
+              hallucinations.length === 0
+                ? "未检测到幻觉问题"
+                : `检测到 ${hallucinations.length} 个潜在问题`,
+          };
+
+          if (storage) {
+            storage.recordVerification(report);
+          }
+
+          return reply.send(report);
+        }
+
+        // 否则按路径验证
+        const report = await verifier.verify({
+          path: body.path || process.cwd(),
+          diff: body.diff,
+          staged: body.staged,
+          noTest: body.skipTests ?? true,
+        });
+
+        return reply.send(report);
+      } catch (error: unknown) {
+        const errMsg = error instanceof Error ? error.message : String(error);
+        return reply.status(500).send({
+          error: { message: `验证失败: ${errMsg}`, type: "guard_error" },
+        });
+      }
+    },
+  );
 
   /**
    * GET /v1/guard/rules - 获取自定义幻觉检测规则
    */
-  fastify.get('/v1/guard/rules', async (request: FastifyRequest) => {
+  fastify.get("/v1/guard/rules", async (request: FastifyRequest) => {
     const query = request.query as { language?: string };
     if (!storage) {
       return { rules: [] };
@@ -823,36 +921,42 @@ export async function createProxyServer(options: ProxyServerOptions): Promise<Fa
   /**
    * POST /v1/guard/rules - 添加自定义幻觉检测规则
    */
-  fastify.post('/v1/guard/rules', async (request: FastifyRequest, reply: FastifyReply) => {
-    const body = request.body as {
-      category: string;
-      pattern: string;
-      language?: string;
-      severity?: string;
-      message: string;
-      suggestion?: string;
-    };
+  fastify.post(
+    "/v1/guard/rules",
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const body = request.body as {
+        category: string;
+        pattern: string;
+        language?: string;
+        severity?: string;
+        message: string;
+        suggestion?: string;
+      };
 
-    if (!storage) {
-      return reply.status(400).send({
-        error: { message: '存储未初始化', type: 'storage_error' },
-      });
-    }
+      if (!storage) {
+        return reply.status(400).send({
+          error: { message: "存储未初始化", type: "storage_error" },
+        });
+      }
 
-    if (!body.category || !body.pattern || !body.message) {
-      return reply.status(400).send({
-        error: { message: '缺少必要字段: category, pattern, message', type: 'invalid_request' },
-      });
-    }
+      if (!body.category || !body.pattern || !body.message) {
+        return reply.status(400).send({
+          error: {
+            message: "缺少必要字段: category, pattern, message",
+            type: "invalid_request",
+          },
+        });
+      }
 
-    storage.addHallucinationRule(body);
-    return reply.send({ success: true });
-  });
+      storage.addHallucinationRule(body);
+      return reply.send({ success: true });
+    },
+  );
 
   /**
    * GET /v1/guard/trusted-packages - 获取可信包列表
    */
-  fastify.get('/v1/guard/trusted-packages', async (request: FastifyRequest) => {
+  fastify.get("/v1/guard/trusted-packages", async (request: FastifyRequest) => {
     const query = request.query as { language?: string };
     if (!storage) {
       return { packages: [] };
@@ -865,19 +969,19 @@ export async function createProxyServer(options: ProxyServerOptions): Promise<Fa
    * POST /v1/guard/trusted-packages - 添加可信包
    */
   fastify.post(
-    '/v1/guard/trusted-packages',
+    "/v1/guard/trusted-packages",
     async (request: FastifyRequest, reply: FastifyReply) => {
       const body = request.body as { name: string; language?: string };
 
       if (!storage) {
         return reply.status(400).send({
-          error: { message: '存储未初始化', type: 'storage_error' },
+          error: { message: "存储未初始化", type: "storage_error" },
         });
       }
 
       if (!body.name) {
         return reply.status(400).send({
-          error: { message: '缺少必要字段: name', type: 'invalid_request' },
+          error: { message: "缺少必要字段: name", type: "invalid_request" },
         });
       }
 
@@ -885,6 +989,25 @@ export async function createProxyServer(options: ProxyServerOptions): Promise<Fa
       return reply.send({ success: true });
     },
   );
+
+  // Register cleanup hook — called when fastify.close() is invoked.
+  // Ensures LLMCache SQLite and Redis connections are released on shutdown.
+  fastify.addHook("onClose", async () => {
+    if (options.cache) {
+      try {
+        options.cache.close();
+      } catch {
+        // Ignore close errors during shutdown
+      }
+    }
+    if (redis) {
+      try {
+        await redis.quit();
+      } catch {
+        // Ignore quit errors during shutdown
+      }
+    }
+  });
 
   // Flip the readiness flag right before returning. From this point on,
   // /readyz will return 200 (assuming upstream providers are healthy).
@@ -947,15 +1070,22 @@ async function handleNonStreaming(
   // `aide_cache_hits_total{model="..."}` so dashboards can attribute
   // the savings back to the model.
   if (ctx.cache) {
-    const requestHash = computeRequestHash(ctx.route.model, request.messages, request);
+    const requestHash = computeRequestHash(
+      ctx.route.model,
+      request.messages,
+      request,
+    );
     const hit = ctx.cache.lookup(ctx.route.model, requestHash);
     if (hit) {
       ctx.metrics.cacheHits.inc({ model: ctx.route.model });
-      reply.header('X-Routed-Model', ctx.route.model);
-      reply.header('X-Routed-Provider', ctx.route.provider);
-      reply.header('X-Task-Type', ctx.taskType);
-      reply.header('X-Cache', 'HIT');
-      reply.header('X-Cache-Age-Ms', String(Math.max(0, Date.now() - hit.createdAt)));
+      reply.header("X-Routed-Model", ctx.route.model);
+      reply.header("X-Routed-Provider", ctx.route.provider);
+      reply.header("X-Task-Type", ctx.taskType);
+      reply.header("X-Cache", "HIT");
+      reply.header(
+        "X-Cache-Age-Ms",
+        String(Math.max(0, Date.now() - hit.createdAt)),
+      );
       return reply.send(hit.response);
     }
     // Cache miss is counted in metrics; the lookup() call already
@@ -964,12 +1094,15 @@ async function handleNonStreaming(
     ctx.metrics.cacheMisses.inc({ model: ctx.route.model });
     // Stash the hash on the context so the post-call store() can
     // avoid recomputing it.
-    (ctx as RouteContext & { _cacheRequestHash?: string })._cacheRequestHash = requestHash;
+    (ctx as RouteContext & { _cacheRequestHash?: string })._cacheRequestHash =
+      requestHash;
   }
 
-  const callOpts: ProviderCallOptions = { requestHeaders: { 'X-Request-Id': ctx.requestId } };
+  const callOpts: ProviderCallOptions = {
+    requestHeaders: { "X-Request-Id": ctx.requestId },
+  };
   const upstreamStartNs = process.hrtime.bigint();
-  let upstreamOutcome: 'success' | 'error' | 'timeout' = 'success';
+  let upstreamOutcome: "success" | "error" | "timeout" = "success";
   try {
     const response = await provider.chatCompletion(request, callOpts);
     const latency = Date.now() - ctx.startTime;
@@ -979,8 +1112,16 @@ async function handleNonStreaming(
     // surface a Prometheus sample for the dashboard. Falls back to
     // the pre-flight estimate when the upstream omits `usage`.
     if (ctx.tokenBudget && response.usage) {
-      const estimate = (ctx as RouteContext & { _tokenEstimate?: { promptTokens: number }; _cacheRequestHash?: string })._tokenEstimate ?? {
-        promptTokens: ctx.tokenBudget.estimate(request.messages, ctx.route.model),
+      const estimate = (
+        ctx as RouteContext & {
+          _tokenEstimate?: { promptTokens: number };
+          _cacheRequestHash?: string;
+        }
+      )._tokenEstimate ?? {
+        promptTokens: ctx.tokenBudget.estimate(
+          request.messages,
+          ctx.route.model,
+        ),
       };
       ctx.tokenBudget.record(
         ctx.tenantId,
@@ -992,11 +1133,15 @@ async function handleNonStreaming(
         estimate,
       );
       ctx.metrics.tokensProcessed.inc(
-        { tenant: ctx.tenantId, model: ctx.route.model, direction: 'prompt' },
+        { tenant: ctx.tenantId, model: ctx.route.model, direction: "prompt" },
         response.usage.prompt_tokens,
       );
       ctx.metrics.tokensProcessed.inc(
-        { tenant: ctx.tenantId, model: ctx.route.model, direction: 'completion' },
+        {
+          tenant: ctx.tenantId,
+          model: ctx.route.model,
+          direction: "completion",
+        },
         response.usage.completion_tokens,
       );
       const snap = ctx.tokenBudget.snapshot(ctx.tenantId);
@@ -1010,8 +1155,10 @@ async function handleNonStreaming(
     // before the bookkeeping below so a cache-store failure does
     // not affect the response the user sees.
     if (ctx.cache) {
-      const stash = (ctx as RouteContext & { _cacheRequestHash?: string })._cacheRequestHash;
-      const hash = stash ?? computeRequestHash(ctx.route.model, request.messages, request);
+      const stash = (ctx as RouteContext & { _cacheRequestHash?: string })
+        ._cacheRequestHash;
+      const hash =
+        stash ?? computeRequestHash(ctx.route.model, request.messages, request);
       ctx.cache.store(ctx.route.model, hash, response, {
         promptTokens: response.usage?.prompt_tokens,
         completionTokens: response.usage?.completion_tokens,
@@ -1028,7 +1175,12 @@ async function handleNonStreaming(
         ctx.route.model,
         ctx.taskType,
       );
-        await recordTenantSpend(ctx.tenantTracker, ctx.metrics, ctx.tenantId, costUsd);
+      await recordTenantSpend(
+        ctx.tenantTracker,
+        ctx.metrics,
+        ctx.tenantId,
+        costUsd,
+      );
     }
 
     // 记录路由日志
@@ -1053,15 +1205,15 @@ async function handleNonStreaming(
     );
 
     // 在响应中添加路由信息头
-    reply.header('X-Routed-Model', ctx.route.model);
-    reply.header('X-Routed-Provider', ctx.route.provider);
-    reply.header('X-Task-Type', ctx.taskType);
-    reply.header('X-Latency-Ms', latency.toString());
-    reply.header('X-Cache', 'MISS');
+    reply.header("X-Routed-Model", ctx.route.model);
+    reply.header("X-Routed-Provider", ctx.route.provider);
+    reply.header("X-Task-Type", ctx.taskType);
+    reply.header("X-Latency-Ms", latency.toString());
+    reply.header("X-Cache", "MISS");
 
     return reply.send(response);
   } catch (err) {
-    upstreamOutcome = err instanceof UpstreamTimeoutError ? 'timeout' : 'error';
+    upstreamOutcome = err instanceof UpstreamTimeoutError ? "timeout" : "error";
     throw err;
   } finally {
     const seconds = Number(process.hrtime.bigint() - upstreamStartNs) / 1e9;
@@ -1092,23 +1244,23 @@ async function handleStreaming(
 ): Promise<FastifyReply> {
   // 设置 SSE 响应头 — 此调用之后 reply.send() 不再可用。
   reply.raw.writeHead(200, {
-    'Content-Type': 'text/event-stream',
-    'Cache-Control': 'no-cache',
-    Connection: 'keep-alive',
-    'X-Routed-Model': ctx.route.model,
-    'X-Routed-Provider': ctx.route.provider,
-    'X-Task-Type': ctx.taskType,
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    Connection: "keep-alive",
+    "X-Routed-Model": ctx.route.model,
+    "X-Routed-Provider": ctx.route.provider,
+    "X-Task-Type": ctx.taskType,
   });
 
   const upstreamStartNs = process.hrtime.bigint();
-  let upstreamOutcome: 'success' | 'error' | 'timeout' = 'success';
+  let upstreamOutcome: "success" | "error" | "timeout" = "success";
 
   try {
     const stream = provider.streamChatCompletion(request, {
-      requestHeaders: { 'X-Request-Id': ctx.requestId },
+      requestHeaders: { "X-Request-Id": ctx.requestId },
     });
     let lastUsageEvent: SSEEvent | null = null;
-    let completionText = '';
+    let completionText = "";
     const MAX_COMPLETION_TEXT_LENGTH = 100000; // 限制累积文本长度，防止内存溢出
 
     // 包装流以提取 usage 和文本内容
@@ -1145,7 +1297,9 @@ async function handleStreaming(
 
     if (!usage) {
       // 估算 token 使用量
-      const promptText = request.messages.map((m: ChatMessage) => m.content).join('');
+      const promptText = request.messages
+        .map((m: ChatMessage) => m.content)
+        .join("");
       usage = estimateTokenUsage(promptText, completionText);
     }
 
@@ -1158,7 +1312,12 @@ async function handleStreaming(
         ctx.route.model,
         ctx.taskType,
       );
-        await recordTenantSpend(ctx.tenantTracker, ctx.metrics, ctx.tenantId, costUsd);
+      await recordTenantSpend(
+        ctx.tenantTracker,
+        ctx.metrics,
+        ctx.tenantId,
+        costUsd,
+      );
       ctx.storage.recordRouteLog(
         ctx.taskType,
         ctx.originalModel,
@@ -1176,21 +1335,33 @@ async function handleStreaming(
     // update the per-tenant daily counter so the next request sees
     // the latest usage.
     if (ctx.tokenBudget) {
-      const estimate = (ctx as RouteContext & { _tokenEstimate?: { promptTokens: number } })._tokenEstimate ?? {
-        promptTokens: ctx.tokenBudget.estimate(request.messages, ctx.route.model),
+      const estimate = (
+        ctx as RouteContext & { _tokenEstimate?: { promptTokens: number } }
+      )._tokenEstimate ?? {
+        promptTokens: ctx.tokenBudget.estimate(
+          request.messages,
+          ctx.route.model,
+        ),
       };
       ctx.tokenBudget.record(
         ctx.tenantId,
         ctx.route.model,
-        { promptTokens: usage.prompt_tokens, completionTokens: usage.completion_tokens },
+        {
+          promptTokens: usage.prompt_tokens,
+          completionTokens: usage.completion_tokens,
+        },
         estimate,
       );
       ctx.metrics.tokensProcessed.inc(
-        { tenant: ctx.tenantId, model: ctx.route.model, direction: 'prompt' },
+        { tenant: ctx.tenantId, model: ctx.route.model, direction: "prompt" },
         usage.prompt_tokens,
       );
       ctx.metrics.tokensProcessed.inc(
-        { tenant: ctx.tenantId, model: ctx.route.model, direction: 'completion' },
+        {
+          tenant: ctx.tenantId,
+          model: ctx.route.model,
+          direction: "completion",
+        },
         usage.completion_tokens,
       );
       const snap = ctx.tokenBudget.snapshot(ctx.tenantId);
@@ -1211,7 +1382,7 @@ async function handleStreaming(
     // The reply object is already invalidated by writeHead; we return a sentinel.
     return reply;
   } catch (err) {
-    upstreamOutcome = err instanceof UpstreamTimeoutError ? 'timeout' : 'error';
+    upstreamOutcome = err instanceof UpstreamTimeoutError ? "timeout" : "error";
     throw err;
   } finally {
     const seconds = Number(process.hrtime.bigint() - upstreamStartNs) / 1e9;
@@ -1272,16 +1443,23 @@ async function handleErrorFallback(
 
   request.log.error(
     { error: errMsg, provider: ctx.route.provider, model: ctx.route.model },
-    '请求失败',
+    "请求失败",
   );
 
   // Try the next-best route. If the primary provider wasn't the one that
   // threw (e.g. provider lookup failed), the fallback may still succeed.
-  const fallbackRoute = getNextRoute(ctx.routeEngine, ctx.taskType, ctx.route.model);
+  const fallbackRoute = getNextRoute(
+    ctx.routeEngine,
+    ctx.taskType,
+    ctx.route.model,
+  );
   if (fallbackRoute) {
     const fallbackProvider = registry.getProvider(fallbackRoute.provider);
     if (fallbackProvider && fallbackProvider !== primaryProvider) {
-      request.log.info({ from: ctx.route.model, to: fallbackRoute.model }, '尝试回退路由');
+      request.log.info(
+        { from: ctx.route.model, to: fallbackRoute.model },
+        "尝试回退路由",
+      );
       const fallbackRequest = { ...routedRequest, model: fallbackRoute.model };
       const fallbackCtx: RouteContext = {
         ...ctx,
@@ -1294,12 +1472,22 @@ async function handleErrorFallback(
           // The previous primary error did NOT get to write headers (the
           // error happened before writeHead), so the client has not seen
           // any 200 yet — they only see this fallback's 200.
-          return await handleStreaming(fallbackProvider, fallbackRequest, reply, fallbackCtx);
+          return await handleStreaming(
+            fallbackProvider,
+            fallbackRequest,
+            reply,
+            fallbackCtx,
+          );
         } else {
-          return await handleNonStreaming(fallbackProvider, fallbackRequest, reply, fallbackCtx);
+          return await handleNonStreaming(
+            fallbackProvider,
+            fallbackRequest,
+            reply,
+            fallbackCtx,
+          );
         }
       } catch (fallbackError) {
-        request.log.error({ error: fallbackError }, '回退路由也失败');
+        request.log.error({ error: fallbackError }, "回退路由也失败");
         // Fall through to the final 502/500 below.
       }
     }
@@ -1312,11 +1500,14 @@ async function handleErrorFallback(
     // error event and close the stream cleanly.
     try {
       reply.raw.write(
-        `event: error\ndata: ${JSON.stringify({ error: { message: `模型请求失败: ${errMsg}`, type: 'upstream_error' } })}\n\n`,
+        `event: error\ndata: ${JSON.stringify({ error: { message: `模型请求失败: ${errMsg}`, type: "upstream_error" } })}\n\n`,
       );
       reply.raw.end();
     } catch (writeErr) {
-      request.log.error({ error: writeErr }, 'Failed to write SSE error after fallback exhaustion');
+      request.log.error(
+        { error: writeErr },
+        "Failed to write SSE error after fallback exhaustion",
+      );
     }
     return reply;
   }
@@ -1325,7 +1516,7 @@ async function handleErrorFallback(
   return reply.status(502).send({
     error: {
       message: `模型请求失败: ${errMsg}`,
-      type: 'upstream_error',
+      type: "upstream_error",
     },
   });
 }
@@ -1412,7 +1603,11 @@ export function getNextRoute(
   currentModel: string,
 ): { provider: string; model: string } | null {
   // 使用不同策略重试
-  const strategies: ('cost' | 'quality' | 'balanced')[] = ['balanced', 'cost', 'quality'];
+  const strategies: ("cost" | "quality" | "balanced")[] = [
+    "balanced",
+    "cost",
+    "quality",
+  ];
   for (const strategy of strategies) {
     const route = routeEngine.route(taskType, currentModel, strategy);
     if (route.model !== currentModel) {
@@ -1425,7 +1620,9 @@ export function getNextRoute(
 /** Collect every tracked tenant into a JSON-friendly array. The
  *  internal `Map` is not exposed directly so the response shape
  *  stays stable across internal refactors. */
-async function collectAllTenantSnapshots(tracker: TenantCostTracker | RedisTenantCostTracker) {
+async function collectAllTenantSnapshots(
+  tracker: TenantCostTracker | RedisTenantCostTracker,
+) {
   return tracker.snapshotAll();
 }
 
@@ -1438,10 +1635,15 @@ export async function startProxyServer(
   registry?: ProviderRegistry,
   routeEngine?: RouteEngine,
 ): Promise<FastifyInstance> {
-  const server = await createProxyServer({ config, storage, registry, routeEngine });
+  const server = await createProxyServer({
+    config,
+    storage,
+    registry,
+    routeEngine,
+  });
   const port = config.server.port;
 
-  await server.listen({ port, host: '127.0.0.1' });
+  await server.listen({ port, host: "127.0.0.1" });
   server.log.info(`CodeShield 代理服务器已启动: http://127.0.0.1:${port}`);
 
   return server;

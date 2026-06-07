@@ -23,15 +23,15 @@
  * share the implementation), so the two APIs cannot drift.
  */
 
-import * as fs from 'fs';
-import * as fsp from 'fs/promises';
-import * as path from 'path';
-import type { Stats as FsStats } from 'fs';
+import * as fs from "fs";
+import * as fsp from "fs/promises";
+import * as path from "path";
+import type { Stats as FsStats } from "fs";
 
 /**
  * CodeGraph directory name
  */
-export const CODEGRAPH_DIR = '.codegraph';
+export const CODEGRAPH_DIR = ".codegraph";
 
 /**
  * Get the .codegraph directory path for a project
@@ -49,11 +49,14 @@ export function getCodeGraphDir(projectRoot: string): string {
  */
 export function isInitialized(projectRoot: string): boolean {
   const codegraphDir = getCodeGraphDir(projectRoot);
-  if (!fs.existsSync(codegraphDir) || !fs.statSync(codegraphDir).isDirectory()) {
+  if (
+    !fs.existsSync(codegraphDir) ||
+    !fs.statSync(codegraphDir).isDirectory()
+  ) {
     return false;
   }
   // Must have codegraph.db, not just .codegraph folder
-  const dbPath = path.join(codegraphDir, 'codegraph.db');
+  const dbPath = path.join(codegraphDir, "codegraph.db");
   return fs.existsSync(dbPath);
 }
 
@@ -61,7 +64,9 @@ export function isInitialized(projectRoot: string): boolean {
  * Async counterpart of {@link isInitialized}. Uses `node:fs/promises` and
  * is safe to call from any async context (MCP server, async tests).
  */
-export async function isInitializedAsync(projectRoot: string): Promise<boolean> {
+export async function isInitializedAsync(
+  projectRoot: string,
+): Promise<boolean> {
   const codegraphDir = getCodeGraphDir(projectRoot);
   let dirStat: FsStats | undefined;
   try {
@@ -71,7 +76,7 @@ export async function isInitializedAsync(projectRoot: string): Promise<boolean> 
   }
   if (!dirStat.isDirectory()) return false;
   try {
-    await fsp.access(path.join(codegraphDir, 'codegraph.db'));
+    await fsp.access(path.join(codegraphDir, "codegraph.db"));
     return true;
   } catch {
     return false;
@@ -113,7 +118,9 @@ export function findNearestCodeGraphRoot(startPath: string): string | null {
 /**
  * Async counterpart of {@link findNearestCodeGraphRoot}.
  */
-export async function findNearestCodeGraphRootAsync(startPath: string): Promise<string | null> {
+export async function findNearestCodeGraphRootAsync(
+  startPath: string,
+): Promise<string | null> {
   let current = path.resolve(startPath);
   const root = path.parse(current).root;
 
@@ -136,7 +143,7 @@ export async function findNearestCodeGraphRootAsync(startPath: string): Promise<
  */
 export function createDirectory(projectRoot: string): void {
   const codegraphDir = getCodeGraphDir(projectRoot);
-  const dbPath = path.join(codegraphDir, 'codegraph.db');
+  const dbPath = path.join(codegraphDir, "codegraph.db");
 
   // Only throw if CodeGraph is actually initialized (db exists)
   // .codegraph/ folder alone is fine
@@ -148,7 +155,7 @@ export function createDirectory(projectRoot: string): void {
   fs.mkdirSync(codegraphDir, { recursive: true });
 
   // Create .gitignore inside .codegraph (if it doesn't exist)
-  const gitignorePath = path.join(codegraphDir, '.gitignore');
+  const gitignorePath = path.join(codegraphDir, ".gitignore");
   if (!fs.existsSync(gitignorePath)) {
     const gitignoreContent = `# CodeGraph data files
 # These are local to each machine and should not be committed
@@ -168,7 +175,7 @@ cache/
 .dirty
 `;
 
-    fs.writeFileSync(gitignorePath, gitignoreContent, 'utf-8');
+    fs.writeFileSync(gitignorePath, gitignoreContent, "utf-8");
   }
 }
 
@@ -195,20 +202,20 @@ cache/
  */
 export async function createDirectoryAsync(projectRoot: string): Promise<void> {
   const codegraphDir = getCodeGraphDir(projectRoot);
-  const dbPath = path.join(codegraphDir, 'codegraph.db');
+  const dbPath = path.join(codegraphDir, "codegraph.db");
 
   // Only throw if CodeGraph is actually initialized (db exists)
   try {
     await fsp.access(dbPath);
     throw new Error(`CodeGraph already initialized in ${projectRoot}`);
   } catch (err) {
-    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
+    if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
     // ENOENT on the db file is the expected "not initialized" case.
   }
 
   await fsp.mkdir(codegraphDir, { recursive: true });
 
-  const gitignorePath = path.join(codegraphDir, '.gitignore');
+  const gitignorePath = path.join(codegraphDir, ".gitignore");
   let needsGitignore = true;
   try {
     await fsp.access(gitignorePath);
@@ -217,7 +224,7 @@ export async function createDirectoryAsync(projectRoot: string): Promise<void> {
     /* missing, will write */
   }
   if (needsGitignore) {
-    await fsp.writeFile(gitignorePath, DEFAULT_GITIGNORE, 'utf-8');
+    await fsp.writeFile(gitignorePath, DEFAULT_GITIGNORE, "utf-8");
   }
 }
 
@@ -262,7 +269,7 @@ export async function removeDirectoryAsync(projectRoot: string): Promise<void> {
   try {
     lstat = await fsp.lstat(codegraphDir);
   } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return; // already gone
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") return; // already gone
     throw err;
   }
 
@@ -287,7 +294,7 @@ export function listDirectoryContents(projectRoot: string): string[] {
 
   const files: string[] = [];
 
-  function walkDir(dir: string, prefix = ''): void {
+  function walkDir(dir: string, prefix = ""): void {
     const entries = fs.readdirSync(dir, { withFileTypes: true });
 
     for (const entry of entries) {
@@ -314,7 +321,9 @@ export function listDirectoryContents(projectRoot: string): string[] {
  * Async counterpart of {@link listDirectoryContents}. Recursive walk
  * with `withFileTypes` so we can skip symlinks without a second stat.
  */
-export async function listDirectoryContentsAsync(projectRoot: string): Promise<string[]> {
+export async function listDirectoryContentsAsync(
+  projectRoot: string,
+): Promise<string[]> {
   const codegraphDir = getCodeGraphDir(projectRoot);
 
   try {
@@ -324,7 +333,7 @@ export async function listDirectoryContentsAsync(projectRoot: string): Promise<s
   }
 
   const files: string[] = [];
-  async function walkDir(dir: string, prefix = ''): Promise<void> {
+  async function walkDir(dir: string, prefix = ""): Promise<void> {
     const entries = await fsp.readdir(dir, { withFileTypes: true });
     for (const entry of entries) {
       const relativePath = prefix ? `${prefix}/${entry.name}` : entry.name;
@@ -381,7 +390,9 @@ export function getDirectorySize(projectRoot: string): number {
 /**
  * Async counterpart of {@link getDirectorySize}.
  */
-export async function getDirectorySizeAsync(projectRoot: string): Promise<number> {
+export async function getDirectorySizeAsync(
+  projectRoot: string,
+): Promise<number> {
   const codegraphDir = getCodeGraphDir(projectRoot);
 
   try {
@@ -413,8 +424,15 @@ export async function getDirectorySizeAsync(projectRoot: string): Promise<number
  *
  * @deprecated Use {@link ensureSubdirectoryAsync} in non-CLI code.
  */
-export function ensureSubdirectory(projectRoot: string, subdirName: string): string {
-  if (subdirName.includes('..') || subdirName.includes(path.sep) || subdirName.includes('/')) {
+export function ensureSubdirectory(
+  projectRoot: string,
+  subdirName: string,
+): string {
+  if (
+    subdirName.includes("..") ||
+    subdirName.includes(path.sep) ||
+    subdirName.includes("/")
+  ) {
     throw new Error(`Invalid subdirectory name: ${subdirName}`);
   }
 
@@ -434,7 +452,11 @@ export async function ensureSubdirectoryAsync(
   projectRoot: string,
   subdirName: string,
 ): Promise<string> {
-  if (subdirName.includes('..') || subdirName.includes(path.sep) || subdirName.includes('/')) {
+  if (
+    subdirName.includes("..") ||
+    subdirName.includes(path.sep) ||
+    subdirName.includes("/")
+  ) {
     throw new Error(`Invalid subdirectory name: ${subdirName}`);
   }
 
@@ -456,23 +478,25 @@ export function validateDirectory(projectRoot: string): {
   const codegraphDir = getCodeGraphDir(projectRoot);
 
   if (!fs.existsSync(codegraphDir)) {
-    errors.push('CodeGraph directory does not exist');
+    errors.push("CodeGraph directory does not exist");
     return { valid: false, errors };
   }
 
   if (!fs.statSync(codegraphDir).isDirectory()) {
-    errors.push('.codegraph exists but is not a directory');
+    errors.push(".codegraph exists but is not a directory");
     return { valid: false, errors };
   }
 
   // Auto-repair missing .gitignore (non-critical file)
-  const gitignorePath = path.join(codegraphDir, '.gitignore');
+  const gitignorePath = path.join(codegraphDir, ".gitignore");
   if (!fs.existsSync(gitignorePath)) {
     try {
-      fs.writeFileSync(gitignorePath, DEFAULT_GITIGNORE, 'utf-8');
+      fs.writeFileSync(gitignorePath, DEFAULT_GITIGNORE, "utf-8");
     } catch {
       // Non-fatal: warn but don't block
-      errors.push('.gitignore missing in .codegraph directory and could not be created');
+      errors.push(
+        ".gitignore missing in .codegraph directory and could not be created",
+      );
     }
   }
 
@@ -497,21 +521,26 @@ export async function validateDirectoryAsync(projectRoot: string): Promise<{
   try {
     dirStat = await fsp.stat(codegraphDir);
   } catch {
-    return { valid: false, errors: ['CodeGraph directory does not exist'] };
+    return { valid: false, errors: ["CodeGraph directory does not exist"] };
   }
 
   if (!dirStat.isDirectory()) {
-    return { valid: false, errors: ['.codegraph exists but is not a directory'] };
+    return {
+      valid: false,
+      errors: [".codegraph exists but is not a directory"],
+    };
   }
 
-  const gitignorePath = path.join(codegraphDir, '.gitignore');
+  const gitignorePath = path.join(codegraphDir, ".gitignore");
   try {
     await fsp.access(gitignorePath);
   } catch {
     try {
-      await fsp.writeFile(gitignorePath, DEFAULT_GITIGNORE, 'utf-8');
+      await fsp.writeFile(gitignorePath, DEFAULT_GITIGNORE, "utf-8");
     } catch {
-      errors.push('.gitignore missing in .codegraph directory and could not be created');
+      errors.push(
+        ".gitignore missing in .codegraph directory and could not be created",
+      );
     }
   }
 

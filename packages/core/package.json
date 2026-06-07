@@ -10,11 +10,24 @@
   "version": "1.1.0",
   "files": [
     "dist",
+    "README.md",
     "src/db/schema.sql"
   ],
   "license": "MIT",
-  "name": "@aide/core",
+  "name": "@aide-dev/core",
   "main": "./dist/index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ldkong2077/aide-monorepo.git",
+    "directory": "packages/core"
+  },
+  "bugs": {
+    "url": "https://github.com/ldkong2077/aide-monorepo/issues"
+  },
+  "homepage": "https://github.com/ldkong2077/aide-monorepo/tree/main/packages/core#readme",
+  "publishConfig": {
+    "access": "public"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -23,16 +36,19 @@
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.0",
-    "typescript": "^5.7.0",
-    "vitest": "^3.0.0"
+    "typescript": "^5.8.0",
+    "vitest": "^3.1.0"
   },
   "dependencies": {
-    "better-sqlite3": "^11.9.0",
+    "better-sqlite3": "^12.10.0",
     "chalk": "^5.4.0",
     "dotenv": "^16.5.0",
     "gpt-tokenizer": "^3.4.0",
     "pino": "^9.6.0",
     "pino-pretty": "^13.0.0",
     "yaml": "^2.7.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
   }
 }

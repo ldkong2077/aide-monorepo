@@ -8,7 +8,7 @@
  * Format reference:
  *   https://modelcontextprotocol.io/specification/draft/server/resources
  *
- * NOTE: This module deliberately does NOT import from `@aide/graph`.
+ * NOTE: This module deliberately does NOT import from `@aide-dev/graph`.
  * The graph package does not expose `directory.ts` (sync or async) as
  * a public subpath, and pulling in the whole graph build to read a
  * config file would bloat the MCP server's cold-start. The 30 lines
@@ -16,13 +16,22 @@
  * need; if `directory.ts` ever gains a public surface, swap these for
  * the canonical helpers.
  */
-import type { Resource, ReadResourceResult } from '@modelcontextprotocol/sdk/types.js';
-import { findConfigPath, loadConfig } from '@aide/core';
-import { existsSync, promises as fsp, type Dirent as FsDirent } from 'node:fs';
-import { join } from 'node:path';
+import type {
+  Resource,
+  ReadResourceResult,
+} from "@modelcontextprotocol/sdk/types.js";
+import { findConfigPath, loadConfig } from "@aide-dev/core";
+import { PACKAGE_VERSION } from "./version.js";
+import {
+  existsSync,
+  realpathSync,
+  promises as fsp,
+  type Dirent as FsDirent,
+} from "node:fs";
+import { join } from "node:path";
 
-const CODEGRAPH_DIR = '.codegraph';
-const CODEGRAPH_DB = 'codegraph.db';
+const CODEGRAPH_DIR = ".codegraph";
+const CODEGRAPH_DB = "codegraph.db";
 
 /**
  * Resource catalogue. The URI scheme `aide://` is non-standard but the
@@ -31,22 +40,25 @@ const CODEGRAPH_DB = 'codegraph.db';
  */
 export const RESOURCES: Resource[] = [
   {
-    uri: 'aide://config',
-    name: 'AIDE Configuration',
-    description: 'The effective AIDE config (resolved from aide.config.yaml with env-var interpolation).',
-    mimeType: 'application/yaml',
+    uri: "aide://config",
+    name: "AIDE Configuration",
+    description:
+      "The effective AIDE config (resolved from aide.config.yaml with env-var interpolation).",
+    mimeType: "application/yaml",
   },
   {
-    uri: 'aide://graph/stats',
-    name: 'CodeGraph Statistics',
-    description: 'Index statistics: file count, on-disk size, initialization state. Empty if the project is not indexed.',
-    mimeType: 'application/json',
+    uri: "aide://graph/stats",
+    name: "CodeGraph Statistics",
+    description:
+      "Index statistics: file count, on-disk size, initialization state. Empty if the project is not indexed.",
+    mimeType: "application/json",
   },
   {
-    uri: 'aide://health',
-    name: 'Server Health',
-    description: 'Lightweight health check — version, uptime, and the status of optional subsystems.',
-    mimeType: 'application/json',
+    uri: "aide://health",
+    name: "Server Health",
+    description:
+      "Lightweight health check — version, uptime, and the status of optional subsystems.",
+    mimeType: "application/json",
   },
 ];
 
@@ -54,13 +66,15 @@ export const RESOURCES: Resource[] = [
  * Resolve a `resources/read` request. Returns null when the URI is
  * unknown so the caller can produce an MCP error.
  */
-export async function readResource(uri: string): Promise<ReadResourceResult | null> {
+export async function readResource(
+  uri: string,
+): Promise<ReadResourceResult | null> {
   switch (uri) {
-    case 'aide://config':
+    case "aide://config":
       return readConfig();
-    case 'aide://graph/stats':
+    case "aide://graph/stats":
       return readGraphStats();
-    case 'aide://health':
+    case "aide://health":
       return readHealth();
     default:
       return null;
@@ -83,8 +97,8 @@ async function readConfig(): Promise<ReadResourceResult> {
   return {
     contents: [
       {
-        uri: 'aide://config',
-        mimeType: 'application/yaml',
+        uri: "aide://config",
+        mimeType: "application/yaml",
         text: header + JSON.stringify(config, null, 2),
       },
     ],
@@ -92,7 +106,7 @@ async function readConfig(): Promise<ReadResourceResult> {
 }
 
 async function readGraphStats(): Promise<ReadResourceResult> {
-  const projectRoot = process.cwd();
+  const projectRoot = realpathSync(process.cwd());
   const codegraphDir = join(projectRoot, CODEGRAPH_DIR);
   const dbPath = join(codegraphDir, CODEGRAPH_DB);
 
@@ -111,13 +125,13 @@ async function readGraphStats(): Promise<ReadResourceResult> {
     return {
       contents: [
         {
-          uri: 'aide://graph/stats',
-          mimeType: 'application/json',
+          uri: "aide://graph/stats",
+          mimeType: "application/json",
           text: JSON.stringify(
             {
               initialized: false,
               projectRoot,
-              message: 'Run codegraph_index to populate the graph.',
+              message: "Run codegraph_index to populate the graph.",
             },
             null,
             2,
@@ -132,8 +146,8 @@ async function readGraphStats(): Promise<ReadResourceResult> {
   return {
     contents: [
       {
-        uri: 'aide://graph/stats',
-        mimeType: 'application/json',
+        uri: "aide://graph/stats",
+        mimeType: "application/json",
         text: JSON.stringify(
           {
             initialized: true,
@@ -158,12 +172,12 @@ function readHealth(): ReadResourceResult {
   return {
     contents: [
       {
-        uri: 'aide://health',
-        mimeType: 'application/json',
+        uri: "aide://health",
+        mimeType: "application/json",
         text: JSON.stringify(
           {
-            status: 'ok',
-            version: '1.0.0',
+            status: "ok",
+            version: PACKAGE_VERSION,
             uptimeMs: Date.now() - started,
             pid: process.pid,
             node: process.version,
@@ -177,7 +191,7 @@ function readHealth(): ReadResourceResult {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Local filesystem helpers (intentionally NOT from @aide/graph — see header)
+// Local filesystem helpers (intentionally NOT from @aide-dev/graph — see header)
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function countFiles(root: string): Promise<number> {

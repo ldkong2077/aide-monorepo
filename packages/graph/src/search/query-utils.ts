@@ -4,8 +4,8 @@
  * Shared module for search term extraction and scoring.
  */
 
-import * as path from 'path';
-import { type Node } from '../types.js';
+import * as path from "path";
+import { type Node } from "../types.js";
 
 /**
  * Common stop words to filter from search queries.
@@ -13,115 +13,115 @@ import { type Node } from '../types.js';
  */
 export const STOP_WORDS = new Set([
   // English
-  'the',
-  'a',
-  'an',
-  'and',
-  'or',
-  'but',
-  'in',
-  'on',
-  'at',
-  'to',
-  'for',
-  'of',
-  'with',
-  'by',
-  'from',
-  'is',
-  'it',
-  'that',
-  'this',
-  'are',
-  'was',
-  'be',
-  'has',
-  'had',
-  'have',
-  'do',
-  'does',
-  'did',
-  'will',
-  'would',
-  'could',
-  'should',
-  'may',
-  'might',
-  'can',
-  'shall',
-  'not',
-  'no',
-  'all',
-  'each',
-  'every',
-  'how',
-  'what',
-  'where',
-  'when',
-  'who',
-  'which',
-  'why',
-  'i',
-  'me',
-  'my',
-  'we',
-  'our',
-  'you',
-  'your',
-  'he',
-  'she',
-  'they',
-  'show',
-  'give',
-  'tell',
-  'been',
-  'done',
-  'made',
-  'used',
-  'using',
-  'work',
-  'works',
-  'found',
-  'also',
-  'into',
-  'then',
-  'than',
-  'just',
-  'more',
-  'some',
-  'such',
-  'over',
-  'only',
-  'out',
-  'its',
-  'so',
-  'up',
-  'as',
-  'if',
-  'look',
-  'need',
-  'needs',
-  'want',
-  'happen',
-  'happens',
-  'affect',
-  'affected',
-  'break',
-  'breaks',
-  'failing',
-  'implemented',
-  'implement',
+  "the",
+  "a",
+  "an",
+  "and",
+  "or",
+  "but",
+  "in",
+  "on",
+  "at",
+  "to",
+  "for",
+  "of",
+  "with",
+  "by",
+  "from",
+  "is",
+  "it",
+  "that",
+  "this",
+  "are",
+  "was",
+  "be",
+  "has",
+  "had",
+  "have",
+  "do",
+  "does",
+  "did",
+  "will",
+  "would",
+  "could",
+  "should",
+  "may",
+  "might",
+  "can",
+  "shall",
+  "not",
+  "no",
+  "all",
+  "each",
+  "every",
+  "how",
+  "what",
+  "where",
+  "when",
+  "who",
+  "which",
+  "why",
+  "i",
+  "me",
+  "my",
+  "we",
+  "our",
+  "you",
+  "your",
+  "he",
+  "she",
+  "they",
+  "show",
+  "give",
+  "tell",
+  "been",
+  "done",
+  "made",
+  "used",
+  "using",
+  "work",
+  "works",
+  "found",
+  "also",
+  "into",
+  "then",
+  "than",
+  "just",
+  "more",
+  "some",
+  "such",
+  "over",
+  "only",
+  "out",
+  "its",
+  "so",
+  "up",
+  "as",
+  "if",
+  "look",
+  "need",
+  "needs",
+  "want",
+  "happen",
+  "happens",
+  "affect",
+  "affected",
+  "break",
+  "breaks",
+  "failing",
+  "implemented",
+  "implement",
   // Code-specific noise (avoid filtering common symbol names like get/set/add/build/find/list)
-  'code',
-  'file',
-  'files',
-  'function',
-  'method',
-  'class',
-  'type',
-  'fix',
-  'bug',
-  'called',
+  "code",
+  "file",
+  "files",
+  "function",
+  "method",
+  "class",
+  "type",
+  "fix",
+  "bug",
+  "called",
 ]);
 
 /**
@@ -134,52 +134,52 @@ export function getStemVariants(term: string): string[] {
   const t = term.toLowerCase();
 
   // -ing: caching→cach/cache, handling→handl/handle, running→run
-  if (t.endsWith('ing') && t.length > 5) {
+  if (t.endsWith("ing") && t.length > 5) {
     const base = t.slice(0, -3);
     variants.add(base);
-    variants.add(base + 'e');
+    variants.add(base + "e");
     if (base.length >= 2 && base[base.length - 1] === base[base.length - 2]) {
       variants.add(base.slice(0, -1));
     }
   }
 
   // -tion/-sion: eviction→evict, expression→express
-  if ((t.endsWith('tion') || t.endsWith('sion')) && t.length > 5) {
+  if ((t.endsWith("tion") || t.endsWith("sion")) && t.length > 5) {
     variants.add(t.slice(0, -3));
   }
 
   // -ment: management→manage
-  if (t.endsWith('ment') && t.length > 6) {
+  if (t.endsWith("ment") && t.length > 6) {
     variants.add(t.slice(0, -4));
   }
 
   // -ies: entries→entry
-  if (t.endsWith('ies') && t.length > 4) {
-    variants.add(t.slice(0, -3) + 'y');
+  if (t.endsWith("ies") && t.length > 4) {
+    variants.add(t.slice(0, -3) + "y");
   }
   // -es: processes→process, classes→class
-  else if (t.endsWith('es') && t.length > 4) {
+  else if (t.endsWith("es") && t.length > 4) {
     variants.add(t.slice(0, -2));
   }
   // -s: errors→error (skip -ss endings like "class")
-  else if (t.endsWith('s') && !t.endsWith('ss') && t.length > 4) {
+  else if (t.endsWith("s") && !t.endsWith("ss") && t.length > 4) {
     variants.add(t.slice(0, -1));
   }
 
   // -ed: handled→handle, propagated→propagate, carried→carry
-  if (t.endsWith('ed') && !t.endsWith('eed') && t.length > 4) {
+  if (t.endsWith("ed") && !t.endsWith("eed") && t.length > 4) {
     variants.add(t.slice(0, -1));
     variants.add(t.slice(0, -2));
-    if (t.endsWith('ied') && t.length > 5) {
-      variants.add(t.slice(0, -3) + 'y');
+    if (t.endsWith("ied") && t.length > 5) {
+      variants.add(t.slice(0, -3) + "y");
     }
   }
 
   // -er: builder→build/builde, handler→handl/handle, getter→get
-  if (t.endsWith('er') && t.length > 4) {
+  if (t.endsWith("er") && t.length > 4) {
     const base = t.slice(0, -2);
     variants.add(base);
-    variants.add(base + 'e');
+    variants.add(base + "e");
     if (base.length >= 2 && base[base.length - 1] === base[base.length - 2]) {
       variants.add(base.slice(0, -1));
     }
@@ -200,13 +200,17 @@ export function getStemVariants(term: string): string[] {
  * Also generates stem variants (e.g., "caching"→"cache", "eviction"→"evict")
  * so FTS prefix matching can find related code symbols.
  */
-export function extractSearchTerms(query: string, options?: { stems?: boolean }): string[] {
+export function extractSearchTerms(
+  query: string,
+  options?: { stems?: boolean },
+): string[] {
   const includeStems = options?.stems !== false;
   const tokens = new Set<string>();
 
   // First, extract and preserve compound identifiers before splitting
   // CamelCase: scrapeLoop, UserService, getCallGraph
-  const compoundPattern = /\b([a-zA-Z][a-zA-Z0-9]*(?:[A-Z][a-z]+)+|[A-Z][a-z]+(?:[A-Z][a-z]*)+)\b/g;
+  const compoundPattern =
+    /\b([a-zA-Z][a-zA-Z0-9]*(?:[A-Z][a-z]+)+|[A-Z][a-z]+(?:[A-Z][a-z]*)+)\b/g;
   let match;
   while ((match = compoundPattern.exec(query)) !== null) {
     if (match[1] && match[1].length >= 3) {
@@ -224,11 +228,11 @@ export function extractSearchTerms(query: string, options?: { stems?: boolean })
 
   // Split camelCase / PascalCase: "getUserName" → "get User Name"
   const camelSplit = query
-    .replace(/([a-z])([A-Z])/g, '$1 $2')
-    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2');
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2");
 
   // Replace underscores and dots with spaces (snake_case, dot.notation)
-  const normalised = camelSplit.replace(/[_.]+/g, ' ');
+  const normalised = camelSplit.replace(/[_.]+/g, " ");
 
   // Split on any non-alphanumeric character
   const words = normalised.split(/[^a-zA-Z0-9]+/).filter(Boolean);
@@ -287,7 +291,8 @@ export function scorePathRelevance(filePath: string, query: string): number {
 
   // Deprioritize test files unless the query is explicitly about tests
   const queryLower = query.toLowerCase();
-  const isTestQuery = queryLower.includes('test') || queryLower.includes('spec');
+  const isTestQuery =
+    queryLower.includes("test") || queryLower.includes("spec");
   if (!isTestQuery && isTestFile(filePath)) {
     score -= 15;
   }
@@ -305,8 +310,8 @@ export function isTestFile(filePath: string): boolean {
 
   // --- Filename patterns ---
   if (
-    lowerName.startsWith('test_') || // python: test_foo.py
-    lowerName.startsWith('test.') ||
+    lowerName.startsWith("test_") || // python: test_foo.py
+    lowerName.startsWith("test.") ||
     // separator-delimited: foo_test.go, foo.test.ts, foo-spec.rb, bar_spec.py
     /[._-](test|tests|spec|specs)\.[a-z0-9]+$/.test(lowerName) ||
     // CamelCase suffix (Java/Kotlin/Swift/C#/Scala): FooTest.kt, BarTests.swift,
@@ -319,17 +324,17 @@ export function isTestFile(filePath: string): boolean {
 
   // --- Directory patterns ---
   if (
-    lower.includes('/tests/') ||
-    lower.includes('/test/') ||
-    lower.includes('/__tests__/') ||
-    lower.includes('/spec/') ||
-    lower.includes('/specs/') ||
-    lower.includes('/testlib/') ||
-    lower.includes('/testing/') ||
-    lower.startsWith('test/') ||
-    lower.startsWith('tests/') ||
-    lower.startsWith('spec/') ||
-    lower.startsWith('specs/') ||
+    lower.includes("/tests/") ||
+    lower.includes("/test/") ||
+    lower.includes("/__tests__/") ||
+    lower.includes("/spec/") ||
+    lower.includes("/specs/") ||
+    lower.includes("/testlib/") ||
+    lower.includes("/testing/") ||
+    lower.startsWith("test/") ||
+    lower.startsWith("tests/") ||
+    lower.startsWith("spec/") ||
+    lower.startsWith("specs/") ||
     // CamelCase test source-set dirs (Kotlin Multiplatform / Gradle / Xcode):
     // jvmTest/, commonTest/, androidTest/, iosTest/, integrationTest/. Capital-led
     // so "latest/" / "manifest/" are not matched.
@@ -350,20 +355,23 @@ export function isTestFile(filePath: string): boolean {
  */
 function matchesNonProductionDir(lowerPath: string): boolean {
   const dirs = [
-    'integration',
-    'sample',
-    'samples',
-    'example',
-    'examples',
-    'fixture',
-    'fixtures',
-    'benchmark',
-    'benchmarks',
-    'demo',
-    'demos',
+    "integration",
+    "sample",
+    "samples",
+    "example",
+    "examples",
+    "fixture",
+    "fixtures",
+    "benchmark",
+    "benchmarks",
+    "demo",
+    "demos",
   ];
   for (const dir of dirs) {
-    if (lowerPath.includes('/' + dir + '/') || lowerPath.startsWith(dir + '/')) {
+    if (
+      lowerPath.includes("/" + dir + "/") ||
+      lowerPath.startsWith(dir + "/")
+    ) {
       return true;
     }
   }
@@ -380,7 +388,7 @@ export function nameMatchBonus(nodeName: string, query: string): number {
 
   // Split query into word-level terms (handles "CacheBuilder build" → ["cache","builder","build"])
   const rawTerms = query
-    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
     .split(/[\s_.-]+/)
     .map((t) => t.toLowerCase())
     .filter((t) => t.length >= 2);
@@ -392,7 +400,7 @@ export function nameMatchBonus(nodeName: string, query: string): number {
     .filter((t) => t.length >= 2);
 
   // Full query as a single token (for compound identifiers like "CacheBuilder")
-  const queryLower = query.replace(/[\s]+/g, '').toLowerCase();
+  const queryLower = query.replace(/[\s]+/g, "").toLowerCase();
 
   // Exact match: query exactly equals the node name
   if (nameLower === queryLower) return 80;
@@ -423,7 +431,7 @@ export function nameMatchBonus(nodeName: string, query: string): number {
  * Kind-based bonus for search ranking
  * Functions and classes are typically more relevant than variables/imports
  */
-export function kindBonus(kind: Node['kind']): number {
+export function kindBonus(kind: Node["kind"]): number {
   const bonuses: Record<string, number> = {
     function: 10,
     method: 10,

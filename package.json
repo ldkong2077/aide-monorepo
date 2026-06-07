@@ -59,8 +59,12 @@
   "author": "AIDE Contributors",
   "repository": {
     "type": "git",
-    "url": "https://github.com/aide-dev/aide.git"
+    "url": "git+https://github.com/ldkong2077/aide-monorepo.git"
   },
+  "bugs": {
+    "url": "https://github.com/ldkong2077/aide-monorepo/issues"
+  },
+  "homepage": "https://github.com/ldkong2077/aide-monorepo#readme",
   "dependencies": {
     "prom-client": "^15.1.3"
   }

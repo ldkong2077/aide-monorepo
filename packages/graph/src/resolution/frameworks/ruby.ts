@@ -4,30 +4,35 @@
  * Handles Ruby on Rails patterns.
  */
 
-import { type Node } from '../../types.js';
-import { type FrameworkResolver, type UnresolvedRef, type ResolvedRef, type ResolutionContext } from '../types.js';
-import { stripCommentsForRegex } from '../strip-comments.js';
+import { type Node } from "../../types.js";
+import {
+  type FrameworkResolver,
+  type UnresolvedRef,
+  type ResolvedRef,
+  type ResolutionContext,
+} from "../types.js";
+import { stripCommentsForRegex } from "../strip-comments.js";
 
 export const railsResolver: FrameworkResolver = {
-  name: 'rails',
-  languages: ['ruby'],
+  name: "rails",
+  languages: ["ruby"],
 
   detect(context: ResolutionContext): boolean {
     // Check for Gemfile with rails
-    const gemfile = context.readFile('Gemfile');
+    const gemfile = context.readFile("Gemfile");
     if (gemfile && gemfile.includes("'rails'")) {
       return true;
     }
 
     // Check for config/application.rb (Rails signature)
-    if (context.fileExists('config/application.rb')) {
+    if (context.fileExists("config/application.rb")) {
       return true;
     }
 
     // Check for typical Rails directory structure
     return (
-      context.fileExists('app/controllers/application_controller.rb') ||
-      context.fileExists('config/routes.rb')
+      context.fileExists("app/controllers/application_controller.rb") ||
+      context.fileExists("config/routes.rb")
     );
   },
 
@@ -40,46 +45,49 @@ export const railsResolver: FrameworkResolver = {
           original: ref,
           targetNodeId: result,
           confidence: 0.8,
-          resolvedBy: 'framework',
+          resolvedBy: "framework",
         };
       }
     }
 
     // Pattern 2: Controller references
-    if (ref.referenceName.endsWith('Controller')) {
+    if (ref.referenceName.endsWith("Controller")) {
       const result = resolveController(ref.referenceName, context);
       if (result) {
         return {
           original: ref,
           targetNodeId: result,
           confidence: 0.85,
-          resolvedBy: 'framework',
+          resolvedBy: "framework",
         };
       }
     }
 
     // Pattern 3: Helper references
-    if (ref.referenceName.endsWith('Helper')) {
+    if (ref.referenceName.endsWith("Helper")) {
       const result = resolveHelper(ref.referenceName, context);
       if (result) {
         return {
           original: ref,
           targetNodeId: result,
           confidence: 0.8,
-          resolvedBy: 'framework',
+          resolvedBy: "framework",
         };
       }
     }
 
     // Pattern 4: Service/Job references
-    if (ref.referenceName.endsWith('Service') || ref.referenceName.endsWith('Job')) {
+    if (
+      ref.referenceName.endsWith("Service") ||
+      ref.referenceName.endsWith("Job")
+    ) {
       const result = resolveService(ref.referenceName, context);
       if (result) {
         return {
           original: ref,
           targetNodeId: result,
           confidence: 0.8,
-          resolvedBy: 'framework',
+          resolvedBy: "framework",
         };
       }
     }
@@ -88,11 +96,11 @@ export const railsResolver: FrameworkResolver = {
   },
 
   extract(filePath, content) {
-    if (!filePath.endsWith('.rb')) return { nodes: [], references: [] };
+    if (!filePath.endsWith(".rb")) return { nodes: [], references: [] };
     const nodes: Node[] = [];
     const references: UnresolvedRef[] = [];
     const now = Date.now();
-    const safe = stripCommentsForRegex(content, 'ruby');
+    const safe = stripCommentsForRegex(content, "ruby");
 
     // get/post/put/patch/delete/match '/path', to: 'controller#action'
     // Also: get '/path' => 'controller#action'
@@ -101,11 +109,11 @@ export const railsResolver: FrameworkResolver = {
     let match: RegExpExecArray | null;
     while ((match = routeRegex.exec(safe)) !== null) {
       const [, method, routePath, _controller, action] = match;
-      const line = safe.slice(0, match.index).split('\n').length;
+      const line = safe.slice(0, match.index).split("\n").length;
       const upper = method.toUpperCase();
       const routeNode: Node = {
         id: `route:${filePath}:${line}:${upper}:${routePath}`,
-        kind: 'route',
+        kind: "route",
         name: `${upper} ${routePath}`,
         qualifiedName: `${filePath}::route:${routePath}`,
         filePath,
@@ -113,7 +121,7 @@ export const railsResolver: FrameworkResolver = {
         endLine: line,
         startColumn: 0,
         endColumn: match[0].length,
-        language: 'ruby',
+        language: "ruby",
         updatedAt: now,
       };
       nodes.push(routeNode);
@@ -121,11 +129,11 @@ export const railsResolver: FrameworkResolver = {
       references.push({
         fromNodeId: routeNode.id,
         referenceName: action,
-        referenceKind: 'references',
+        referenceKind: "references",
         line,
         column: 0,
         filePath,
-        language: 'ruby',
+        language: "ruby",
       });
     }
 
@@ -138,15 +146,20 @@ export const railsResolver: FrameworkResolver = {
 function resolveModel(name: string, context: ResolutionContext): string | null {
   // Try direct file path lookup first (Rails convention: CamelCase -> snake_case.rb)
   const snakeName = name
-    .replace(/([A-Z])/g, '_$1')
+    .replace(/([A-Z])/g, "_$1")
     .toLowerCase()
     .slice(1);
-  const possiblePaths = [`app/models/${snakeName}.rb`, `app/models/concerns/${snakeName}.rb`];
+  const possiblePaths = [
+    `app/models/${snakeName}.rb`,
+    `app/models/concerns/${snakeName}.rb`,
+  ];
 
   for (const modelPath of possiblePaths) {
     if (context.fileExists(modelPath)) {
       const nodes = context.getNodesInFile(modelPath);
-      const modelNode = nodes.find((n) => n.kind === 'class' && n.name === name);
+      const modelNode = nodes.find(
+        (n) => n.kind === "class" && n.name === name,
+      );
       if (modelNode) {
         return modelNode.id;
       }
@@ -156,17 +169,20 @@ function resolveModel(name: string, context: ResolutionContext): string | null {
   // Fall back to name-based lookup
   const candidates = context.getNodesByName(name);
   const modelNode = candidates.find(
-    (n) => n.kind === 'class' && n.filePath.includes('app/models/'),
+    (n) => n.kind === "class" && n.filePath.includes("app/models/"),
   );
   if (modelNode) return modelNode.id;
 
   return null;
 }
 
-function resolveController(name: string, context: ResolutionContext): string | null {
+function resolveController(
+  name: string,
+  context: ResolutionContext,
+): string | null {
   // Try direct file path lookup first
   const snakeName = name
-    .replace(/([A-Z])/g, '_$1')
+    .replace(/([A-Z])/g, "_$1")
     .toLowerCase()
     .slice(1);
   const possiblePaths = [
@@ -178,7 +194,9 @@ function resolveController(name: string, context: ResolutionContext): string | n
   for (const controllerPath of possiblePaths) {
     if (context.fileExists(controllerPath)) {
       const nodes = context.getNodesInFile(controllerPath);
-      const controllerNode = nodes.find((n) => n.kind === 'class' && n.name === name);
+      const controllerNode = nodes.find(
+        (n) => n.kind === "class" && n.name === name,
+      );
       if (controllerNode) {
         return controllerNode.id;
       }
@@ -188,23 +206,28 @@ function resolveController(name: string, context: ResolutionContext): string | n
   // Fall back to name-based lookup
   const candidates = context.getNodesByName(name);
   const controllerNode = candidates.find(
-    (n) => n.kind === 'class' && n.filePath.includes('controllers/'),
+    (n) => n.kind === "class" && n.filePath.includes("controllers/"),
   );
   if (controllerNode) return controllerNode.id;
 
   return null;
 }
 
-function resolveHelper(name: string, context: ResolutionContext): string | null {
+function resolveHelper(
+  name: string,
+  context: ResolutionContext,
+): string | null {
   const snakeName = name
-    .replace(/([A-Z])/g, '_$1')
+    .replace(/([A-Z])/g, "_$1")
     .toLowerCase()
     .slice(1);
   const helperPath = `app/helpers/${snakeName}.rb`;
 
   if (context.fileExists(helperPath)) {
     const nodes = context.getNodesInFile(helperPath);
-    const helperNode = nodes.find((n) => n.kind === 'module' && n.name === name);
+    const helperNode = nodes.find(
+      (n) => n.kind === "module" && n.name === name,
+    );
     if (helperNode) {
       return helperNode.id;
     }
@@ -213,9 +236,12 @@ function resolveHelper(name: string, context: ResolutionContext): string | null 
   return null;
 }
 
-function resolveService(name: string, context: ResolutionContext): string | null {
+function resolveService(
+  name: string,
+  context: ResolutionContext,
+): string | null {
   const snakeName = name
-    .replace(/([A-Z])/g, '_$1')
+    .replace(/([A-Z])/g, "_$1")
     .toLowerCase()
     .slice(1);
   const possiblePaths = [
@@ -227,7 +253,9 @@ function resolveService(name: string, context: ResolutionContext): string | null
   for (const servicePath of possiblePaths) {
     if (context.fileExists(servicePath)) {
       const nodes = context.getNodesInFile(servicePath);
-      const serviceNode = nodes.find((n) => n.kind === 'class' && n.name === name);
+      const serviceNode = nodes.find(
+        (n) => n.kind === "class" && n.name === name,
+      );
       if (serviceNode) {
         return serviceNode.id;
       }

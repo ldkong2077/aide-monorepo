@@ -4,8 +4,12 @@
  * Handles symbol name matching for reference resolution.
  */
 
-import { type Node } from '../types.js';
-import { type UnresolvedRef, type ResolvedRef, type ResolutionContext } from './types.js';
+import { type Node } from "../types.js";
+import {
+  type UnresolvedRef,
+  type ResolvedRef,
+  type ResolutionContext,
+} from "./types.js";
 
 /**
  * Try to resolve a path-like reference (e.g., "snippets/drawer-menu.liquid")
@@ -15,41 +19,44 @@ export function matchByFilePath(
   ref: UnresolvedRef,
   context: ResolutionContext,
 ): ResolvedRef | null {
-  if (!ref.referenceName.includes('/')) return null;
+  if (!ref.referenceName.includes("/")) return null;
 
   // Extract the filename from the path
-  const fileName = ref.referenceName.split('/').pop();
+  const fileName = ref.referenceName.split("/").pop();
   if (!fileName) return null;
 
   // Search for file nodes with this name
   const candidates = context.getNodesByName(fileName);
-  const fileNodes = candidates.filter((n) => n.kind === 'file');
+  const fileNodes = candidates.filter((n) => n.kind === "file");
 
   if (fileNodes.length === 0) return null;
 
   // Prefer exact path match on qualified_name
   const exactMatch = fileNodes.find(
-    (n) => n.qualifiedName === ref.referenceName || n.filePath === ref.referenceName,
+    (n) =>
+      n.qualifiedName === ref.referenceName || n.filePath === ref.referenceName,
   );
   if (exactMatch) {
     return {
       original: ref,
       targetNodeId: exactMatch.id,
       confidence: 0.95,
-      resolvedBy: 'file-path',
+      resolvedBy: "file-path",
     };
   }
 
   // Fall back to suffix match (e.g., ref="snippets/foo.liquid" matches "src/snippets/foo.liquid")
   const suffixMatch = fileNodes.find(
-    (n) => n.qualifiedName.endsWith(ref.referenceName) || n.filePath.endsWith(ref.referenceName),
+    (n) =>
+      n.qualifiedName.endsWith(ref.referenceName) ||
+      n.filePath.endsWith(ref.referenceName),
   );
   if (suffixMatch) {
     return {
       original: ref,
       targetNodeId: suffixMatch.id,
       confidence: 0.85,
-      resolvedBy: 'file-path',
+      resolvedBy: "file-path",
     };
   }
 
@@ -59,7 +66,7 @@ export function matchByFilePath(
       original: ref,
       targetNodeId: fileNodes[0].id,
       confidence: 0.7,
-      resolvedBy: 'file-path',
+      resolvedBy: "file-path",
     };
   }
 
@@ -86,7 +93,7 @@ export function matchByExactName(
       original: ref,
       targetNodeId: candidates[0].id,
       confidence: isCrossLanguage ? 0.5 : 0.9,
-      resolvedBy: 'exact-match',
+      resolvedBy: "exact-match",
     };
   }
 
@@ -100,7 +107,7 @@ export function matchByExactName(
       original: ref,
       targetNodeId: bestMatch.id,
       confidence,
-      resolvedBy: 'exact-match',
+      resolvedBy: "exact-match",
     };
   }
 
@@ -115,7 +122,7 @@ export function matchByQualifiedName(
   context: ResolutionContext,
 ): ResolvedRef | null {
   // Check if the reference name looks qualified (contains :: or .)
-  if (!ref.referenceName.includes('::') && !ref.referenceName.includes('.')) {
+  if (!ref.referenceName.includes("::") && !ref.referenceName.includes(".")) {
     return null;
   }
 
@@ -126,7 +133,7 @@ export function matchByQualifiedName(
       original: ref,
       targetNodeId: candidates[0].id,
       confidence: 0.95,
-      resolvedBy: 'qualified-name',
+      resolvedBy: "qualified-name",
     };
   }
 
@@ -141,7 +148,7 @@ export function matchByQualifiedName(
           original: ref,
           targetNodeId: candidate.id,
           confidence: 0.85,
-          resolvedBy: 'qualified-name',
+          resolvedBy: "qualified-name",
         };
       }
     }
@@ -173,9 +180,9 @@ export function matchMethodCall(
 
   for (const classNode of classCandidates) {
     if (
-      classNode.kind === 'class' ||
-      classNode.kind === 'struct' ||
-      classNode.kind === 'interface'
+      classNode.kind === "class" ||
+      classNode.kind === "struct" ||
+      classNode.kind === "interface"
     ) {
       // Skip cross-language class matches
       if (classNode.language !== ref.language) continue;
@@ -183,7 +190,9 @@ export function matchMethodCall(
       const nodesInFile = context.getNodesInFile(classNode.filePath);
       const methodNode = nodesInFile.find(
         (n) =>
-          n.kind === 'method' && n.name === methodName && n.qualifiedName.includes(classNode.name),
+          n.kind === "method" &&
+          n.name === methodName &&
+          n.qualifiedName.includes(classNode.name),
       );
 
       if (methodNode) {
@@ -191,7 +200,7 @@ export function matchMethodCall(
           original: ref,
           targetNodeId: methodNode.id,
           confidence: 0.85,
-          resolvedBy: 'qualified-name',
+          resolvedBy: "qualified-name",
         };
       }
     }
@@ -199,14 +208,15 @@ export function matchMethodCall(
 
   // Strategy 2: Instance variable receiver - try capitalized form to find class
   // e.g., "permissionEngine" → look for classes containing "PermissionEngine"
-  const capitalizedReceiver = objectOrClass.charAt(0).toUpperCase() + objectOrClass.slice(1);
+  const capitalizedReceiver =
+    objectOrClass.charAt(0).toUpperCase() + objectOrClass.slice(1);
   if (capitalizedReceiver !== objectOrClass) {
     const fuzzyClassCandidates = context.getNodesByName(capitalizedReceiver);
     for (const classNode of fuzzyClassCandidates) {
       if (
-        classNode.kind === 'class' ||
-        classNode.kind === 'struct' ||
-        classNode.kind === 'interface'
+        classNode.kind === "class" ||
+        classNode.kind === "struct" ||
+        classNode.kind === "interface"
       ) {
         // Skip cross-language class matches
         if (classNode.language !== ref.language) continue;
@@ -214,7 +224,7 @@ export function matchMethodCall(
         const nodesInFile = context.getNodesInFile(classNode.filePath);
         const methodNode = nodesInFile.find(
           (n) =>
-            n.kind === 'method' &&
+            n.kind === "method" &&
             n.name === methodName &&
             n.qualifiedName.includes(classNode.name),
         );
@@ -224,7 +234,7 @@ export function matchMethodCall(
             original: ref,
             targetNodeId: methodNode.id,
             confidence: 0.8,
-            resolvedBy: 'instance-method',
+            resolvedBy: "instance-method",
           };
         }
       }
@@ -236,19 +246,27 @@ export function matchMethodCall(
   // names like permissionEngine → PermissionRuleEngine.
   if (methodName) {
     const methodCandidates = context.getNodesByName(methodName);
-    const methods = methodCandidates.filter((n) => n.kind === 'method' && n.name === methodName);
+    const methods = methodCandidates.filter(
+      (n) => n.kind === "method" && n.name === methodName,
+    );
 
     // Filter to same-language candidates first
-    const sameLanguageMethods = methods.filter((m) => m.language === ref.language);
-    const targetMethods = sameLanguageMethods.length > 0 ? sameLanguageMethods : methods;
+    const sameLanguageMethods = methods.filter(
+      (m) => m.language === ref.language,
+    );
+    const targetMethods =
+      sameLanguageMethods.length > 0 ? sameLanguageMethods : methods;
 
     // If only one same-language method with this name exists, use it
-    if (targetMethods.length === 1 && targetMethods[0].language === ref.language) {
+    if (
+      targetMethods.length === 1 &&
+      targetMethods[0].language === ref.language
+    ) {
       return {
         original: ref,
         targetNodeId: targetMethods[0].id,
         confidence: 0.7,
-        resolvedBy: 'instance-method',
+        resolvedBy: "instance-method",
       };
     }
 
@@ -276,7 +294,7 @@ export function matchMethodCall(
           original: ref,
           targetNodeId: bestMatch.id,
           confidence: 0.65,
-          resolvedBy: 'instance-method',
+          resolvedBy: "instance-method",
         };
       }
     }
@@ -290,8 +308,8 @@ export function matchMethodCall(
  */
 function splitCamelCase(str: string): string[] {
   return str
-    .replace(/([a-z])([A-Z])/g, '$1 $2')
-    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2")
     .split(/[\s._:/\\]+/)
     .filter((w) => w.length > 1);
 }
@@ -302,8 +320,8 @@ function splitCamelCase(str: string): string[] {
  * Higher score = closer in directory tree.
  */
 function computePathProximity(filePath1: string, filePath2: string): number {
-  const dir1 = filePath1.split('/').slice(0, -1);
-  const dir2 = filePath2.split('/').slice(0, -1);
+  const dir1 = filePath1.split("/").slice(0, -1);
+  const dir2 = filePath2.split("/").slice(0, -1);
 
   let shared = 0;
   for (let i = 0; i < Math.min(dir1.length, dir2.length); i++) {
@@ -355,8 +373,8 @@ function findBestMatch(
     }
 
     // For call references, prefer functions/methods
-    if (ref.referenceKind === 'calls') {
-      if (candidate.kind === 'function' || candidate.kind === 'method') {
+    if (ref.referenceKind === "calls") {
+      if (candidate.kind === "function" || candidate.kind === "method") {
         score += 25;
       }
     }
@@ -364,11 +382,11 @@ function findBestMatch(
     // For instantiation references (`new Foo()`), prefer class-like
     // targets — without this, a function named `Foo` in another module
     // could outscore the actual class.
-    if (ref.referenceKind === 'instantiates') {
+    if (ref.referenceKind === "instantiates") {
       if (
-        candidate.kind === 'class' ||
-        candidate.kind === 'struct' ||
-        candidate.kind === 'interface'
+        candidate.kind === "class" ||
+        candidate.kind === "struct" ||
+        candidate.kind === "interface"
       ) {
         score += 25;
       }
@@ -377,10 +395,10 @@ function findBestMatch(
     // For decorator references (`@Foo`), prefer functions. Class
     // decorators (Python `@SomeClass`, Java annotation interfaces)
     // also resolve here, hence the smaller class bonus.
-    if (ref.referenceKind === 'decorates') {
-      if (candidate.kind === 'function' || candidate.kind === 'method') {
+    if (ref.referenceKind === "decorates") {
+      if (candidate.kind === "function" || candidate.kind === "method") {
         score += 25;
-      } else if (candidate.kind === 'class' || candidate.kind === 'interface') {
+      } else if (candidate.kind === "class" || candidate.kind === "interface") {
         score += 15;
       }
     }
@@ -408,20 +426,29 @@ function findBestMatch(
 /**
  * Fuzzy match - last resort with lower confidence
  */
-export function matchFuzzy(ref: UnresolvedRef, context: ResolutionContext): ResolvedRef | null {
+export function matchFuzzy(
+  ref: UnresolvedRef,
+  context: ResolutionContext,
+): ResolvedRef | null {
   const lowerName = ref.referenceName.toLowerCase();
 
   // Use pre-built lowercase index for O(1) lookup instead of scanning all nodes
   const candidates = context.getNodesByLowerName(lowerName);
 
   // Filter to callable kinds only (function, method, class)
-  const callableKinds = new Set(['function', 'method', 'class']);
-  const callableCandidates = candidates.filter((n) => callableKinds.has(n.kind));
+  const callableKinds = new Set(["function", "method", "class"]);
+  const callableCandidates = candidates.filter((n) =>
+    callableKinds.has(n.kind),
+  );
 
   // Prefer same-language matches
-  const sameLanguageCandidates = callableCandidates.filter((n) => n.language === ref.language);
+  const sameLanguageCandidates = callableCandidates.filter(
+    (n) => n.language === ref.language,
+  );
   const finalCandidates =
-    sameLanguageCandidates.length > 0 ? sameLanguageCandidates : callableCandidates;
+    sameLanguageCandidates.length > 0
+      ? sameLanguageCandidates
+      : callableCandidates;
 
   if (finalCandidates.length === 1) {
     const isCrossLanguage = finalCandidates[0].language !== ref.language;
@@ -429,7 +456,7 @@ export function matchFuzzy(ref: UnresolvedRef, context: ResolutionContext): Reso
       original: ref,
       targetNodeId: finalCandidates[0].id,
       confidence: isCrossLanguage ? 0.3 : 0.5,
-      resolvedBy: 'fuzzy',
+      resolvedBy: "fuzzy",
     };
   }
 
@@ -439,7 +466,10 @@ export function matchFuzzy(ref: UnresolvedRef, context: ResolutionContext): Reso
 /**
  * Match all strategies in order of confidence
  */
-export function matchReference(ref: UnresolvedRef, context: ResolutionContext): ResolvedRef | null {
+export function matchReference(
+  ref: UnresolvedRef,
+  context: ResolutionContext,
+): ResolvedRef | null {
   // Try strategies in order of confidence
   let result: ResolvedRef | null;
 

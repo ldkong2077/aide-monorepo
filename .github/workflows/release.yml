@@ -1,0 +1,227 @@
+name: Release
+
+# Trigger on a pushed version tag (e.g. v1.2.3). Manual dispatch is
+# supported for re-running the validate + GitHub-release jobs, but the
+# actual publish jobs (npm + docker) only run on a real tag push.
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to release (e.g. v1.0.0)"
+        required: true
+
+# All jobs need write access to publish.
+permissions:
+  contents: write # push version-bump commit, create GitHub release
+  id-token: write # npm provenance (Sigstore)
+  packages: write # ghcr.io push
+
+# Never cancel an in-flight release — concurrency group is per-tag.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # ─── 1. Quality gate on the tagged commit ─────────────────────────
+  validate:
+    name: Validate tagged commit
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history for changeset
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+  # ─── 2. Version bump + npm publish with provenance ───────────────
+  publish-npm:
+    name: Publish to npm
+    needs: validate
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: "npm"
+
+      - name: Configure npm registry
+        working-directory: .
+        run: |
+          {
+            echo "registry=https://registry.npmjs.org/"
+            echo "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}"
+          } > .npmrc
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Install dependencies (no scripts)
+        run: npm ci --ignore-scripts
+
+      - name: Bump versions
+        run: npx changeset version
+
+      - name: Commit version bump
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          if ! git diff --cached --quiet; then
+            git add .
+            git commit -m "chore(release): ${{ github.ref_name }}"
+            git push origin HEAD:main
+          else
+            echo "No version-bump changes; skipping commit"
+          fi
+
+      - name: Reinstall (with new versions) and build
+        run: |
+          npm ci --ignore-scripts
+          npm run build
+
+      - name: Publish to npm (provenance enabled)
+        run: npx changeset publish --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  # ─── 3. Multi-arch Docker image build + push to ghcr.io ───────────
+  publish-docker:
+    name: Build & push Docker image
+    needs: validate
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+          - platform: linux/arm64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: image=moby/buildkit:v0.18.0
+
+      - name: Login to ghcr.io
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/ldkong2077/aide-monorepo
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,format=short
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/docker/Dockerfile
+          platforms: ${{ matrix.platform }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.platform }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.platform }}
+          provenance: true
+          sbom: true
+          # Build secrets would go here if we ever needed them
+          # (we don't, the build is hermetic).
+
+  # ─── 4. GitHub release with changelog ─────────────────────────────
+  github-release:
+    name: Create GitHub release
+    needs: [validate, publish-npm, publish-docker]
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: "npm"
+
+      - name: Compute per-package changelog snippets
+        id: snippets
+        run: |
+          {
+            echo "BODY<<EOF"
+            echo "## What changed"
+            echo
+            echo "Run \`npm install @aide-dev/cli@${{ github.ref_name }}\` to upgrade."
+            echo
+            npx -y changeset status --since=origin/main || true
+            echo
+            echo "## Docker"
+            echo
+            echo "\`\`\`"
+            echo "docker pull ghcr.io/ldkong2077/aide-monorepo:${{ github.ref_name }}"
+            echo "\`\`\`"
+            echo
+            echo "## Verification"
+            echo
+            echo "- npm provenance attestation: [verify on npmjs.com](https://www.npmjs.com/package/@aide-dev/cli)"
+            echo "- Docker SBOM: \`docker buildx imagetools inspect ghcr.io/ldkong2077/aide-monorepo:${{ github.ref_name }} --format '{{ json .SBOM }}'\`"
+            echo "- Docker SLSA provenance: \`docker buildx imagetools inspect ghcr.io/ldkong2077/aide-monorepo:${{ github.ref_name }} --format '{{ json .Provenance }}'\`"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          generate_release_notes: true
+          body: ${{ steps.snippets.outputs.BODY }}
+          fail_on_unmatched_files: false

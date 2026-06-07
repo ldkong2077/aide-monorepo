@@ -19,10 +19,10 @@
  */
 
 export function supportsUnicode(): boolean {
-  if (process.env.CODEGRAPH_ASCII === '1') return false;
-  if (process.env.CODEGRAPH_UNICODE === '1') return true;
-  if (process.platform === 'win32') return false;
-  return process.env.TERM !== 'linux';
+  if (process.env.CODEGRAPH_ASCII === "1") return false;
+  if (process.env.CODEGRAPH_UNICODE === "1") return true;
+  if (process.platform === "win32") return false;
+  return process.env.TERM !== "linux";
 }
 
 export interface Glyphs {
@@ -43,37 +43,37 @@ export interface Glyphs {
 }
 
 export const UNICODE_GLYPHS: Glyphs = {
-  ok: '✓',
-  err: '✗',
-  info: 'ℹ',
-  warn: '⚠',
-  spinner: ['·', '✢', '✳', '✶', '✻', '✽'],
-  barFilled: '█',
-  barEmpty: '░',
-  rail: '│',
-  phaseDone: '◆',
-  dash: '—',
-  hLine: '─',
-  treeBranch: '├── ',
-  treeLast: '└── ',
-  treePipe: '│   ',
+  ok: "✓",
+  err: "✗",
+  info: "ℹ",
+  warn: "⚠",
+  spinner: ["·", "✢", "✳", "✶", "✻", "✽"],
+  barFilled: "█",
+  barEmpty: "░",
+  rail: "│",
+  phaseDone: "◆",
+  dash: "—",
+  hLine: "─",
+  treeBranch: "├── ",
+  treeLast: "└── ",
+  treePipe: "│   ",
 };
 
 export const ASCII_GLYPHS: Glyphs = {
-  ok: '[OK]',
-  err: '[ERR]',
-  info: '[i]',
-  warn: '[!]',
-  spinner: ['.', '*', '+', 'x', 'o', 'O'],
-  barFilled: '#',
-  barEmpty: '-',
-  rail: '|',
-  phaseDone: '*',
-  dash: '-',
-  hLine: '-',
-  treeBranch: '|-- ',
-  treeLast: '`-- ',
-  treePipe: '|   ',
+  ok: "[OK]",
+  err: "[ERR]",
+  info: "[i]",
+  warn: "[!]",
+  spinner: [".", "*", "+", "x", "o", "O"],
+  barFilled: "#",
+  barEmpty: "-",
+  rail: "|",
+  phaseDone: "*",
+  dash: "-",
+  hLine: "-",
+  treeBranch: "|-- ",
+  treeLast: "`-- ",
+  treePipe: "|   ",
 };
 
 let cached: Glyphs | null = null;

@@ -7,15 +7,15 @@
  * into workspace member crates.
  */
 
-import picomatch from 'picomatch';
-import { type ResolutionContext } from '../types.js';
+import picomatch from "picomatch";
+import { type ResolutionContext } from "../types.js";
 
 const GLOB_CHARS = /[*?[\]{}!]/;
-const SKIP_DIRS = new Set(['target', 'node_modules', '.git', 'dist', 'build']);
+const SKIP_DIRS = new Set(["target", "node_modules", ".git", "dist", "build"]);
 const MAX_GLOB_WALK_DEPTH = 5;
 
 function getSection(content: string, sectionName: string): string | null {
-  const lines = content.split('\n');
+  const lines = content.split("\n");
   let inSection = false;
   const sectionLines: string[] = [];
 
@@ -36,20 +36,20 @@ function getSection(content: string, sectionName: string): string | null {
   }
 
   if (!inSection) return null;
-  return sectionLines.join('\n');
+  return sectionLines.join("\n");
 }
 
 function extractQuotedValues(valueList: string): string[] {
   const values: string[] = [];
   let quote: '"' | "'" | null = null;
   let escaped = false;
-  let current = '';
+  let current = "";
 
   for (const ch of valueList) {
     if (!quote) {
       if (ch === '"' || ch === "'") {
         quote = ch;
-        current = '';
+        current = "";
       }
       continue;
     }
@@ -60,7 +60,7 @@ function extractQuotedValues(valueList: string): string[] {
       continue;
     }
 
-    if (ch === '\\') {
+    if (ch === "\\") {
       escaped = true;
       continue;
     }
@@ -68,7 +68,7 @@ function extractQuotedValues(valueList: string): string[] {
     if (ch === quote) {
       values.push(current.trim());
       quote = null;
-      current = '';
+      current = "";
       continue;
     }
 
@@ -79,17 +79,17 @@ function extractQuotedValues(valueList: string): string[] {
 }
 
 function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function getArrayValue(section: string, key: string): string | null {
-  const keyRegex = new RegExp(`\\b${escapeRegExp(key)}\\b\\s*=`, 'm');
+  const keyRegex = new RegExp(`\\b${escapeRegExp(key)}\\b\\s*=`, "m");
   const keyMatch = keyRegex.exec(section);
   if (!keyMatch) return null;
 
   let i = keyMatch.index + keyMatch[0].length;
   while (i < section.length && /\s/.test(section.charAt(i))) i++;
-  if (section.charAt(i) !== '[') return null;
+  if (section.charAt(i) !== "[") return null;
   i++;
 
   let inQuote: '"' | "'" | null = null;
@@ -103,7 +103,7 @@ function getArrayValue(section: string, key: string): string | null {
     if (inQuote) {
       if (escaped) {
         escaped = false;
-      } else if (ch === '\\') {
+      } else if (ch === "\\") {
         escaped = true;
       } else if (ch === inQuote) {
         inQuote = null;
@@ -118,13 +118,13 @@ function getArrayValue(section: string, key: string): string | null {
       continue;
     }
 
-    if (ch === '[') {
+    if (ch === "[") {
       depth++;
       i++;
       continue;
     }
 
-    if (ch === ']') {
+    if (ch === "]") {
       depth--;
       if (depth === 0) {
         return section.slice(start, i);
@@ -140,22 +140,26 @@ function getArrayValue(section: string, key: string): string | null {
 }
 
 function parseWorkspaceMembers(cargoToml: string): string[] {
-  const workspaceSection = getSection(cargoToml, 'workspace');
+  const workspaceSection = getSection(cargoToml, "workspace");
   if (!workspaceSection) return [];
-  const membersValue = getArrayValue(workspaceSection, 'members');
+  const membersValue = getArrayValue(workspaceSection, "members");
   if (!membersValue) return [];
   return extractQuotedValues(membersValue);
 }
 
 function parsePackageName(cargoToml: string): string | null {
-  const packageSection = getSection(cargoToml, 'package');
+  const packageSection = getSection(cargoToml, "package");
   if (!packageSection) return null;
   const packageNameMatch = /name\s*=\s*["']([^"'\n]+)["']/.exec(packageSection);
   return packageNameMatch?.[1]?.trim() ?? null;
 }
 
-function addCrateAlias(map: Map<string, string>, crateName: string, memberPath: string): void {
-  const normalized = crateName.replace(/-/g, '_');
+function addCrateAlias(
+  map: Map<string, string>,
+  crateName: string,
+  memberPath: string,
+): void {
+  const normalized = crateName.replace(/-/g, "_");
   map.set(crateName, memberPath);
   if (normalized !== crateName) {
     map.set(normalized, memberPath);
@@ -163,17 +167,20 @@ function addCrateAlias(map: Map<string, string>, crateName: string, memberPath: 
 }
 
 function cleanPath(memberPath: string): string {
-  return memberPath.replace(/\\/g, '/').replace(/\/$/, '');
+  return memberPath.replace(/\\/g, "/").replace(/\/$/, "");
 }
 
-function expandGlobMember(member: string, context: ResolutionContext): string[] {
+function expandGlobMember(
+  member: string,
+  context: ResolutionContext,
+): string[] {
   if (!context.listDirectories) return [];
 
   const firstGlobIdx = member.search(GLOB_CHARS);
   const staticPrefix = member
     .slice(0, firstGlobIdx)
-    .replace(/[^/]*$/, '')
-    .replace(/\/$/, '');
+    .replace(/[^/]*$/, "")
+    .replace(/\/$/, "");
 
   const matcher = picomatch(member, { dot: false });
   const matches: string[] = [];
@@ -183,8 +190,8 @@ function expandGlobMember(member: string, context: ResolutionContext): string[] 
     if (depth > MAX_GLOB_WALK_DEPTH) return;
     const children = context.listDirectories!(dir);
     for (const child of children) {
-      if (SKIP_DIRS.has(child) || child.startsWith('.')) continue;
-      const rel = dir === '.' ? child : `${dir}/${child}`;
+      if (SKIP_DIRS.has(child) || child.startsWith(".")) continue;
+      const rel = dir === "." ? child : `${dir}/${child}`;
       if (matcher(rel) && !seen.has(rel)) {
         seen.add(rel);
         matches.push(rel);
@@ -193,15 +200,20 @@ function expandGlobMember(member: string, context: ResolutionContext): string[] 
     }
   }
 
-  walk(staticPrefix || '.', 0);
+  walk(staticPrefix || ".", 0);
   return matches;
 }
 
-function expandMembers(members: string[], context: ResolutionContext): string[] {
+function expandMembers(
+  members: string[],
+  context: ResolutionContext,
+): string[] {
   const expanded: string[] = [];
   const seen = new Set<string>();
   for (const member of members) {
-    const candidates = GLOB_CHARS.test(member) ? expandGlobMember(member, context) : [member];
+    const candidates = GLOB_CHARS.test(member)
+      ? expandGlobMember(member, context)
+      : [member];
     for (const candidate of candidates) {
       const cleaned = cleanPath(candidate);
       if (seen.has(cleaned)) continue;
@@ -219,9 +231,11 @@ function expandMembers(members: string[], context: ResolutionContext): string[] 
  * Supports glob members (e.g. `members = ["crates/*"]`) via picomatch
  * when the context exposes `listDirectories`.
  */
-export function getCargoWorkspaceCrateMap(context: ResolutionContext): Map<string, string> {
+export function getCargoWorkspaceCrateMap(
+  context: ResolutionContext,
+): Map<string, string> {
   const result = new Map<string, string>();
-  const rootCargoToml = context.readFile('Cargo.toml');
+  const rootCargoToml = context.readFile("Cargo.toml");
   if (!rootCargoToml) return result;
 
   const rawMembers = parseWorkspaceMembers(rootCargoToml);

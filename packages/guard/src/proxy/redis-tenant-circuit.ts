@@ -1,5 +1,5 @@
 /**
- * @aide/guard — Redis-backed per-tenant cost tracker and circuit breaker.
+ * @aide-dev/guard — Redis-backed per-tenant cost tracker and circuit breaker.
  *
  * Drop-in replacement for {@link TenantCostTracker} that stores daily
  * spend in Redis instead of a process-local Map. Use this for
@@ -20,12 +20,16 @@
  * from different replicas don't lose spend data. The circuit-open
  * check is a separate read that may lag by at most one INCR round-trip.
  */
-import { type Redis } from 'ioredis';
-import type { TenantCircuitConfig, TenantSpendSnapshot, TenantSnapshotWithId } from './tenant-circuit.js';
-import { DEFAULT_TENANT_CIRCUIT } from './tenant-circuit.js';
+import { type Redis } from "ioredis";
+import type {
+  TenantCircuitConfig,
+  TenantSpendSnapshot,
+  TenantSnapshotWithId,
+} from "./tenant-circuit.js";
+import { DEFAULT_TENANT_CIRCUIT } from "./tenant-circuit.js";
 
-const SPEND_PREFIX = 'aide:circuit:spend:';
-const OPEN_FLAG_SUFFIX = ':open';
+const SPEND_PREFIX = "aide:circuit:spend:";
+const OPEN_FLAG_SUFFIX = ":open";
 
 /**
  * Lua script: atomically increment daily spend, set the circuit-open
@@ -77,15 +81,19 @@ const RESET_SCRIPT = `
 function dateKey(now: number): string {
   const d = new Date(now);
   const y = d.getUTCFullYear();
-  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
-  const day = String(d.getUTCDate()).padStart(2, '0');
+  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(d.getUTCDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
 }
 
 /** Seconds until the next UTC midnight, clamped to [60, 86400]. */
 function ttlUntilMidnight(now: number): number {
   const d = new Date(now);
-  const nextMidnight = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1);
+  const nextMidnight = Date.UTC(
+    d.getUTCFullYear(),
+    d.getUTCMonth(),
+    d.getUTCDate() + 1,
+  );
   return Math.max(60, Math.ceil((nextMidnight - now) / 1000));
 }
 
@@ -97,7 +105,9 @@ export class RedisTenantCostTracker {
     this.redis = redis;
     this.config = { ...DEFAULT_TENANT_CIRCUIT, ...config };
     if (this.config.budgetDaily <= 0) {
-      throw new Error(`TenantCircuitConfig.budgetDaily must be > 0, got ${this.config.budgetDaily}`);
+      throw new Error(
+        `TenantCircuitConfig.budgetDaily must be > 0, got ${this.config.budgetDaily}`,
+      );
     }
     if (this.config.alertThreshold <= 0 || this.config.alertThreshold > 1) {
       throw new Error(
@@ -117,7 +127,7 @@ export class RedisTenantCostTracker {
    */
   async size(): Promise<number> {
     const keys = await this.redis.keys(`${SPEND_PREFIX}*`);
-    const tenants = new Set(keys.map((k) => k.split(':').slice(-2, -1)[0]));
+    const tenants = new Set(keys.map((k) => k.split(":").slice(-2, -1)[0]));
     return tenants.size;
   }
 
@@ -125,7 +135,11 @@ export class RedisTenantCostTracker {
    * Record `costUsd` of spend for `tenantId`. Idempotent on a
    * negative number. Atomic via Lua on the Redis server.
    */
-  async record(tenantId: string, costUsd: number, now: number = Date.now()): Promise<void> {
+  async record(
+    tenantId: string,
+    costUsd: number,
+    now: number = Date.now(),
+  ): Promise<void> {
     if (costUsd <= 0) return;
     const day = dateKey(now);
     const spendKey = `${SPEND_PREFIX}${tenantId}:${day}`;
@@ -157,13 +171,24 @@ export class RedisTenantCostTracker {
    * Read-only snapshot of a tenant's current spend and circuit state.
    * Returns `null` if the tenant is unknown (no spend recorded today).
    */
-  async snapshot(tenantId: string, now: number = Date.now()): Promise<TenantSpendSnapshot | null> {
+  async snapshot(
+    tenantId: string,
+    now: number = Date.now(),
+  ): Promise<TenantSpendSnapshot | null> {
     const day = dateKey(now);
     const spendKey = `${SPEND_PREFIX}${tenantId}:${day}`;
     const openKey = `${SPEND_PREFIX}${tenantId}${OPEN_FLAG_SUFFIX}`;
 
-    const resultStr = await this.redis.eval(SNAPSHOT_SCRIPT, 2, spendKey, openKey);
-    const result = JSON.parse(resultStr as string) as { dailyUsd: number; circuitOpen: boolean };
+    const resultStr = await this.redis.eval(
+      SNAPSHOT_SCRIPT,
+      2,
+      spendKey,
+      openKey,
+    );
+    const result = JSON.parse(resultStr as string) as {
+      dailyUsd: number;
+      circuitOpen: boolean;
+    };
 
     if (result.dailyUsd === 0 && !result.circuitOpen) {
       // Check if any key actually exists to distinguish "no data" from "zero spend"
@@ -190,7 +215,7 @@ export class RedisTenantCostTracker {
     const tenantIds = new Set<string>();
     for (const key of keys) {
       // Key format: aide:circuit:spend:{tenantId}:{YYYY-MM-DD}
-      const parts = key.split(':');
+      const parts = key.split(":");
       if (parts.length >= 4) {
         tenantIds.add(parts[3]);
       }

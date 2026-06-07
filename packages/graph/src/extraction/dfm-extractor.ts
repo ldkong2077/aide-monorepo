@@ -1,5 +1,11 @@
-import { type Node, type Edge, type ExtractionResult, type ExtractionError, type UnresolvedReference } from '../types.js';
-import { generateNodeId } from './tree-sitter-helpers.js';
+import {
+  type Node,
+  type Edge,
+  type ExtractionResult,
+  type ExtractionError,
+  type UnresolvedReference,
+} from "../types.js";
+import { generateNodeId } from "./tree-sitter-helpers.js";
 
 /**
  * Custom extractor for Delphi DFM/FMX form files.
@@ -38,8 +44,8 @@ export class DfmExtractor {
     } catch (error) {
       this.errors.push({
         message: `DFM extraction error: ${error instanceof Error ? error.message : String(error)}`,
-        severity: 'error',
-        code: 'parse_error',
+        severity: "error",
+        code: "parse_error",
       });
     }
 
@@ -54,16 +60,16 @@ export class DfmExtractor {
 
   /** Create a file node for the DFM form file */
   private createFileNode(): Node {
-    const lines = this.source.split('\n');
-    const id = generateNodeId(this.filePath, 'file', this.filePath, 1);
+    const lines = this.source.split("\n");
+    const id = generateNodeId(this.filePath, "file", this.filePath, 1);
 
     const fileNode: Node = {
       id,
-      kind: 'file',
-      name: this.filePath.split('/').pop() || this.filePath,
+      kind: "file",
+      name: this.filePath.split("/").pop() || this.filePath,
       qualifiedName: this.filePath,
       filePath: this.filePath,
-      language: 'pascal',
+      language: "pascal",
       startLine: 1,
       endLine: lines.length,
       startColumn: 0,
@@ -77,7 +83,7 @@ export class DfmExtractor {
 
   /** Parse object/end blocks and extract components + event handlers */
   private parseComponents(fileNodeId: string): void {
-    const lines = this.source.split('\n');
+    const lines = this.source.split("\n");
     const stack: string[] = [fileNodeId];
 
     const objectPattern = /^\s*(object|inherited|inline)\s+(\w+)\s*:\s*(\w+)/;
@@ -86,7 +92,7 @@ export class DfmExtractor {
     const multiLineStart = /=\s*\(\s*$/;
     const multiLineItemStart = /=\s*<\s*$/;
     let inMultiLine = false;
-    let multiLineEndChar = ')';
+    let multiLineEndChar = ")";
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
@@ -99,12 +105,12 @@ export class DfmExtractor {
       }
       if (multiLineStart.test(line)) {
         inMultiLine = true;
-        multiLineEndChar = ')';
+        multiLineEndChar = ")";
         continue;
       }
       if (multiLineItemStart.test(line)) {
         inMultiLine = true;
-        multiLineEndChar = '>';
+        multiLineEndChar = ">";
         continue;
       }
 
@@ -112,14 +118,19 @@ export class DfmExtractor {
       const objMatch = objectPattern.exec(line);
       if (objMatch) {
         const [, , name, typeName] = objMatch;
-        const nodeId = generateNodeId(this.filePath, 'component', name, lineNum);
+        const nodeId = generateNodeId(
+          this.filePath,
+          "component",
+          name,
+          lineNum,
+        );
         this.nodes.push({
           id: nodeId,
-          kind: 'component',
+          kind: "component",
           name: name,
           qualifiedName: `${this.filePath}#${name}`,
           filePath: this.filePath,
-          language: 'pascal',
+          language: "pascal",
           startLine: lineNum,
           endLine: lineNum,
           startColumn: 0,
@@ -130,7 +141,7 @@ export class DfmExtractor {
         this.edges.push({
           source: stack[stack.length - 1],
           target: nodeId,
-          kind: 'contains',
+          kind: "contains",
         });
         stack.push(nodeId);
         continue;
@@ -143,7 +154,7 @@ export class DfmExtractor {
         this.unresolvedReferences.push({
           fromNodeId: stack[stack.length - 1],
           referenceName: methodName,
-          referenceKind: 'references',
+          referenceKind: "references",
           line: lineNum,
           column: 0,
         });

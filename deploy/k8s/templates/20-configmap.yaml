@@ -1,0 +1,33 @@
+# 20-configmap.yaml
+# WHY: a ConfigMap keeps non-sensitive runtime config out of the image
+# and out of secrets. Mount as envFrom so the process picks up each
+# key as a literal environment variable.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aide-config
+  namespace: aide
+  labels:
+    app.kubernetes.io/name: aide
+    app.kubernetes.io/instance: aide
+    app.kubernetes.io/component: config
+    app.kubernetes.io/part-of: aide
+    app.kubernetes.io/managed-by: kustomize
+data:
+  # Server bind / limits
+  AIDE_PORT: "9900"
+  AIDE_BODY_LIMIT: "1048576" # 1 MiB
+
+  # Logging — JSON for cluster log shippers
+  LOG_FORMAT: "json"
+  LOG_LEVEL: "info"
+  NODE_ENV: "production"
+
+  # Rate limiting (per Bearer token)
+  AIDE_RATE_LIMIT_ENABLED: "true"
+  AIDE_RATE_LIMIT_RPM: "60"
+  AIDE_RATE_LIMIT_WINDOW_MS: "60000"
+
+  # Upstream timeouts (per attempt, not per request)
+  AIDE_UPSTREAM_TIMEOUT_MS: "60000"
+  AIDE_UPSTREAM_RETRIES: "2"

@@ -1,0 +1,44 @@
+# kustomization.yaml
+# Top-level kustomization. Apply with:
+#   kubectl apply -k deploy/k8s/templates/
+#
+# Override the image tag by passing it on the command line:
+#   kubectl apply -k deploy/k8s/templates/ \
+#     --enable-helm=false \
+#     && kustomize edit set image ghcr.io/ldkong2077/aide-monorepo:ghcr.io/ldkong2077/aide-monorepo:v1.2.3
+# (or use a kustomize patch in `overlays/<env>/` — see the README).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: aide
+
+# Apply common labels to every resource.
+commonLabels:
+  app.kubernetes.io/part-of: aide
+  app.kubernetes.io/managed-by: kustomize
+
+# Pin the image so kustomize can rewrite it via `kustomize edit set image`.
+images:
+  - name: ghcr.io/ldkong2077/aide-monorepo
+    newName: ghcr.io/ldkong2077/aide-monorepo
+    newTag: 1.0.0
+
+resources:
+  - 00-namespace.yaml
+  - 10-serviceaccount.yaml
+  - 20-configmap.yaml
+  - 40-deployment.yaml
+  - 50-service.yaml
+  - 60-ingress.yaml
+  - 70-hpa.yaml
+  - 80-pdb.yaml
+  - 90-servicemonitor.yaml
+  - 95-prometheusrule.yaml
+  # 30-secret.yaml.example is intentionally omitted so apply never
+  # creates a placeholder secret. Materialise it via sealed-secrets,
+  # external-secrets, or a manual kubectl create.
+
+# A slot for user-supplied patches. Copy `components/` to your own
+# repo and reference them here, or use `overlays/<env>/` and merge.
+# components:
+#   - ../../components/resource-limits

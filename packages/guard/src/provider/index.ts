@@ -3,8 +3,8 @@
  * 统一管理 OpenAI/DeepSeek/Ollama（OpenAI兼容）和 Anthropic 的 API 调用
  */
 
-import OpenAI from 'openai';
-import Anthropic from '@anthropic-ai/sdk';
+import OpenAI from "openai";
+import Anthropic from "@anthropic-ai/sdk";
 import type {
   ChatCompletionRequest,
   ChatCompletionResponse,
@@ -13,8 +13,8 @@ import type {
   Choice,
   ProviderConfig,
   SSEEvent,
-} from '../types.js';
-import { withRetry, withTimeout } from './retry.js';
+} from "../types.js";
+import { withRetry, withTimeout } from "./retry.js";
 
 // ==================== 重试/超时默认值 ====================
 
@@ -25,8 +25,8 @@ const DEFAULT_REQUEST_TIMEOUT_MS = 60_000;
 
 // Re-export so consumers can override these without reaching into the
 // retry module.
-export { isNonRetryableError, UpstreamTimeoutError } from './retry.js';
-export type { RetryOptions } from './retry.js';
+export { isNonRetryableError, UpstreamTimeoutError } from "./retry.js";
+export type { RetryOptions } from "./retry.js";
 
 // ==================== Base Provider ====================
 
@@ -82,7 +82,7 @@ export class OpenAICompatibleProvider extends BaseProvider {
     super(name, config);
     if (!config.apiKey) {
       throw new Error(
-        `API key is required for ${config.name || 'provider'}. Set the appropriate environment variable.`,
+        `API key is required for ${config.name || "provider"}. Set the appropriate environment variable.`,
       );
     }
     const apiKey = config.apiKey;
@@ -100,7 +100,8 @@ export class OpenAICompatibleProvider extends BaseProvider {
     req: ChatCompletionRequest,
     options?: ProviderCallOptions,
   ): Promise<ChatCompletionResponse> {
-    const timeoutMs = this.config.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
+    const timeoutMs =
+      this.config.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
     return withRetry(
       async () => {
         const response = await this.client.chat.completions.create(
@@ -116,7 +117,9 @@ export class OpenAICompatibleProvider extends BaseProvider {
             stop: req.stop,
             n: req.n,
           },
-          options?.requestHeaders ? { headers: options.requestHeaders } : undefined,
+          options?.requestHeaders
+            ? { headers: options.requestHeaders }
+            : undefined,
         );
 
         return this.convertResponse(response);
@@ -130,7 +133,8 @@ export class OpenAICompatibleProvider extends BaseProvider {
     req: ChatCompletionRequest,
     options?: ProviderCallOptions,
   ): AsyncGenerator<SSEEvent, void, undefined> {
-    const timeoutMs = this.config.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
+    const timeoutMs =
+      this.config.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
     // First-byte timeout: the connection-initiation + headers must
     // arrive within `timeoutMs`. After the first chunk lands, the
     // stream itself is not bounded — the consumer can cancel by
@@ -149,7 +153,9 @@ export class OpenAICompatibleProvider extends BaseProvider {
           frequency_penalty: req.frequency_penalty,
           presence_penalty: req.presence_penalty,
         },
-        options?.requestHeaders ? { headers: options.requestHeaders } : undefined,
+        options?.requestHeaders
+          ? { headers: options.requestHeaders }
+          : undefined,
       ),
       timeoutMs,
       `${this.name}/stream-init`,
@@ -171,7 +177,9 @@ export class OpenAICompatibleProvider extends BaseProvider {
   }
 
   /** 转换 OpenAI SDK 响应为统一格式 */
-  private convertResponse(response: OpenAI.ChatCompletion): ChatCompletionResponse {
+  private convertResponse(
+    response: OpenAI.ChatCompletion,
+  ): ChatCompletionResponse {
     return {
       id: response.id,
       object: response.object,
@@ -182,10 +190,10 @@ export class OpenAICompatibleProvider extends BaseProvider {
           index: c.index,
           message: {
             role: c.message.role,
-            content: c.message.content || '',
-            tool_calls: c.message.tool_calls as ChatMessage['tool_calls'],
+            content: c.message.content || "",
+            tool_calls: c.message.tool_calls as ChatMessage["tool_calls"],
           },
-          finish_reason: c.finish_reason || '',
+          finish_reason: c.finish_reason || "",
         }),
       ),
       usage: response.usage
@@ -209,13 +217,16 @@ export class AnthropicProvider extends BaseProvider {
     super(name, config);
     if (!config.apiKey) {
       throw new Error(
-        `API key is required for ${config.name || 'provider'}. Set the appropriate environment variable.`,
+        `API key is required for ${config.name || "provider"}. Set the appropriate environment variable.`,
       );
     }
     const apiKey = config.apiKey;
     this.client = new Anthropic({
       apiKey,
-      baseURL: config.baseUrl !== 'https://api.anthropic.com' ? config.baseUrl : undefined,
+      baseURL:
+        config.baseUrl !== "https://api.anthropic.com"
+          ? config.baseUrl
+          : undefined,
     });
   }
 
@@ -227,16 +238,21 @@ export class AnthropicProvider extends BaseProvider {
     req: ChatCompletionRequest,
     options?: ProviderCallOptions,
   ): Promise<ChatCompletionResponse> {
-    const timeoutMs = this.config.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
+    const timeoutMs =
+      this.config.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
     return withRetry(
       async () => {
         // 提取 system 消息
-        const systemMessage = req.messages.find((m) => m.role === 'system')?.content || '';
-        const nonSystemMessages = req.messages.filter((m) => m.role !== 'system');
+        const systemMessage =
+          req.messages.find((m) => m.role === "system")?.content || "";
+        const nonSystemMessages = req.messages.filter(
+          (m) => m.role !== "system",
+        );
 
         // 转换消息格式
         const anthropicMessages = nonSystemMessages.map((m) => ({
-          role: m.role === 'assistant' ? ('assistant' as const) : ('user' as const),
+          role:
+            m.role === "assistant" ? ("assistant" as const) : ("user" as const),
           content: m.content,
         }));
 
@@ -250,7 +266,9 @@ export class AnthropicProvider extends BaseProvider {
             top_p: req.top_p,
             stream: false,
           },
-          options?.requestHeaders ? { headers: options.requestHeaders } : undefined,
+          options?.requestHeaders
+            ? { headers: options.requestHeaders }
+            : undefined,
         );
 
         return this.convertAnthropicResponse(response, req.model);
@@ -263,11 +281,12 @@ export class AnthropicProvider extends BaseProvider {
   async *streamChatCompletion(
     req: ChatCompletionRequest,
   ): AsyncGenerator<SSEEvent, void, undefined> {
-    const systemMessage = req.messages.find((m) => m.role === 'system')?.content || '';
-    const nonSystemMessages = req.messages.filter((m) => m.role !== 'system');
+    const systemMessage =
+      req.messages.find((m) => m.role === "system")?.content || "";
+    const nonSystemMessages = req.messages.filter((m) => m.role !== "system");
 
     const anthropicMessages = nonSystemMessages.map((m) => ({
-      role: m.role === 'assistant' ? ('assistant' as const) : ('user' as const),
+      role: m.role === "assistant" ? ("assistant" as const) : ("user" as const),
       content: m.content,
     }));
 
@@ -292,14 +311,14 @@ export class AnthropicProvider extends BaseProvider {
 
     for await (const event of stream) {
       // 将 Anthropic 事件转换为统一 SSE 格式
-      if (event.type === 'content_block_delta') {
+      if (event.type === "content_block_delta") {
         const delta = event.delta;
-        if (delta.type === 'text_delta') {
+        if (delta.type === "text_delta") {
           yield {
-            event: 'content_block_delta',
+            event: "content_block_delta",
             data: JSON.stringify({
               id: event.type,
-              object: 'chat.completion.chunk',
+              object: "chat.completion.chunk",
               created: Math.floor(Date.now() / 1000),
               model: req.model,
               choices: [
@@ -311,13 +330,13 @@ export class AnthropicProvider extends BaseProvider {
               ],
             }),
           };
-        } else if (delta.type === 'input_json_delta') {
+        } else if (delta.type === "input_json_delta") {
           // tool_use 的 JSON 输入增量
           yield {
-            event: 'content_block_delta',
+            event: "content_block_delta",
             data: JSON.stringify({
               id: event.type,
-              object: 'chat.completion.chunk',
+              object: "chat.completion.chunk",
               created: Math.floor(Date.now() / 1000),
               model: req.model,
               choices: [
@@ -337,17 +356,19 @@ export class AnthropicProvider extends BaseProvider {
             }),
           };
         }
-      } else if (event.type === 'content_block_start') {
+      } else if (event.type === "content_block_start") {
         // tool_use 块开始
         const contentBlock = (
-          event as { content_block?: { type: string; id?: string; name?: string } }
+          event as {
+            content_block?: { type: string; id?: string; name?: string };
+          }
         ).content_block;
-        if (contentBlock?.type === 'tool_use') {
+        if (contentBlock?.type === "tool_use") {
           yield {
-            event: 'content_block_start',
+            event: "content_block_start",
             data: JSON.stringify({
               id: event.type,
-              object: 'chat.completion.chunk',
+              object: "chat.completion.chunk",
               created: Math.floor(Date.now() / 1000),
               model: req.model,
               choices: [
@@ -358,8 +379,8 @@ export class AnthropicProvider extends BaseProvider {
                       {
                         index: 0,
                         id: contentBlock.id,
-                        type: 'function',
-                        function: { name: contentBlock.name, arguments: '' },
+                        type: "function",
+                        function: { name: contentBlock.name, arguments: "" },
                       },
                     ],
                   },
@@ -369,19 +390,19 @@ export class AnthropicProvider extends BaseProvider {
             }),
           };
         }
-      } else if (event.type === 'message_stop') {
+      } else if (event.type === "message_stop") {
         yield {
-          event: 'message_stop',
+          event: "message_stop",
           data: JSON.stringify({
             id: event.type,
-            object: 'chat.completion.chunk',
+            object: "chat.completion.chunk",
             created: Math.floor(Date.now() / 1000),
             model: req.model,
             choices: [
               {
                 index: 0,
                 delta: {},
-                finish_reason: 'stop',
+                finish_reason: "stop",
               },
             ],
           }),
@@ -394,15 +415,15 @@ export class AnthropicProvider extends BaseProvider {
     try {
       // 发送一个最小请求来验证 API 连通性
       await this.client.messages.create({
-        model: this.config.models[0] || 'claude-3-5-haiku-20241022',
+        model: this.config.models[0] || "claude-3-5-haiku-20241022",
         max_tokens: 1,
-        messages: [{ role: 'user', content: 'hi' }],
+        messages: [{ role: "user", content: "hi" }],
       });
       return true;
     } catch (error) {
       // 认证错误说明 key 有效但可能有限制，仍算连通
-      const msg = error instanceof Error ? error.message.toLowerCase() : '';
-      if (msg.includes('invalid api key') || msg.includes('authentication')) {
+      const msg = error instanceof Error ? error.message.toLowerCase() : "";
+      if (msg.includes("invalid api key") || msg.includes("authentication")) {
         return false;
       }
       // 其他错误（如速率限制、超出预算）说明 API 可达
@@ -416,9 +437,9 @@ export class AnthropicProvider extends BaseProvider {
     model: string,
   ): ChatCompletionResponse {
     const content = response.content
-      .filter((block): block is Anthropic.TextBlock => block.type === 'text')
+      .filter((block): block is Anthropic.TextBlock => block.type === "text")
       .map((block) => block.text)
-      .join('');
+      .join("");
 
     const usage: UsageInfo = {
       prompt_tokens: response.usage.input_tokens,
@@ -428,17 +449,17 @@ export class AnthropicProvider extends BaseProvider {
 
     return {
       id: response.id,
-      object: 'chat.completion',
+      object: "chat.completion",
       created: Math.floor(Date.now() / 1000),
       model: model,
       choices: [
         {
           index: 0,
           message: {
-            role: 'assistant',
+            role: "assistant",
             content,
           },
-          finish_reason: response.stop_reason || 'stop',
+          finish_reason: response.stop_reason || "stop",
         },
       ],
       usage,
@@ -488,13 +509,15 @@ export class ProviderRegistry {
   /** 批量健康检查所有 Provider */
   async healthCheckAll(): Promise<Record<string, boolean>> {
     const results: Record<string, boolean> = {};
-    const checks = Array.from(this.providers.entries()).map(async ([name, provider]) => {
-      try {
-        results[name] = await provider.healthCheck();
-      } catch {
-        results[name] = false;
-      }
-    });
+    const checks = Array.from(this.providers.entries()).map(
+      async ([name, provider]) => {
+        try {
+          results[name] = await provider.healthCheck();
+        } catch {
+          results[name] = false;
+        }
+      },
+    );
     await Promise.all(checks);
     return results;
   }
@@ -502,7 +525,7 @@ export class ProviderRegistry {
   /** 根据 Provider 名称创建对应的 Provider 实例 */
   private createProvider(name: string, config: ProviderConfig): BaseProvider {
     const lowerName = name.toLowerCase();
-    if (lowerName === 'anthropic' || lowerName === 'claude') {
+    if (lowerName === "anthropic" || lowerName === "claude") {
       return new AnthropicProvider(name, config);
     }
     // OpenAI、DeepSeek、Ollama 等均使用 OpenAI 兼容接口

@@ -3,30 +3,31 @@
  * A simple TODO application with React and TypeScript.
  */
 
-import type { ProjectTemplate } from '../types.js';
+import type { ProjectTemplate } from "../types.js";
 
 export const todoAppTemplate: ProjectTemplate = {
-  id: 'todo-app',
+  id: "todo-app",
   config: {
-    name: 'TODO Application',
-    description: 'A simple TODO application with React, TypeScript, and localStorage persistence',
-    category: 'web',
-    difficulty: 'beginner',
-    techStack: ['React', 'TypeScript', 'Vite', 'Tailwind CSS'],
+    name: "TODO Application",
+    description:
+      "A simple TODO application with React, TypeScript, and localStorage persistence",
+    category: "web",
+    difficulty: "beginner",
+    techStack: ["React", "TypeScript", "Vite", "Tailwind CSS"],
     features: [
-      'Add, edit, delete todos',
-      'Mark todos as complete',
-      'Filter by status (all, active, completed)',
-      'LocalStorage persistence',
-      'Responsive design',
+      "Add, edit, delete todos",
+      "Mark todos as complete",
+      "Filter by status (all, active, completed)",
+      "LocalStorage persistence",
+      "Responsive design",
     ],
-    estimatedTime: '2-3 hours',
-    author: 'AIDE Team',
-    version: '1.0.0',
+    estimatedTime: "2-3 hours",
+    author: "AIDE Team",
+    version: "1.0.0",
   },
   files: [
     {
-      path: 'package.json',
+      path: "package.json",
       content: `{
   "name": "{{projectName}}",
   "private": true,
@@ -53,11 +54,11 @@ export const todoAppTemplate: ProjectTemplate = {
     "vite": "^5.0.8"
   }
 }`,
-      description: 'Package configuration with React, TypeScript, and Vite',
+      description: "Package configuration with React, TypeScript, and Vite",
       isRequired: true,
     },
     {
-      path: 'tsconfig.json',
+      path: "tsconfig.json",
       content: `{
   "compilerOptions": {
     "target": "ES2020",
@@ -79,11 +80,11 @@ export const todoAppTemplate: ProjectTemplate = {
   "include": ["src"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }`,
-      description: 'TypeScript configuration for React',
+      description: "TypeScript configuration for React",
       isRequired: true,
     },
     {
-      path: 'vite.config.ts',
+      path: "vite.config.ts",
       content: `import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
@@ -91,11 +92,11 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
 })`,
-      description: 'Vite configuration',
+      description: "Vite configuration",
       isRequired: true,
     },
     {
-      path: 'index.html',
+      path: "index.html",
       content: `<!doctype html>
 <html lang="en">
   <head>
@@ -109,11 +110,11 @@ export default defineConfig({
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>`,
-      description: 'HTML entry point',
+      description: "HTML entry point",
       isRequired: true,
     },
     {
-      path: 'src/main.tsx',
+      path: "src/main.tsx",
       content: `import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.tsx'
@@ -124,11 +125,11 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <App />
   </React.StrictMode>,
 )`,
-      description: 'React entry point',
+      description: "React entry point",
       isRequired: true,
     },
     {
-      path: 'src/App.tsx',
+      path: "src/App.tsx",
       content: `import { useState, useEffect } from 'react'
 
 interface Todo {
@@ -239,19 +240,19 @@ function App() {
 }
 
 export default App`,
-      description: 'Main App component with TODO functionality',
+      description: "Main App component with TODO functionality",
       isRequired: true,
     },
     {
-      path: 'src/index.css',
+      path: "src/index.css",
       content: `@tailwind base;
 @tailwind components;
 @tailwind utilities;`,
-      description: 'Tailwind CSS imports',
+      description: "Tailwind CSS imports",
       isRequired: true,
     },
     {
-      path: 'tailwind.config.js',
+      path: "tailwind.config.js",
       content: `/** @type {import('tailwindcss').Config} */
 export default {
   content: [
@@ -263,22 +264,22 @@ export default {
   },
   plugins: [],
 }`,
-      description: 'Tailwind CSS configuration',
+      description: "Tailwind CSS configuration",
       isRequired: true,
     },
     {
-      path: 'postcss.config.js',
+      path: "postcss.config.js",
       content: `export default {
   plugins: {
     tailwindcss: {},
     autoprefixer: {},
   },
 }`,
-      description: 'PostCSS configuration',
+      description: "PostCSS configuration",
       isRequired: true,
     },
     {
-      path: 'README.md',
+      path: "README.md",
       content: `# {{projectName}}
 
 A simple TODO application built with React, TypeScript, and Tailwind CSS.
@@ -343,42 +344,42 @@ src/
 - [TypeScript Documentation](https://www.typescriptlang.org/docs/)
 - [Tailwind CSS Documentation](https://tailwindcss.com/docs)
 `,
-      description: 'Project documentation',
+      description: "Project documentation",
       isRequired: true,
     },
   ],
   dependencies: {
-    react: '^18.2.0',
-    'react-dom': '^18.2.0',
+    react: "^18.2.0",
+    "react-dom": "^18.2.0",
   },
   devDependencies: {
-    '@types/react': '^18.2.43',
-    '@types/react-dom': '^18.2.17',
-    '@vitejs/plugin-react': '^4.2.1',
-    autoprefixer: '^10.4.16',
-    postcss: '^8.4.32',
-    tailwindcss: '^3.4.0',
-    typescript: '^5.2.2',
-    vite: '^5.0.8',
+    "@types/react": "^18.2.43",
+    "@types/react-dom": "^18.2.17",
+    "@vitejs/plugin-react": "^4.2.1",
+    autoprefixer: "^10.4.16",
+    postcss: "^8.4.32",
+    tailwindcss: "^3.4.0",
+    typescript: "^5.2.2",
+    vite: "^5.0.8",
   },
   scripts: {
-    dev: 'vite',
-    build: 'tsc && vite build',
-    preview: 'vite preview',
-    lint: 'eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0',
+    dev: "vite",
+    build: "tsc && vite build",
+    preview: "vite preview",
+    lint: "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
   },
   setupInstructions: [
-    'Install dependencies: npm install',
-    'Start development server: npm run dev',
-    'Open http://localhost:5173 in your browser',
+    "Install dependencies: npm install",
+    "Start development server: npm run dev",
+    "Open http://localhost:5173 in your browser",
   ],
   verificationSteps: [
-    'npm run build completes without errors',
-    'npm run dev starts successfully',
-    'Application loads in browser',
-    'Can add a todo',
-    'Can mark a todo as complete',
-    'Can delete a todo',
-    'Todos persist after page reload',
+    "npm run build completes without errors",
+    "npm run dev starts successfully",
+    "Application loads in browser",
+    "Can add a todo",
+    "Can mark a todo as complete",
+    "Can delete a todo",
+    "Todos persist after page reload",
   ],
 };

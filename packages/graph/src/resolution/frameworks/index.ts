@@ -4,22 +4,22 @@
  * Manages framework-specific resolvers.
  */
 
-import { type FrameworkResolver, type ResolutionContext } from '../types.js';
-import type { Language } from '../../types.js';
-import { drupalResolver } from './drupal.js';
-import { laravelResolver } from './laravel.js';
-import { expressResolver } from './express.js';
-import { nestjsResolver } from './nestjs.js';
-import { reactResolver } from './react.js';
-import { svelteResolver } from './svelte.js';
-import { vueResolver } from './vue.js';
-import { djangoResolver, flaskResolver, fastapiResolver } from './python.js';
-import { railsResolver } from './ruby.js';
-import { springResolver } from './java.js';
-import { goResolver } from './go.js';
-import { rustResolver } from './rust.js';
-import { aspnetResolver } from './csharp.js';
-import { swiftUIResolver, uikitResolver, vaporResolver } from './swift.js';
+import { type FrameworkResolver, type ResolutionContext } from "../types.js";
+import type { Language } from "../../types.js";
+import { drupalResolver } from "./drupal.js";
+import { laravelResolver } from "./laravel.js";
+import { expressResolver } from "./express.js";
+import { nestjsResolver } from "./nestjs.js";
+import { reactResolver } from "./react.js";
+import { svelteResolver } from "./svelte.js";
+import { vueResolver } from "./vue.js";
+import { djangoResolver, flaskResolver, fastapiResolver } from "./python.js";
+import { railsResolver } from "./ruby.js";
+import { springResolver } from "./java.js";
+import { goResolver } from "./go.js";
+import { rustResolver } from "./rust.js";
+import { aspnetResolver } from "./csharp.js";
+import { swiftUIResolver, uikitResolver, vaporResolver } from "./swift.js";
 
 /**
  * All registered framework resolvers
@@ -64,14 +64,18 @@ export function getAllFrameworkResolvers(): FrameworkResolver[] {
 /**
  * Get a resolver by name
  */
-export function getFrameworkResolver(name: string): FrameworkResolver | undefined {
+export function getFrameworkResolver(
+  name: string,
+): FrameworkResolver | undefined {
   return FRAMEWORK_RESOLVERS.find((r) => r.name === name);
 }
 
 /**
  * Detect which frameworks are used in a project
  */
-export function detectFrameworks(context: ResolutionContext): FrameworkResolver[] {
+export function detectFrameworks(
+  context: ResolutionContext,
+): FrameworkResolver[] {
   return FRAMEWORK_RESOLVERS.filter((resolver) => {
     try {
       return resolver.detect(context);
@@ -89,7 +93,9 @@ export function getApplicableFrameworks(
   detected: FrameworkResolver[],
   language: Language,
 ): FrameworkResolver[] {
-  return detected.filter((fw) => !fw.languages || fw.languages.includes(language));
+  return detected.filter(
+    (fw) => !fw.languages || fw.languages.includes(language),
+  );
 }
 
 /**
@@ -105,17 +111,17 @@ export function registerFrameworkResolver(resolver: FrameworkResolver): void {
 }
 
 // Re-export framework resolvers
-export { drupalResolver } from './drupal.js';
-export { laravelResolver, FACADE_MAPPINGS } from './laravel.js';
-export { expressResolver } from './express.js';
-export { nestjsResolver } from './nestjs.js';
-export { reactResolver } from './react.js';
-export { svelteResolver } from './svelte.js';
-export { vueResolver } from './vue.js';
-export { djangoResolver, flaskResolver, fastapiResolver } from './python.js';
-export { railsResolver } from './ruby.js';
-export { springResolver } from './java.js';
-export { goResolver } from './go.js';
-export { rustResolver } from './rust.js';
-export { aspnetResolver } from './csharp.js';
-export { swiftUIResolver, uikitResolver, vaporResolver } from './swift.js';
+export { drupalResolver } from "./drupal.js";
+export { laravelResolver, FACADE_MAPPINGS } from "./laravel.js";
+export { expressResolver } from "./express.js";
+export { nestjsResolver } from "./nestjs.js";
+export { reactResolver } from "./react.js";
+export { svelteResolver } from "./svelte.js";
+export { vueResolver } from "./vue.js";
+export { djangoResolver, flaskResolver, fastapiResolver } from "./python.js";
+export { railsResolver } from "./ruby.js";
+export { springResolver } from "./java.js";
+export { goResolver } from "./go.js";
+export { rustResolver } from "./rust.js";
+export { aspnetResolver } from "./csharp.js";
+export { swiftUIResolver, uikitResolver, vaporResolver } from "./swift.js";

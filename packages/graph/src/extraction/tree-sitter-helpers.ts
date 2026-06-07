@@ -5,9 +5,9 @@
  * Extracted to a leaf module to avoid circular imports between tree-sitter.ts and languages/.
  */
 
-import { type Node as SyntaxNode } from 'web-tree-sitter';
-import * as crypto from 'crypto';
-import { type NodeKind } from '../types.js';
+import { type Node as SyntaxNode } from "web-tree-sitter";
+import * as crypto from "crypto";
+import { type NodeKind } from "../types.js";
 
 /**
  * Generate a unique node ID
@@ -22,9 +22,9 @@ export function generateNodeId(
   line: number,
 ): string {
   const hash = crypto
-    .createHash('sha256')
+    .createHash("sha256")
     .update(`${filePath}:${kind}:${name}:${line}`)
-    .digest('hex')
+    .digest("hex")
     .substring(0, 32);
   return `${kind}:${hash}`;
 }
@@ -39,23 +39,29 @@ export function getNodeText(node: SyntaxNode, source: string): string {
 /**
  * Find a child node by field name
  */
-export function getChildByField(node: SyntaxNode, fieldName: string): SyntaxNode | null {
+export function getChildByField(
+  node: SyntaxNode,
+  fieldName: string,
+): SyntaxNode | null {
   return node.childForFieldName(fieldName);
 }
 
 /**
  * Get the docstring/comment preceding a node
  */
-export function getPrecedingDocstring(node: SyntaxNode, source: string): string | undefined {
+export function getPrecedingDocstring(
+  node: SyntaxNode,
+  source: string,
+): string | undefined {
   let sibling = node.previousNamedSibling;
   const comments: string[] = [];
 
   while (sibling) {
     if (
-      sibling.type === 'comment' ||
-      sibling.type === 'line_comment' ||
-      sibling.type === 'block_comment' ||
-      sibling.type === 'documentation_comment'
+      sibling.type === "comment" ||
+      sibling.type === "line_comment" ||
+      sibling.type === "block_comment" ||
+      sibling.type === "documentation_comment"
     ) {
       comments.unshift(getNodeText(sibling, source));
       sibling = sibling.previousNamedSibling;
@@ -70,11 +76,11 @@ export function getPrecedingDocstring(node: SyntaxNode, source: string): string 
   return comments
     .map((c) =>
       c
-        .replace(/^\/\*\*?|\*\/$/g, '')
-        .replace(/^\/\/\s?/gm, '')
-        .replace(/^\s*\*\s?/gm, '')
+        .replace(/^\/\*\*?|\*\/$/g, "")
+        .replace(/^\/\/\s?/gm, "")
+        .replace(/^\s*\*\s?/gm, "")
         .trim(),
     )
-    .join('\n')
+    .join("\n")
     .trim();
 }

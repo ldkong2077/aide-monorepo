@@ -19,16 +19,16 @@
  *  - A local estimate is enough for budget decisions; we still treat
  *    the upstream's reported number as authoritative for billing.
  */
-import { default as o200kBase } from 'gpt-tokenizer/encoding/o200k_base';
-import { default as cl100kBase } from 'gpt-tokenizer/encoding/cl100k_base';
-import type { ChatMessage } from './types.js';
+import { default as o200kBase } from "gpt-tokenizer/encoding/o200k_base";
+import { default as cl100kBase } from "gpt-tokenizer/encoding/cl100k_base";
+import type { ChatMessage } from "./types.js";
 
 /** Encoding families we know how to tokenize. */
-export type TokenizerEncoding = 'o200k_base' | 'cl100k_base';
+export type TokenizerEncoding = "o200k_base" | "cl100k_base";
 
 /** Default encoding when we can't recognise the model. o200k_base
  *  is the modern OpenAI default (GPT-4o / GPT-5 / o-series). */
-export const DEFAULT_ENCODING: TokenizerEncoding = 'o200k_base';
+export const DEFAULT_ENCODING: TokenizerEncoding = "o200k_base";
 
 /** Per-message overhead added by the OpenAI chat-template format.
  *  Source: OpenAI cookbook / `tiktoken` README — accounts for the
@@ -38,31 +38,33 @@ const CHAT_TEMPLATE_OVERHEAD_PER_MESSAGE = 3;
 const CHAT_TEMPLATE_OVERHEAD_REPLY = 1;
 
 /** Pick an encoding based on the model name. Falls back to o200k_base. */
-export function encodingForModel(model: string | undefined | null): TokenizerEncoding {
+export function encodingForModel(
+  model: string | undefined | null,
+): TokenizerEncoding {
   if (!model) return DEFAULT_ENCODING;
   const m = model.toLowerCase();
   // o200k_base family: GPT-4o+, GPT-5, o-series.
   if (
-    m.includes('gpt-4o') ||
-    m.includes('gpt-5') ||
-    m.includes('o1') ||
-    m.includes('o3') ||
-    m.includes('o4') ||
-    m.includes('gpt-4.1') ||
-    m.includes('gpt-4.5') ||
-    m.includes('chatgpt-4o')
+    m.includes("gpt-4o") ||
+    m.includes("gpt-5") ||
+    m.includes("o1") ||
+    m.includes("o3") ||
+    m.includes("o4") ||
+    m.includes("gpt-4.1") ||
+    m.includes("gpt-4.5") ||
+    m.includes("chatgpt-4o")
   ) {
-    return 'o200k_base';
+    return "o200k_base";
   }
   // cl100k_base family: GPT-4 / GPT-3.5 / text-embedding-3-*.
-  return 'cl100k_base';
+  return "cl100k_base";
 }
 
 /** Resolve the actual encoder instance for an encoding name. The
  *  encoders are imported eagerly at module load but only the requested
  *  one is touched on each call, so the per-call cost is just a switch. */
 function getEncoder(encoding: TokenizerEncoding): typeof o200kBase {
-  return encoding === 'cl100k_base' ? cl100kBase : o200kBase;
+  return encoding === "cl100k_base" ? cl100kBase : o200kBase;
 }
 
 /** Count the tokens in a raw string. */
@@ -77,7 +79,7 @@ export function countTokens(text: string, model?: string): number {
  * chat-template overhead per message (3 tokens each) and a single
  * reply primer (1 token) to mirror how providers compute usage.
  *
- * The `ChatMessage.content` field is typed as `string` in `@aide/core`,
+ * The `ChatMessage.content` field is typed as `string` in `@aide-dev/core`,
  * but defensively stringify non-string content (null, array, object)
  * to keep the function tolerant of future type changes and provider
  * extensions (vision blocks, tool results, etc.).
@@ -93,12 +95,12 @@ export function countMessageTokens(
   for (const message of messages) {
     total += CHAT_TEMPLATE_OVERHEAD_PER_MESSAGE;
     const content = message.content;
-    if (typeof content === 'string') {
+    if (typeof content === "string") {
       total += encoder.countTokens(content);
     } else {
       // Tolerate null / undefined / array / object — encode the
       // JSON representation as a best-effort fallback.
-      total += encoder.countTokens(JSON.stringify(content ?? ''));
+      total += encoder.countTokens(JSON.stringify(content ?? ""));
     }
   }
   total += CHAT_TEMPLATE_OVERHEAD_REPLY;

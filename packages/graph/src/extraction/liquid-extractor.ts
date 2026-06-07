@@ -1,5 +1,11 @@
-import { type Node, type Edge, type ExtractionResult, type ExtractionError, type UnresolvedReference } from '../types.js';
-import { generateNodeId } from './tree-sitter-helpers.js';
+import {
+  type Node,
+  type Edge,
+  type ExtractionResult,
+  type ExtractionError,
+  type UnresolvedReference,
+} from "../types.js";
+import { generateNodeId } from "./tree-sitter-helpers.js";
 
 /**
  * LiquidExtractor - Extracts relationships from Liquid template files
@@ -47,8 +53,8 @@ export class LiquidExtractor {
     } catch (error) {
       this.errors.push({
         message: `Liquid extraction error: ${error instanceof Error ? error.message : String(error)}`,
-        severity: 'error',
-        code: 'parse_error',
+        severity: "error",
+        code: "parse_error",
       });
     }
 
@@ -65,16 +71,16 @@ export class LiquidExtractor {
    * Create a file node for the Liquid template
    */
   private createFileNode(): Node {
-    const lines = this.source.split('\n');
-    const id = generateNodeId(this.filePath, 'file', this.filePath, 1);
+    const lines = this.source.split("\n");
+    const id = generateNodeId(this.filePath, "file", this.filePath, 1);
 
     const fileNode: Node = {
       id,
-      kind: 'file',
-      name: this.filePath.split('/').pop() || this.filePath,
+      kind: "file",
+      name: this.filePath.split("/").pop() || this.filePath,
       qualifiedName: this.filePath,
       filePath: this.filePath,
-      language: 'liquid',
+      language: "liquid",
       startLine: 1,
       endLine: lines.length,
       startColumn: 0,
@@ -99,14 +105,19 @@ export class LiquidExtractor {
       const line = this.getLineNumber(match.index);
 
       // Create an import node for searchability
-      const importNodeId = generateNodeId(this.filePath, 'import', snippetName, line);
+      const importNodeId = generateNodeId(
+        this.filePath,
+        "import",
+        snippetName,
+        line,
+      );
       const importNode: Node = {
         id: importNodeId,
-        kind: 'import',
+        kind: "import",
         name: snippetName,
         qualifiedName: `${this.filePath}::import:${snippetName}`,
         filePath: this.filePath,
-        language: 'liquid',
+        language: "liquid",
         signature: fullMatch,
         startLine: line,
         endLine: line,
@@ -120,19 +131,24 @@ export class LiquidExtractor {
       this.edges.push({
         source: fileNodeId,
         target: importNodeId,
-        kind: 'contains',
+        kind: "contains",
       });
 
       // Create a component node for the snippet reference
-      const nodeId = generateNodeId(this.filePath, 'component', `${tagType}:${snippetName}`, line);
+      const nodeId = generateNodeId(
+        this.filePath,
+        "component",
+        `${tagType}:${snippetName}`,
+        line,
+      );
 
       const node: Node = {
         id: nodeId,
-        kind: 'component',
+        kind: "component",
         name: snippetName,
         qualifiedName: `${this.filePath}::${tagType}:${snippetName}`,
         filePath: this.filePath,
-        language: 'liquid',
+        language: "liquid",
         startLine: line,
         endLine: line,
         startColumn: match.index - this.getLineStart(line),
@@ -146,14 +162,14 @@ export class LiquidExtractor {
       this.edges.push({
         source: fileNodeId,
         target: nodeId,
-        kind: 'contains',
+        kind: "contains",
       });
 
       // Add unresolved reference to the snippet file
       this.unresolvedReferences.push({
         fromNodeId: fileNodeId,
         referenceName: `snippets/${snippetName}.liquid`,
-        referenceKind: 'references',
+        referenceKind: "references",
         line,
         column: match.index - this.getLineStart(line),
       });
@@ -173,14 +189,19 @@ export class LiquidExtractor {
       const line = this.getLineNumber(match.index);
 
       // Create an import node for searchability
-      const importNodeId = generateNodeId(this.filePath, 'import', sectionName, line);
+      const importNodeId = generateNodeId(
+        this.filePath,
+        "import",
+        sectionName,
+        line,
+      );
       const importNode: Node = {
         id: importNodeId,
-        kind: 'import',
+        kind: "import",
         name: sectionName,
         qualifiedName: `${this.filePath}::import:${sectionName}`,
         filePath: this.filePath,
-        language: 'liquid',
+        language: "liquid",
         signature: fullMatch,
         startLine: line,
         endLine: line,
@@ -194,19 +215,24 @@ export class LiquidExtractor {
       this.edges.push({
         source: fileNodeId,
         target: importNodeId,
-        kind: 'contains',
+        kind: "contains",
       });
 
       // Create a component node for the section reference
-      const nodeId = generateNodeId(this.filePath, 'component', `section:${sectionName}`, line);
+      const nodeId = generateNodeId(
+        this.filePath,
+        "component",
+        `section:${sectionName}`,
+        line,
+      );
 
       const node: Node = {
         id: nodeId,
-        kind: 'component',
+        kind: "component",
         name: sectionName,
         qualifiedName: `${this.filePath}::section:${sectionName}`,
         filePath: this.filePath,
-        language: 'liquid',
+        language: "liquid",
         startLine: line,
         endLine: line,
         startColumn: match.index - this.getLineStart(line),
@@ -220,14 +246,14 @@ export class LiquidExtractor {
       this.edges.push({
         source: fileNodeId,
         target: nodeId,
-        kind: 'contains',
+        kind: "contains",
       });
 
       // Add unresolved reference to the section file
       this.unresolvedReferences.push({
         fromNodeId: fileNodeId,
         referenceName: `sections/${sectionName}.liquid`,
-        referenceKind: 'references',
+        referenceKind: "references",
         line,
         column: match.index - this.getLineStart(line),
       });
@@ -239,7 +265,8 @@ export class LiquidExtractor {
    */
   private extractSchema(fileNodeId: string): void {
     // Match {% schema %}...{% endschema %}
-    const schemaRegex = /\{%[-]?\s*schema\s*[-]?%\}([\s\S]*?)\{%[-]?\s*endschema\s*[-]?%\}/g;
+    const schemaRegex =
+      /\{%[-]?\s*schema\s*[-]?%\}([\s\S]*?)\{%[-]?\s*endschema\s*[-]?%\}/g;
     let match;
 
     while ((match = schemaRegex.exec(this.source)) !== null) {
@@ -248,30 +275,37 @@ export class LiquidExtractor {
       const endLine = this.getLineNumber(match.index + fullMatch.length);
 
       // Try to parse the schema JSON to get the name
-      let schemaName = 'schema';
+      let schemaName = "schema";
       try {
         const schemaJson = JSON.parse(schemaContent);
         if (schemaJson.name) {
           // Shopify schema names can be translation objects like {"en": "...", "fr": "..."}
           schemaName =
-            typeof schemaJson.name === 'string'
+            typeof schemaJson.name === "string"
               ? schemaJson.name
-              : schemaJson.name.en || (Object.values(schemaJson.name)[0] as string) || 'schema';
+              : schemaJson.name.en ||
+                (Object.values(schemaJson.name)[0] as string) ||
+                "schema";
         }
       } catch {
         // Schema isn't valid JSON, use default name
       }
 
       // Create a node for the schema
-      const nodeId = generateNodeId(this.filePath, 'constant', `schema:${schemaName}`, startLine);
+      const nodeId = generateNodeId(
+        this.filePath,
+        "constant",
+        `schema:${schemaName}`,
+        startLine,
+      );
 
       const node: Node = {
         id: nodeId,
-        kind: 'constant',
+        kind: "constant",
         name: schemaName,
         qualifiedName: `${this.filePath}::schema:${schemaName}`,
         filePath: this.filePath,
-        language: 'liquid',
+        language: "liquid",
         startLine,
         endLine,
         startColumn: match.index - this.getLineStart(startLine),
@@ -286,7 +320,7 @@ export class LiquidExtractor {
       this.edges.push({
         source: fileNodeId,
         target: nodeId,
-        kind: 'contains',
+        kind: "contains",
       });
     }
   }
@@ -304,15 +338,20 @@ export class LiquidExtractor {
       const line = this.getLineNumber(match.index);
 
       // Create a variable node
-      const nodeId = generateNodeId(this.filePath, 'variable', variableName, line);
+      const nodeId = generateNodeId(
+        this.filePath,
+        "variable",
+        variableName,
+        line,
+      );
 
       const node: Node = {
         id: nodeId,
-        kind: 'variable',
+        kind: "variable",
         name: variableName,
         qualifiedName: `${this.filePath}::${variableName}`,
         filePath: this.filePath,
-        language: 'liquid',
+        language: "liquid",
         startLine: line,
         endLine: line,
         startColumn: match.index - this.getLineStart(line),
@@ -326,7 +365,7 @@ export class LiquidExtractor {
       this.edges.push({
         source: fileNodeId,
         target: nodeId,
-        kind: 'contains',
+        kind: "contains",
       });
     }
   }
@@ -343,7 +382,7 @@ export class LiquidExtractor {
    * Get the character index of the start of a line
    */
   private getLineStart(lineNumber: number): number {
-    const lines = this.source.split('\n');
+    const lines = this.source.split("\n");
     let index = 0;
     for (let i = 0; i < lineNumber - 1 && i < lines.length; i++) {
       index += lines[i].length + 1; // +1 for newline

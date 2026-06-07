@@ -4,33 +4,38 @@
  * Coordinates file scanning, parsing, and database storage.
  */
 
-import * as fs from 'fs';
-import * as fsp from 'fs/promises';
-import * as path from 'path';
-import { fileURLToPath } from 'node:url';
-import * as crypto from 'crypto';
-import { execFileSync } from 'child_process';
-import type { Worker as WtWorker } from 'worker_threads';
-import { type Language, type FileRecord, type ExtractionResult, type ExtractionError } from '../types.js';
-import { type QueryBuilder } from '../db/queries.js';
-import { extractFromSource } from './tree-sitter.js';
+import * as fs from "fs";
+import * as fsp from "fs/promises";
+import * as path from "path";
+import { fileURLToPath } from "node:url";
+import * as crypto from "crypto";
+import { execFileSync } from "child_process";
+import type { Worker as WtWorker } from "worker_threads";
+import {
+  type Language,
+  type FileRecord,
+  type ExtractionResult,
+  type ExtractionError,
+} from "../types.js";
+import { type QueryBuilder } from "../db/queries.js";
+import { extractFromSource } from "./tree-sitter.js";
 import {
   detectLanguage,
   isSourceFile,
   isLanguageSupported,
   initGrammars,
   loadGrammarsForLanguages,
-} from './grammars.js';
-import { logDebug, logWarn } from '../errors.js';
-import { validatePathWithinRoot, normalizePath } from '../utils.js';
-import { default as createIgnore, type Ignore } from 'ignore';
-import { detectFrameworks } from '../resolution/frameworks/index.js';
+} from "./grammars.js";
+import { logDebug, logWarn } from "../errors.js";
+import { validatePathWithinRoot, normalizePath } from "../utils.js";
+import { default as createIgnore, type Ignore } from "ignore";
+import { detectFrameworks } from "../resolution/frameworks/index.js";
 
 // Local typed alias to disambiguate the `ignore` default export's
 // merged function+namespace declaration.
 const createIgnoreInstance: (options?: { ignorecase?: boolean }) => Ignore =
   createIgnore as unknown as (options?: { ignorecase?: boolean }) => Ignore;
-import type { ResolutionContext } from '../resolution/types.js';
+import type { ResolutionContext } from "../resolution/types.js";
 
 /**
  * Number of files to read in parallel during indexing.
@@ -60,7 +65,7 @@ const WORKER_RECYCLE_INTERVAL = 250;
  * Progress callback for indexing operations
  */
 export interface IndexProgress {
-  phase: 'scanning' | 'parsing' | 'storing' | 'resolving';
+  phase: "scanning" | "parsing" | "storing" | "resolving";
   current: number;
   total: number;
   currentFile?: string;
@@ -97,7 +102,7 @@ export interface SyncResult {
  * Calculate SHA256 hash of file contents
  */
 export function hashContent(content: string): string {
-  return crypto.createHash('sha256').update(content).digest('hex');
+  return crypto.createHash("sha256").update(content).digest("hex");
 }
 
 /**
@@ -120,13 +125,17 @@ const MAX_FILE_SIZE = 1024 * 1024;
  * embedded repo is its own git boundary, so we re-run `git ls-files` inside it.
  * (See issue #193.)
  */
-function collectGitFiles(repoDir: string, prefix: string, files: Set<string>): void {
+function collectGitFiles(
+  repoDir: string,
+  prefix: string,
+  files: Set<string>,
+): void {
   const gitOpts = {
     cwd: repoDir,
-    encoding: 'utf-8' as const,
+    encoding: "utf-8" as const,
     timeout: 30000,
     maxBuffer: 50 * 1024 * 1024,
-    stdio: ['pipe', 'pipe', 'pipe'] as ['pipe', 'pipe', 'pipe'],
+    stdio: ["pipe", "pipe", "pipe"] as ["pipe", "pipe", "pipe"],
   };
 
   // Tracked files. --recurse-submodules pulls in files from active submodules,
@@ -134,8 +143,12 @@ function collectGitFiles(repoDir: string, prefix: string, files: Set<string>): v
   // Without this, monorepos using submodules index 0 files. (See issue #147.)
   // Note: --recurse-submodules only supports -c/--cached and --stage modes — it
   // can't be combined with -o, so untracked files are gathered separately below.
-  const tracked = execFileSync('git', ['ls-files', '-c', '--recurse-submodules'], gitOpts);
-  for (const line of tracked.split('\n')) {
+  const tracked = execFileSync(
+    "git",
+    ["ls-files", "-c", "--recurse-submodules"],
+    gitOpts,
+  );
+  for (const line of tracked.split("\n")) {
     const trimmed = line.trim();
     if (trimmed) {
       files.add(normalizePath(prefix + trimmed));
@@ -145,16 +158,20 @@ function collectGitFiles(repoDir: string, prefix: string, files: Set<string>): v
   // Untracked files (submodules manage their own untracked state). Embedded git
   // repos surface here as a single "subdir/" entry that git refuses to descend
   // into — recurse into those as their own repos so their source gets indexed.
-  const untracked = execFileSync('git', ['ls-files', '-o', '--exclude-standard'], gitOpts);
-  for (const line of untracked.split('\n')) {
+  const untracked = execFileSync(
+    "git",
+    ["ls-files", "-o", "--exclude-standard"],
+    gitOpts,
+  );
+  for (const line of untracked.split("\n")) {
     const trimmed = line.trim();
     if (!trimmed) continue;
-    if (trimmed.endsWith('/')) {
+    if (trimmed.endsWith("/")) {
       // git only emits a trailing-slash directory entry for an embedded repo.
       // Guard with a .git check anyway, and skip anything else exactly as git
       // itself skips it (we never descend into a non-repo opaque dir).
       const childDir = path.join(repoDir, trimmed);
-      if (fs.existsSync(path.join(childDir, '.git'))) {
+      if (fs.existsSync(path.join(childDir, ".git"))) {
         collectGitFiles(childDir, prefix + trimmed, files);
       }
       continue;
@@ -174,21 +191,21 @@ function getGitVisibleFiles(rootDir: string): Set<string> | null {
     // Check if the project directory is gitignored by a parent repo.
     // When rootDir lives inside a parent git repo that ignores it,
     // `git ls-files` returns nothing — fall back to filesystem walk.
-    const gitRoot = execFileSync('git', ['rev-parse', '--show-toplevel'], {
+    const gitRoot = execFileSync("git", ["rev-parse", "--show-toplevel"], {
       cwd: rootDir,
-      encoding: 'utf-8',
+      encoding: "utf-8",
       timeout: 5000,
-      stdio: ['pipe', 'pipe', 'pipe'],
+      stdio: ["pipe", "pipe", "pipe"],
     }).trim();
 
     if (path.resolve(gitRoot) !== path.resolve(rootDir)) {
       try {
         // git check-ignore exits 0 if the path IS ignored, 1 if not
-        execFileSync('git', ['check-ignore', '-q', path.resolve(rootDir)], {
+        execFileSync("git", ["check-ignore", "-q", path.resolve(rootDir)], {
           cwd: rootDir,
-          encoding: 'utf-8',
+          encoding: "utf-8",
           timeout: 5000,
-          stdio: ['pipe', 'pipe', 'pipe'],
+          stdio: ["pipe", "pipe", "pipe"],
         });
         // Directory is gitignored by parent repo — fall back to filesystem walk
         return null;
@@ -198,7 +215,7 @@ function getGitVisibleFiles(rootDir: string): Set<string> | null {
     }
 
     const files = new Set<string>();
-    collectGitFiles(rootDir, '', files);
+    collectGitFiles(rootDir, "", files);
     return files;
   } catch {
     return null;
@@ -222,18 +239,22 @@ interface GitChanges {
  */
 function getGitChangedFiles(rootDir: string): GitChanges | null {
   try {
-    const output = execFileSync('git', ['status', '--porcelain', '--no-renames'], {
-      cwd: rootDir,
-      encoding: 'utf-8',
-      timeout: 10000,
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
+    const output = execFileSync(
+      "git",
+      ["status", "--porcelain", "--no-renames"],
+      {
+        cwd: rootDir,
+        encoding: "utf-8",
+        timeout: 10000,
+        stdio: ["pipe", "pipe", "pipe"],
+      },
+    );
 
     const modified: string[] = [];
     const added: string[] = [];
     const deleted: string[] = [];
 
-    for (const line of output.split('\n')) {
+    for (const line of output.split("\n")) {
       if (line.length < 4) continue; // Minimum: "XY file"
 
       const statusCode = line.substring(0, 2);
@@ -242,9 +263,9 @@ function getGitChangedFiles(rootDir: string): GitChanges | null {
       // Skip non-source files (git status already omits .gitignored paths).
       if (!isSourceFile(filePath)) continue;
 
-      if (statusCode === '??') {
+      if (statusCode === "??") {
         added.push(filePath);
-      } else if (statusCode.includes('D')) {
+      } else if (statusCode.includes("D")) {
         deleted.push(filePath);
       } else {
         // M, MM, AM, A (staged), etc. — treat as modified
@@ -339,9 +360,11 @@ function scanDirectoryWalk(
 
   const loadIgnore = (dir: string): ScopedIgnore | null => {
     try {
-      const giPath = path.join(dir, '.gitignore');
+      const giPath = path.join(dir, ".gitignore");
       if (fs.existsSync(giPath)) {
-        const ig: Ignore = createIgnoreInstance().add(fs.readFileSync(giPath, 'utf-8'));
+        const ig: Ignore = createIgnoreInstance().add(
+          fs.readFileSync(giPath, "utf-8"),
+        );
         return { dir, ig };
       }
     } catch {
@@ -350,11 +373,15 @@ function scanDirectoryWalk(
     return null;
   };
 
-  const isIgnored = (fullPath: string, isDir: boolean, matchers: ScopedIgnore[]): boolean => {
+  const isIgnored = (
+    fullPath: string,
+    isDir: boolean,
+    matchers: ScopedIgnore[],
+  ): boolean => {
     for (const { dir, ig } of matchers) {
       let rel = normalizePath(path.relative(dir, fullPath));
-      if (!rel || rel.startsWith('..')) continue; // not under this matcher's dir
-      if (isDir) rel += '/'; // dir-only rules (e.g. `build/`) only match with the slash
+      if (!rel || rel.startsWith("..")) continue; // not under this matcher's dir
+      if (isDir) rel += "/"; // dir-only rules (e.g. `build/`) only match with the slash
       if (ig.ignores(rel)) return true;
     }
     return false;
@@ -365,12 +392,15 @@ function scanDirectoryWalk(
     try {
       realDir = fs.realpathSync(dir);
     } catch {
-      logDebug('Skipping unresolvable directory', { dir });
+      logDebug("Skipping unresolvable directory", { dir });
       return;
     }
 
     if (visitedDirs.has(realDir)) {
-      logDebug('Skipping already-visited directory (symlink cycle)', { dir, realDir });
+      logDebug("Skipping already-visited directory (symlink cycle)", {
+        dir,
+        realDir,
+      });
       return;
     }
     visitedDirs.add(realDir);
@@ -383,13 +413,13 @@ function scanDirectoryWalk(
     try {
       entries = fs.readdirSync(dir, { withFileTypes: true });
     } catch (error) {
-      logDebug('Skipping unreadable directory', { dir, error: String(error) });
+      logDebug("Skipping unreadable directory", { dir, error: String(error) });
       return;
     }
 
     for (const entry of entries) {
       // Never descend into git internals or our own data directory.
-      if (entry.name === '.git' || entry.name === '.codegraph') continue;
+      if (entry.name === ".git" || entry.name === ".codegraph") continue;
 
       const fullPath = path.join(dir, entry.name);
       const relativePath = normalizePath(path.relative(rootDir, fullPath));
@@ -403,14 +433,17 @@ function scanDirectoryWalk(
               walk(fullPath, active);
             }
           } else if (stat.isFile()) {
-            if (!isIgnored(fullPath, false, active) && isSourceFile(relativePath)) {
+            if (
+              !isIgnored(fullPath, false, active) &&
+              isSourceFile(relativePath)
+            ) {
               files.push(relativePath);
               count++;
               onProgress?.(count, relativePath);
             }
           }
         } catch {
-          logDebug('Skipping broken symlink', { path: fullPath });
+          logDebug("Skipping broken symlink", { path: fullPath });
         }
         continue;
       }
@@ -482,7 +515,7 @@ export class ExtractionOrchestrator {
         const full = validatePathWithinRoot(rootDir, relativePath);
         if (!full) return null;
         try {
-          return fs.readFileSync(full, 'utf-8');
+          return fs.readFileSync(full, "utf-8");
         } catch {
           return null;
         }
@@ -496,7 +529,8 @@ export class ExtractionOrchestrator {
    * inside a single run don't re-scan.
    */
   private ensureDetectedFrameworks(files?: string[]): string[] {
-    if (this.detectedFrameworkNames !== null) return this.detectedFrameworkNames;
+    if (this.detectedFrameworkNames !== null)
+      return this.detectedFrameworkNames;
     const fileList = files ?? scanDirectory(this.rootDir);
     const context = this.buildDetectionContext(fileList);
     this.detectedFrameworkNames = detectFrameworks(context).map((r) => r.name);
@@ -528,14 +562,14 @@ export class ExtractionOrchestrator {
 
     // Phase 1: Scan for files
     onProgress?.({
-      phase: 'scanning',
+      phase: "scanning",
       current: 0,
       total: 0,
     });
 
     const files = await scanDirectoryAsync(this.rootDir, (current, file) => {
       onProgress?.({
-        phase: 'scanning',
+        phase: "scanning",
         current,
         total: 0,
         currentFile: file,
@@ -558,7 +592,7 @@ export class ExtractionOrchestrator {
         filesErrored: 0,
         nodesCreated: 0,
         edgesCreated: 0,
-        errors: [{ message: 'Aborted', severity: 'error' }],
+        errors: [{ message: "Aborted", severity: "error" }],
         durationMs: Date.now() - startTime,
       };
     }
@@ -571,7 +605,7 @@ export class ExtractionOrchestrator {
     // The yield lets the shimmer worker flush the phase transition to stdout before
     // the main thread starts synchronous grammar detection work.
     onProgress?.({
-      phase: 'parsing',
+      phase: "parsing",
       current: 0,
       total,
     });
@@ -580,8 +614,8 @@ export class ExtractionOrchestrator {
     // Detect needed languages and load grammars in the parse worker
     const neededLanguages = [...new Set(files.map((f) => detectLanguage(f)))];
     // .h files default to 'c' but may be C++ — ensure cpp grammar is loaded when c is needed
-    if (neededLanguages.includes('c') && !neededLanguages.includes('cpp')) {
-      neededLanguages.push('cpp');
+    if (neededLanguages.includes("c") && !neededLanguages.includes("cpp")) {
+      neededLanguages.push("cpp");
     }
 
     // Try to use a worker thread for parsing (keeps main thread unblocked for UI).
@@ -589,12 +623,12 @@ export class ExtractionOrchestrator {
     // `__dirname` is not defined in ESM; derive it from import.meta.url.
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = path.dirname(__filename);
-    const parseWorkerPath = path.join(__dirname, 'parse-worker.js');
+    const parseWorkerPath = path.join(__dirname, "parse-worker.js");
     const useWorker = fs.existsSync(parseWorkerPath);
     let WorkerClass: typeof WtWorker | null = null;
 
     if (useWorker) {
-      const { Worker } = await import('worker_threads');
+      const { Worker } = await import("worker_threads");
       WorkerClass = Worker;
     } else {
       // In-process fallback: load grammars locally
@@ -627,25 +661,28 @@ export class ExtractionOrchestrator {
     }
 
     function attachWorkerHandlers(w: WtWorker): void {
-      w.on('message', (msg: { type: string; id?: number; result?: ExtractionResult }) => {
-        if (msg.type === 'parse-result' && msg.id !== undefined) {
-          const pending = pendingParses.get(msg.id);
-          if (pending) {
-            clearTimeout(pending.timer);
-            pendingParses.delete(msg.id);
-            pending.resolve(msg.result!);
+      w.on(
+        "message",
+        (msg: { type: string; id?: number; result?: ExtractionResult }) => {
+          if (msg.type === "parse-result" && msg.id !== undefined) {
+            const pending = pendingParses.get(msg.id);
+            if (pending) {
+              clearTimeout(pending.timer);
+              pendingParses.delete(msg.id);
+              pending.resolve(msg.result!);
+            }
           }
-        }
-      });
+        },
+      );
 
-      w.on('error', (err) => {
-        logWarn('Parse worker error', { error: err.message });
+      w.on("error", (err) => {
+        logWarn("Parse worker error", { error: err.message });
         rejectAllPending(`Worker error: ${err.message}`);
       });
 
-      w.on('exit', (code) => {
+      w.on("exit", (code) => {
         if (code !== 0 && pendingParses.size > 0) {
-          logWarn('Parse worker exited unexpectedly', { code });
+          logWarn("Parse worker exited unexpectedly", { code });
           rejectAllPending(`Worker exited with code ${code}`);
         }
         // Clear reference so we know to respawn, reset count so
@@ -659,17 +696,20 @@ export class ExtractionOrchestrator {
 
     async function ensureWorker(): Promise<WtWorker> {
       if (parseWorker) return parseWorker;
-      log('Spawning new parse worker...');
+      log("Spawning new parse worker...");
       parseWorker = new WorkerClass!(parseWorkerPath);
       attachWorkerHandlers(parseWorker);
 
       // Load grammars in the new worker
       await new Promise<void>((resolve, reject) => {
-        parseWorker!.once('message', (msg: { type: string }) => {
-          if (msg.type === 'grammars-loaded') resolve();
+        parseWorker!.once("message", (msg: { type: string }) => {
+          if (msg.type === "grammars-loaded") resolve();
           else reject(new Error(`Unexpected message: ${msg.type}`));
         });
-        parseWorker!.postMessage({ type: 'load-grammars', languages: neededLanguages });
+        parseWorker!.postMessage({
+          type: "load-grammars",
+          languages: neededLanguages,
+        });
       });
 
       return parseWorker;
@@ -696,7 +736,10 @@ export class ExtractionOrchestrator {
       w.terminate().catch(() => {});
     }
 
-    async function requestParse(filePath: string, content: string): Promise<ExtractionResult> {
+    async function requestParse(
+      filePath: string,
+      content: string,
+    ): Promise<ExtractionResult> {
       if (!WorkerClass) {
         // In-process fallback
         return extractFromSource(
@@ -719,7 +762,8 @@ export class ExtractionOrchestrator {
       workerParseCount++;
 
       // Scale timeout for large files: base 10s + 10s per 100KB
-      const timeoutMs = PARSE_TIMEOUT_MS + Math.floor(content.length / 100_000) * 10_000;
+      const timeoutMs =
+        PARSE_TIMEOUT_MS + Math.floor(content.length / 100_000) * 10_000;
 
       return new Promise<ExtractionResult>((resolve, reject) => {
         const timer = setTimeout(() => {
@@ -734,14 +778,19 @@ export class ExtractionOrchestrator {
         }, timeoutMs);
 
         pendingParses.set(id, { resolve, reject, timer });
-        worker.postMessage({ type: 'parse', id, filePath, content, frameworkNames });
+        worker.postMessage({
+          type: "parse",
+          id,
+          filePath,
+          content,
+          frameworkNames,
+        });
       });
     }
 
     for (let i = 0; i < files.length; i += FILE_IO_BATCH_SIZE) {
       if (signal?.aborted) {
-        if (parseWorker)
-          (parseWorker as WtWorker).terminate().catch(() => {});
+        if (parseWorker) (parseWorker as WtWorker).terminate().catch(() => {});
         return {
           success: false,
           filesIndexed,
@@ -749,7 +798,7 @@ export class ExtractionOrchestrator {
           filesErrored,
           nodesCreated: totalNodes,
           edgesCreated: totalEdges,
-          errors: [{ message: 'Aborted', severity: 'error' }, ...errors],
+          errors: [{ message: "Aborted", severity: "error" }, ...errors],
           durationMs: Date.now() - startTime,
         };
       }
@@ -762,17 +811,24 @@ export class ExtractionOrchestrator {
           try {
             const fullPath = validatePathWithinRoot(this.rootDir, fp);
             if (!fullPath) {
-              logWarn('Path traversal blocked in batch reader', { filePath: fp });
+              logWarn("Path traversal blocked in batch reader", {
+                filePath: fp,
+              });
               return {
                 filePath: fp,
                 content: null as string | null,
                 stats: null as fs.Stats | null,
-                error: new Error('Path traversal blocked'),
+                error: new Error("Path traversal blocked"),
               };
             }
-            const content = await fsp.readFile(fullPath, 'utf-8');
+            const content = await fsp.readFile(fullPath, "utf-8");
             const stats = await fsp.stat(fullPath);
-            return { filePath: fp, content, stats, error: null as Error | null };
+            return {
+              filePath: fp,
+              content,
+              stats,
+              error: null as Error | null,
+            };
           } catch (err) {
             return {
               filePath: fp,
@@ -788,22 +844,22 @@ export class ExtractionOrchestrator {
       for (const { filePath, content, stats, error } of fileContents) {
         if (signal?.aborted) {
           if (parseWorker)
-          (parseWorker as WtWorker).terminate().catch(() => {});
-        return {
+            (parseWorker as WtWorker).terminate().catch(() => {});
+          return {
             success: false,
             filesIndexed,
             filesSkipped,
             filesErrored,
             nodesCreated: totalNodes,
             edgesCreated: totalEdges,
-            errors: [{ message: 'Aborted', severity: 'error' }, ...errors],
+            errors: [{ message: "Aborted", severity: "error" }, ...errors],
             durationMs: Date.now() - startTime,
           };
         }
 
         // Report progress before parsing (show current file being worked on)
         onProgress?.({
-          phase: 'parsing',
+          phase: "parsing",
           current: processed,
           total,
           currentFile: filePath,
@@ -815,8 +871,8 @@ export class ExtractionOrchestrator {
           errors.push({
             message: `Failed to read file: ${error instanceof Error ? error.message : String(error)}`,
             filePath,
-            severity: 'error',
-            code: 'read_error',
+            severity: "error",
+            code: "read_error",
           });
           continue;
         }
@@ -832,10 +888,10 @@ export class ExtractionOrchestrator {
           errors.push({
             message: `File exceeds max size (${stats.size} > ${MAX_FILE_SIZE})`,
             filePath,
-            severity: 'warning',
-            code: 'size_exceeded',
+            severity: "warning",
+            code: "size_exceeded",
           });
-          onProgress?.({ phase: 'parsing', current: processed, total });
+          onProgress?.({ phase: "parsing", current: processed, total });
           continue;
         }
 
@@ -848,10 +904,11 @@ export class ExtractionOrchestrator {
           processed++;
           filesErrored++;
           errors.push({
-            message: parseErr instanceof Error ? parseErr.message : String(parseErr),
+            message:
+              parseErr instanceof Error ? parseErr.message : String(parseErr),
             filePath,
-            severity: 'error',
-            code: 'parse_error',
+            severity: "error",
+            code: "parse_error",
           });
           continue;
         }
@@ -861,7 +918,13 @@ export class ExtractionOrchestrator {
         // Store in database on main thread (SQLite is not thread-safe)
         if (result.nodes.length > 0 || result.errors.length === 0) {
           const language = detectLanguage(filePath, content);
-          this.storeExtractionResult(filePath, content, language, stats, result);
+          this.storeExtractionResult(
+            filePath,
+            content,
+            language,
+            stats,
+            result,
+          );
         }
 
         if (result.errors.length > 0) {
@@ -875,7 +938,7 @@ export class ExtractionOrchestrator {
           filesIndexed++;
           totalNodes += result.nodes.length;
           totalEdges += result.edges.length;
-        } else if (result.errors.some((e) => e.severity === 'error')) {
+        } else if (result.errors.some((e) => e.severity === "error")) {
           filesErrored++;
         } else {
           filesSkipped++;
@@ -885,7 +948,7 @@ export class ExtractionOrchestrator {
 
     // Report 100% so the progress bar doesn't hang at 99%
     onProgress?.({
-      phase: 'parsing',
+      phase: "parsing",
       current: total,
       total,
     });
@@ -900,13 +963,16 @@ export class ExtractionOrchestrator {
     // every file gets the absolute cleanest WASM state possible.
     const retryableErrors = errors.filter(
       (e) =>
-        e.code === 'parse_error' &&
+        e.code === "parse_error" &&
         e.filePath &&
-        (e.message.includes('Worker exited') || e.message.includes('memory access out of bounds')),
+        (e.message.includes("Worker exited") ||
+          e.message.includes("memory access out of bounds")),
     );
 
     if (retryableErrors.length > 0 && WorkerClass) {
-      log(`Retrying ${retryableErrors.length} files that failed due to WASM memory errors...`);
+      log(
+        `Retrying ${retryableErrors.length} files that failed due to WASM memory errors...`,
+      );
 
       const stillFailing: typeof retryableErrors = [];
 
@@ -921,7 +987,7 @@ export class ExtractionOrchestrator {
         try {
           const fullPath = validatePathWithinRoot(this.rootDir, filePath);
           if (!fullPath) continue;
-          content = await fsp.readFile(fullPath, 'utf-8');
+          content = await fsp.readFile(fullPath, "utf-8");
         } catch {
           continue;
         }
@@ -937,7 +1003,13 @@ export class ExtractionOrchestrator {
         if (result.nodes.length > 0 || result.errors.length === 0) {
           const language = detectLanguage(filePath, content);
           const stats = await fsp.stat(path.join(this.rootDir, filePath));
-          this.storeExtractionResult(filePath, content, language, stats, result);
+          this.storeExtractionResult(
+            filePath,
+            content,
+            language,
+            stats,
+            result,
+          );
 
           const idx = errors.indexOf(errEntry);
           if (idx >= 0) errors.splice(idx, 1);
@@ -954,7 +1026,9 @@ export class ExtractionOrchestrator {
       // test files are 90%+ comments (CHECK directives) that don't contribute
       // code nodes but consume parser memory.
       if (stillFailing.length > 0) {
-        log(`${stillFailing.length} files still failing — retrying with comments stripped...`);
+        log(
+          `${stillFailing.length} files still failing — retrying with comments stripped...`,
+        );
 
         for (const errEntry of stillFailing) {
           const filePath = errEntry.filePath!;
@@ -966,7 +1040,7 @@ export class ExtractionOrchestrator {
           try {
             const fullPath = validatePathWithinRoot(this.rootDir, filePath);
             if (!fullPath) continue;
-            fullContent = await fsp.readFile(fullPath, 'utf-8');
+            fullContent = await fsp.readFile(fullPath, "utf-8");
           } catch {
             continue;
           }
@@ -974,9 +1048,9 @@ export class ExtractionOrchestrator {
           // Strip lines that are entirely comments (preserving line numbers
           // by replacing with empty lines so node positions stay correct)
           const stripped = fullContent
-            .split('\n')
-            .map((line) => (/^\s*\/\//.test(line) ? '' : line))
-            .join('\n');
+            .split("\n")
+            .map((line) => (/^\s*\/\//.test(line) ? "" : line))
+            .join("\n");
 
           let result: ExtractionResult;
           try {
@@ -988,7 +1062,13 @@ export class ExtractionOrchestrator {
           if (result.nodes.length > 0 || result.errors.length === 0) {
             const language = detectLanguage(filePath, fullContent);
             const stats = await fsp.stat(path.join(this.rootDir, filePath));
-            this.storeExtractionResult(filePath, fullContent, language, stats, result);
+            this.storeExtractionResult(
+              filePath,
+              fullContent,
+              language,
+              stats,
+              result,
+            );
 
             const idx = errors.indexOf(errEntry);
             if (idx >= 0) errors.splice(idx, 1);
@@ -996,20 +1076,24 @@ export class ExtractionOrchestrator {
             filesIndexed++;
             totalNodes += result.nodes.length;
             totalEdges += result.edges.length;
-            log(`Retry (stripped) OK: ${filePath} (${result.nodes.length} nodes)`);
+            log(
+              `Retry (stripped) OK: ${filePath} (${result.nodes.length} nodes)`,
+            );
           }
         }
       }
     }
 
     // Shut down parse worker and clear any pending timers
-    rejectAllPending('Indexing complete');
+    rejectAllPending("Indexing complete");
     if (parseWorker) {
       (parseWorker as WtWorker).terminate().catch(() => {});
     }
 
     return {
-      success: filesIndexed > 0 || errors.filter((e) => e.severity === 'error').length === 0,
+      success:
+        filesIndexed > 0 ||
+        errors.filter((e) => e.severity === "error").length === 0,
       filesIndexed,
       filesSkipped,
       filesErrored,
@@ -1043,7 +1127,7 @@ export class ExtractionOrchestrator {
         filesIndexed++;
         totalNodes += result.nodes.length;
         totalEdges += result.edges.length;
-      } else if (result.errors.some((e) => e.severity === 'error')) {
+      } else if (result.errors.some((e) => e.severity === "error")) {
         filesErrored++;
       } else {
         filesSkipped++;
@@ -1051,7 +1135,9 @@ export class ExtractionOrchestrator {
     }
 
     return {
-      success: filesIndexed > 0 || errors.filter((e) => e.severity === 'error').length === 0,
+      success:
+        filesIndexed > 0 ||
+        errors.filter((e) => e.severity === "error").length === 0,
       filesIndexed,
       filesSkipped,
       filesErrored,
@@ -1077,8 +1163,8 @@ export class ExtractionOrchestrator {
           {
             message: `Path traversal blocked: ${relativePath}`,
             filePath: relativePath,
-            severity: 'error',
-            code: 'path_traversal',
+            severity: "error",
+            code: "path_traversal",
           },
         ],
         durationMs: 0,
@@ -1090,7 +1176,7 @@ export class ExtractionOrchestrator {
     let stats: fs.Stats;
     try {
       stats = await fsp.stat(fullPath);
-      content = await fsp.readFile(fullPath, 'utf-8');
+      content = await fsp.readFile(fullPath, "utf-8");
     } catch (error) {
       return {
         nodes: [],
@@ -1100,8 +1186,8 @@ export class ExtractionOrchestrator {
           {
             message: `Failed to read file: ${error instanceof Error ? error.message : String(error)}`,
             filePath: relativePath,
-            severity: 'error',
-            code: 'read_error',
+            severity: "error",
+            code: "read_error",
           },
         ],
         durationMs: 0,
@@ -1123,17 +1209,19 @@ export class ExtractionOrchestrator {
     // Prevent path traversal
     const fullPath = validatePathWithinRoot(this.rootDir, relativePath);
     if (!fullPath) {
-      logWarn('Path traversal blocked in indexFileWithContent', { relativePath });
+      logWarn("Path traversal blocked in indexFileWithContent", {
+        relativePath,
+      });
       return {
         nodes: [],
         edges: [],
         unresolvedReferences: [],
         errors: [
           {
-            message: 'Path traversal blocked',
+            message: "Path traversal blocked",
             filePath: relativePath,
-            severity: 'error',
-            code: 'path_traversal',
+            severity: "error",
+            code: "path_traversal",
           },
         ],
         durationMs: 0,
@@ -1150,8 +1238,8 @@ export class ExtractionOrchestrator {
           {
             message: `File exceeds max size (${stats.size} > ${MAX_FILE_SIZE})`,
             filePath: relativePath,
-            severity: 'warning',
-            code: 'size_exceeded',
+            severity: "warning",
+            code: "size_exceeded",
           },
         ],
         durationMs: 0,
@@ -1174,11 +1262,22 @@ export class ExtractionOrchestrator {
     // otherwise detect on the spot so single-file re-index paths still emit
     // route nodes / middleware / etc.
     const frameworkNames = this.ensureDetectedFrameworks();
-    const result = extractFromSource(relativePath, content, language, frameworkNames);
+    const result = extractFromSource(
+      relativePath,
+      content,
+      language,
+      frameworkNames,
+    );
 
     // Store in database
     if (result.nodes.length > 0 || result.errors.length === 0) {
-      this.storeExtractionResult(relativePath, content, language, stats, result);
+      this.storeExtractionResult(
+        relativePath,
+        content,
+        language,
+        stats,
+        result,
+      );
     }
 
     return result;
@@ -1263,7 +1362,9 @@ export class ExtractionOrchestrator {
    * Sync with current file state.
    * Uses git status as a fast path when available, falling back to full scan.
    */
-  async sync(onProgress?: (progress: IndexProgress) => void): Promise<SyncResult> {
+  async sync(
+    onProgress?: (progress: IndexProgress) => void,
+  ): Promise<SyncResult> {
     await initGrammars(); // Initialize WASM runtime (grammars loaded lazily below)
     const startTime = Date.now();
     let filesChecked = 0;
@@ -1274,7 +1375,7 @@ export class ExtractionOrchestrator {
     const changedFilePaths: string[] = [];
 
     onProgress?.({
-      phase: 'scanning',
+      phase: "scanning",
       current: 0,
       total: 0,
     });
@@ -1286,7 +1387,9 @@ export class ExtractionOrchestrator {
       // === Git fast path ===
       // Only inspect the files git reports as changed instead of scanning everything.
       filesChecked =
-        gitChanges.modified.length + gitChanges.added.length + gitChanges.deleted.length;
+        gitChanges.modified.length +
+        gitChanges.added.length +
+        gitChanges.deleted.length;
 
       // Handle deleted files
       for (const filePath of gitChanges.deleted) {
@@ -1306,9 +1409,12 @@ export class ExtractionOrchestrator {
         const fullPath = path.join(this.rootDir, filePath);
         let content: string;
         try {
-          content = fs.readFileSync(fullPath, 'utf-8');
+          content = fs.readFileSync(fullPath, "utf-8");
         } catch (error) {
-          logDebug('Skipping unreadable file during sync', { filePath, error: String(error) });
+          logDebug("Skipping unreadable file during sync", {
+            filePath,
+            error: String(error),
+          });
           continue;
         }
 
@@ -1350,9 +1456,12 @@ export class ExtractionOrchestrator {
         const fullPath = path.join(this.rootDir, filePath);
         let content: string;
         try {
-          content = fs.readFileSync(fullPath, 'utf-8');
+          content = fs.readFileSync(fullPath, "utf-8");
         } catch (error) {
-          logDebug('Skipping unreadable file during sync', { filePath, error: String(error) });
+          logDebug("Skipping unreadable file during sync", {
+            filePath,
+            error: String(error),
+          });
           continue;
         }
 
@@ -1373,10 +1482,12 @@ export class ExtractionOrchestrator {
 
     // Load only grammars needed for changed files
     if (filesToIndex.length > 0) {
-      const neededLanguages = [...new Set(filesToIndex.map((f) => detectLanguage(f)))];
+      const neededLanguages = [
+        ...new Set(filesToIndex.map((f) => detectLanguage(f))),
+      ];
       // .h files default to 'c' but may be C++ — ensure cpp grammar is loaded
-      if (neededLanguages.includes('c') && !neededLanguages.includes('cpp')) {
-        neededLanguages.push('cpp');
+      if (neededLanguages.includes("c") && !neededLanguages.includes("cpp")) {
+        neededLanguages.push("cpp");
       }
       await loadGrammarsForLanguages(neededLanguages);
     }
@@ -1386,7 +1497,7 @@ export class ExtractionOrchestrator {
     for (let i = 0; i < filesToIndex.length; i++) {
       const filePath = filesToIndex[i];
       onProgress?.({
-        phase: 'parsing',
+        phase: "parsing",
         current: i + 1,
         total,
         currentFile: filePath,
@@ -1403,7 +1514,8 @@ export class ExtractionOrchestrator {
       filesRemoved,
       nodesUpdated,
       durationMs: Date.now() - startTime,
-      changedFilePaths: changedFilePaths.length > 0 ? changedFilePaths : undefined,
+      changedFilePaths:
+        changedFilePaths.length > 0 ? changedFilePaths : undefined,
     };
   }
 
@@ -1411,7 +1523,11 @@ export class ExtractionOrchestrator {
    * Get files that have changed since last index.
    * Uses git status as a fast path when available, falling back to full scan.
    */
-  getChangedFiles(): { added: string[]; modified: string[]; removed: string[] } {
+  getChangedFiles(): {
+    added: string[];
+    modified: string[];
+    removed: string[];
+  } {
     const gitChanges = getGitChangedFiles(this.rootDir);
 
     if (gitChanges) {
@@ -1436,9 +1552,9 @@ export class ExtractionOrchestrator {
         const fullPath = path.join(this.rootDir, filePath);
         let content: string;
         try {
-          content = fs.readFileSync(fullPath, 'utf-8');
+          content = fs.readFileSync(fullPath, "utf-8");
         } catch (error) {
-          logDebug('Skipping unreadable file while detecting changes', {
+          logDebug("Skipping unreadable file while detecting changes", {
             filePath,
             error: String(error),
           });
@@ -1484,9 +1600,9 @@ export class ExtractionOrchestrator {
       const fullPath = path.join(this.rootDir, filePath);
       let content: string;
       try {
-        content = fs.readFileSync(fullPath, 'utf-8');
+        content = fs.readFileSync(fullPath, "utf-8");
       } catch (error) {
-        logDebug('Skipping unreadable file while detecting changes', {
+        logDebug("Skipping unreadable file while detecting changes", {
           filePath,
           error: String(error),
         });
@@ -1508,7 +1624,7 @@ export class ExtractionOrchestrator {
 }
 
 // Re-export useful types and functions
-export { extractFromSource } from './tree-sitter.js';
+export { extractFromSource } from "./tree-sitter.js";
 export {
   detectLanguage,
   isSourceFile,
@@ -1518,4 +1634,4 @@ export {
   initGrammars,
   loadGrammarsForLanguages,
   loadAllGrammars,
-} from './grammars.js';
+} from "./grammars.js";

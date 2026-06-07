@@ -8,11 +8,11 @@
  * Windows ReadDirectoryChangesW, Linux inotify on Node 19+).
  */
 
-import * as fs from 'fs';
-import { isSourceFile } from '../extraction/index.js';
-import { logDebug, logWarn } from '../errors.js';
-import { normalizePath } from '../utils.js';
-import { watchDisabledReason } from './watch-policy.js';
+import * as fs from "fs";
+import { isSourceFile } from "../extraction/index.js";
+import { logDebug, logWarn } from "../errors.js";
+import { normalizePath } from "../utils.js";
+import { watchDisabledReason } from "./watch-policy.js";
 
 /**
  * Options for the file watcher
@@ -28,7 +28,10 @@ export interface WatchOptions {
   /**
    * Callback when a sync completes (for logging/diagnostics).
    */
-  onSyncComplete?: (result: { filesChanged: number; durationMs: number }) => void;
+  onSyncComplete?: (result: {
+    filesChanged: number;
+    durationMs: number;
+  }) => void;
 
   /**
    * Callback when a sync errors (for logging/diagnostics).
@@ -55,9 +58,12 @@ export class FileWatcher {
 
   private readonly projectRoot: string;
   private readonly debounceMs: number;
-  private readonly syncFn: () => Promise<{ filesChanged: number; durationMs: number }>;
-  private readonly onSyncComplete?: WatchOptions['onSyncComplete'];
-  private readonly onSyncError?: WatchOptions['onSyncError'];
+  private readonly syncFn: () => Promise<{
+    filesChanged: number;
+    durationMs: number;
+  }>;
+  private readonly onSyncComplete?: WatchOptions["onSyncComplete"];
+  private readonly onSyncError?: WatchOptions["onSyncError"];
 
   constructor(
     projectRoot: string,
@@ -85,52 +91,62 @@ export class FileWatcher {
     // manual `codegraph sync` or the git sync hooks.
     const disabledReason = watchDisabledReason(this.projectRoot);
     if (disabledReason) {
-      logDebug('File watcher disabled', { reason: disabledReason, projectRoot: this.projectRoot });
+      logDebug("File watcher disabled", {
+        reason: disabledReason,
+        projectRoot: this.projectRoot,
+      });
       return false;
     }
 
     try {
-      this.watcher = fs.watch(this.projectRoot, { recursive: true }, (_eventType, filename) => {
-        if (!filename || this.stopped) return;
+      this.watcher = fs.watch(
+        this.projectRoot,
+        { recursive: true },
+        (_eventType, filename) => {
+          if (!filename || this.stopped) return;
 
-        // Normalize path separators
-        const normalized = normalizePath(filename);
+          // Normalize path separators
+          const normalized = normalizePath(filename);
 
-        // Ignore .codegraph/ directory changes (our own DB writes)
-        if (
-          normalized === '.codegraph' ||
-          normalized.startsWith('.codegraph/') ||
-          normalized.startsWith('.codegraph\\')
-        ) {
-          return;
-        }
+          // Ignore .codegraph/ directory changes (our own DB writes)
+          if (
+            normalized === ".codegraph" ||
+            normalized.startsWith(".codegraph/") ||
+            normalized.startsWith(".codegraph\\")
+          ) {
+            return;
+          }
 
-        // Only sync changes to files we can actually parse.
-        if (!isSourceFile(normalized)) {
-          return;
-        }
+          // Only sync changes to files we can actually parse.
+          if (!isSourceFile(normalized)) {
+            return;
+          }
 
-        logDebug('File change detected', { file: normalized });
-        this.hasChanges = true;
-        this.scheduleSync();
-      });
+          logDebug("File change detected", { file: normalized });
+          this.hasChanges = true;
+          this.scheduleSync();
+        },
+      );
 
       // Handle watcher errors gracefully
-      this.watcher.on('error', (err) => {
-        logWarn('File watcher error', { error: String(err) });
+      this.watcher.on("error", (err) => {
+        logWarn("File watcher error", { error: String(err) });
         // Don't crash — watcher may recover or user can restart
       });
 
-      logDebug('File watcher started', {
+      logDebug("File watcher started", {
         projectRoot: this.projectRoot,
         debounceMs: this.debounceMs,
       });
       return true;
     } catch (err) {
       // Recursive watch not supported (e.g., Linux < Node 19)
-      logWarn('Could not start file watcher — recursive fs.watch not supported on this platform', {
-        error: String(err),
-      });
+      logWarn(
+        "Could not start file watcher — recursive fs.watch not supported on this platform",
+        {
+          error: String(err),
+        },
+      );
       return false;
     }
   }
@@ -152,7 +168,7 @@ export class FileWatcher {
     }
 
     this.hasChanges = false;
-    logDebug('File watcher stopped');
+    logDebug("File watcher stopped");
   }
 
   /**
@@ -190,7 +206,7 @@ export class FileWatcher {
       this.onSyncComplete?.(result);
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err));
-      logWarn('Watch sync failed', { error: error.message });
+      logWarn("Watch sync failed", { error: error.message });
       this.onSyncError?.(error);
     } finally {
       this.syncing = false;

@@ -13,16 +13,7 @@ import type {
   DesignSection,
   ProjectContext,
   MindProcessResult,
-} from './types.js';
-import {
-  MIND_SYSTEM_PROMPT,
-  EXPLORE_CONTEXT_PROMPT,
-  GENERATE_QUESTIONS_PROMPT,
-  PROPOSE_APPROACHES_PROMPT,
-  GENERATE_DESIGN_PROMPT,
-  SELF_REVIEW_PROMPT,
-} from './prompts.js';
-import { MindError } from '@aide/core';
+} from "./types.js";
 
 /** Generate a unique session ID */
 function generateSessionId(): string {
@@ -34,7 +25,7 @@ export function createSession(idea: string): BrainstormSession {
   return {
     id: generateSessionId(),
     idea,
-    currentStep: 'explore_context',
+    currentStep: "explore_context",
     questions: [],
     answers: {},
     approaches: [],
@@ -43,16 +34,18 @@ export function createSession(idea: string): BrainstormSession {
 }
 
 /** Get the next step in the brainstorming process */
-export function getNextStep(currentStep: BrainstormStep): BrainstormStep | null {
+export function getNextStep(
+  currentStep: BrainstormStep,
+): BrainstormStep | null {
   const stepOrder: BrainstormStep[] = [
-    'explore_context',
-    'ask_questions',
-    'propose_approaches',
-    'present_design',
-    'write_documents',
-    'self_review',
-    'user_approval',
-    'transition',
+    "explore_context",
+    "ask_questions",
+    "propose_approaches",
+    "present_design",
+    "write_documents",
+    "self_review",
+    "user_approval",
+    "transition",
   ];
   const currentIndex = stepOrder.indexOf(currentStep);
   if (currentIndex === -1 || currentIndex === stepOrder.length - 1) {
@@ -62,9 +55,11 @@ export function getNextStep(currentStep: BrainstormStep): BrainstormStep | null 
 }
 
 /** Build context for the brainstorming process */
-export async function exploreProjectContext(rootPath: string): Promise<ProjectContext> {
-  const fs = await import('node:fs/promises');
-  const path = await import('node:path');
+export async function exploreProjectContext(
+  rootPath: string,
+): Promise<ProjectContext> {
+  const fs = await import("node:fs/promises");
+  const path = await import("node:path");
 
   const context: ProjectContext = {
     rootPath,
@@ -76,41 +71,46 @@ export async function exploreProjectContext(rootPath: string): Promise<ProjectCo
 
   try {
     // Read package.json if exists
-    const packageJsonPath = path.join(rootPath, 'package.json');
+    const packageJsonPath = path.join(rootPath, "package.json");
     try {
-      const packageJsonContent = await fs.readFile(packageJsonPath, 'utf-8');
+      const packageJsonContent = await fs.readFile(packageJsonPath, "utf-8");
       const packageJson = JSON.parse(packageJsonContent);
       context.packageJson = packageJson;
-      context.techStack.push('node.js');
+      context.techStack.push("node.js");
 
       // Detect frameworks
       const deps = {
         ...packageJson.dependencies,
         ...packageJson.devDependencies,
       };
-      if (deps['react']) context.techStack.push('react');
-      if (deps['vue']) context.techStack.push('vue');
-      if (deps['angular']) context.techStack.push('angular');
-      if (deps['express']) context.techStack.push('express');
-      if (deps['fastify']) context.techStack.push('fastify');
-      if (deps['next']) context.techStack.push('next.js');
-      if (deps['nuxt']) context.techStack.push('nuxt');
-      if (deps['typescript']) context.techStack.push('typescript');
-      if (deps['vitest'] || deps['jest']) context.hasTests = true;
+      if (deps["react"]) context.techStack.push("react");
+      if (deps["vue"]) context.techStack.push("vue");
+      if (deps["angular"]) context.techStack.push("angular");
+      if (deps["express"]) context.techStack.push("express");
+      if (deps["fastify"]) context.techStack.push("fastify");
+      if (deps["next"]) context.techStack.push("next.js");
+      if (deps["nuxt"]) context.techStack.push("nuxt");
+      if (deps["typescript"]) context.techStack.push("typescript");
+      if (deps["vitest"] || deps["jest"]) context.hasTests = true;
     } catch {
       // No package.json
     }
 
     // Read README if exists
-    const readmePath = path.join(rootPath, 'README.md');
+    const readmePath = path.join(rootPath, "README.md");
     try {
-      context.readme = await fs.readFile(readmePath, 'utf-8');
+      context.readme = await fs.readFile(readmePath, "utf-8");
     } catch {
       // No README
     }
 
     // Check for CI configuration
-    const ciFiles = ['.github/workflows', '.gitlab-ci.yml', '.circleci', 'Jenkinsfile'];
+    const ciFiles = [
+      ".github/workflows",
+      ".gitlab-ci.yml",
+      ".circleci",
+      "Jenkinsfile",
+    ];
     for (const ciFile of ciFiles) {
       try {
         await fs.access(path.join(rootPath, ciFile));
@@ -127,7 +127,7 @@ export async function exploreProjectContext(rootPath: string): Promise<ProjectCo
       try {
         const entries = await fs.readdir(dir, { withFileTypes: true });
         for (const entry of entries) {
-          if (entry.name === 'node_modules' || entry.name === '.git') continue;
+          if (entry.name === "node_modules" || entry.name === ".git") continue;
           const fullPath = path.join(dir, entry.name);
           if (entry.isDirectory()) {
             await scanDir(fullPath, maxDepth - 1);
@@ -141,7 +141,7 @@ export async function exploreProjectContext(rootPath: string): Promise<ProjectCo
     };
 
     await scanDir(rootPath);
-  } catch (error) {
+  } catch {
     // Ignore errors during context exploration
   }
 
@@ -150,70 +150,88 @@ export async function exploreProjectContext(rootPath: string): Promise<ProjectCo
 
 /** Generate clarifying questions based on the idea and context */
 export function generateQuestions(
-  idea: string,
+  _idea: string,
   context: ProjectContext,
 ): ClarifyingQuestion[] {
   const questions: ClarifyingQuestion[] = [];
 
   // Core requirements
   questions.push({
-    id: 'purpose',
-    question: '这个项目的主要目的是什么？',
-    context: '理解核心目标有助于定义范围',
-    options: ['个人博客', '企业网站', '电商平台', '作品集', '工具应用', '其他'],
+    id: "purpose",
+    question: "这个项目的主要目的是什么？",
+    context: "理解核心目标有助于定义范围",
+    options: ["个人博客", "企业网站", "电商平台", "作品集", "工具应用", "其他"],
     required: true,
   });
 
   questions.push({
-    id: 'audience',
-    question: '目标用户是谁？',
-    context: '了解用户群体有助于设计界面和功能',
-    options: ['个人用户', '企业用户', '开发者', '普通消费者', '内部团队'],
+    id: "audience",
+    question: "目标用户是谁？",
+    context: "了解用户群体有助于设计界面和功能",
+    options: ["个人用户", "企业用户", "开发者", "普通消费者", "内部团队"],
     required: true,
   });
 
   // Technical constraints
   if (context.techStack.length > 0) {
     questions.push({
-      id: 'tech_preference',
-      question: `检测到现有技术栈: ${context.techStack.join(', ')}。是否要使用相同的技术栈？`,
-      context: '保持技术栈一致可以减少学习成本',
-      options: ['是，使用现有技术栈', '否，我想尝试新技术', '不确定，帮我推荐'],
+      id: "tech_preference",
+      question: `检测到现有技术栈: ${context.techStack.join(", ")}。是否要使用相同的技术栈？`,
+      context: "保持技术栈一致可以减少学习成本",
+      options: ["是，使用现有技术栈", "否，我想尝试新技术", "不确定，帮我推荐"],
       required: true,
     });
   } else {
     questions.push({
-      id: 'tech_preference',
-      question: '你有偏好的技术栈吗？',
-      context: '选择合适的技术栈影响开发效率',
-      options: ['React + TypeScript', 'Vue + TypeScript', 'Node.js + Express', 'Python + FastAPI', '不确定，帮我推荐'],
+      id: "tech_preference",
+      question: "你有偏好的技术栈吗？",
+      context: "选择合适的技术栈影响开发效率",
+      options: [
+        "React + TypeScript",
+        "Vue + TypeScript",
+        "Node.js + Express",
+        "Python + FastAPI",
+        "不确定，帮我推荐",
+      ],
       required: true,
     });
   }
 
   // Scope & scale
   questions.push({
-    id: 'scope',
-    question: '项目的规模和时间预期？',
-    context: '这会影响技术方案的选择',
-    options: ['小型项目 (1-2周)', '中型项目 (1-2月)', '大型项目 (3月+)', '不确定'],
+    id: "scope",
+    question: "项目的规模和时间预期？",
+    context: "这会影响技术方案的选择",
+    options: [
+      "小型项目 (1-2周)",
+      "中型项目 (1-2月)",
+      "大型项目 (3月+)",
+      "不确定",
+    ],
     required: true,
   });
 
   questions.push({
-    id: 'features',
-    question: '有哪些核心功能必须实现？',
-    context: '明确 MVP 范围，避免范围蔓延',
-    options: ['用户认证', '数据存储', 'API 接口', '实时功能', '支付集成', '文件上传'],
+    id: "features",
+    question: "有哪些核心功能必须实现？",
+    context: "明确 MVP 范围，避免范围蔓延",
+    options: [
+      "用户认证",
+      "数据存储",
+      "API 接口",
+      "实时功能",
+      "支付集成",
+      "文件上传",
+    ],
     required: true,
   });
 
   // Success criteria
   questions.push({
-    id: 'success',
-    question: '如何定义项目成功？',
-    context: '明确成功标准有助于做出正确的技术决策',
-    options: ['能正常运行', '用户体验好', '可扩展维护', '性能优秀', '安全可靠'],
+    id: "success",
+    question: "如何定义项目成功？",
+    context: "明确成功标准有助于做出正确的技术决策",
+    options: ["能正常运行", "用户体验好", "可扩展维护", "性能优秀", "安全可靠"],
     required: true,
   });
 
@@ -223,8 +241,8 @@ export function generateQuestions(
 /** Generate proposed approaches based on requirements */
 export function generateApproaches(
   idea: string,
-  context: ProjectContext,
-  answers: Record<string, string>,
+  _context: ProjectContext,
+  _answers: Record<string, string>,
 ): ProposedApproach[] {
   const approaches: ProposedApproach[] = [];
 
@@ -236,18 +254,14 @@ export function generateApproaches(
       id: `template_${templateMatch.id}`,
       name: `${templateMatch.config.name} (推荐模板)`,
       description: templateMatch.config.description,
-      pros: [
-        '开箱即用',
-        '最佳实践',
-        '完整的项目结构',
-        '文档齐全',
-      ],
-      cons: [
-        '可能需要定制',
-        '模板可能过时',
-      ],
-      complexity: templateMatch.config.difficulty === 'beginner' ? 'low' : 
-                   templateMatch.config.difficulty === 'intermediate' ? 'medium' : 'high',
+      pros: ["开箱即用", "最佳实践", "完整的项目结构", "文档齐全"],
+      cons: ["可能需要定制", "模板可能过时"],
+      complexity:
+        templateMatch.config.difficulty === "beginner"
+          ? "low"
+          : templateMatch.config.difficulty === "intermediate"
+            ? "medium"
+            : "high",
       estimatedTime: templateMatch.config.estimatedTime,
       techStack: templateMatch.config.techStack,
     });
@@ -255,114 +269,117 @@ export function generateApproaches(
 
   // Approach A: Simple & Fast
   approaches.push({
-    id: 'simple',
-    name: '简洁快速方案',
-    description: '使用成熟的技术栈，快速实现核心功能',
-    pros: [
-      '开发速度快',
-      '技术成熟稳定',
-      '社区资源丰富',
-      '易于维护',
-    ],
-    cons: [
-      '可能缺乏灵活性',
-      '扩展性有限',
-      '定制化程度低',
-    ],
-    complexity: 'low',
-    estimatedTime: '1-2 周',
-    techStack: ['React', 'TypeScript', 'Node.js'],
+    id: "simple",
+    name: "简洁快速方案",
+    description: "使用成熟的技术栈，快速实现核心功能",
+    pros: ["开发速度快", "技术成熟稳定", "社区资源丰富", "易于维护"],
+    cons: ["可能缺乏灵活性", "扩展性有限", "定制化程度低"],
+    complexity: "low",
+    estimatedTime: "1-2 周",
+    techStack: ["React", "TypeScript", "Node.js"],
   });
 
   // Approach B: Flexible & Modern
   approaches.push({
-    id: 'flexible',
-    name: '灵活现代方案',
-    description: '使用现代框架，提供更好的架构和扩展性',
-    pros: [
-      '架构清晰',
-      '易于扩展',
-      '开发体验好',
-      '类型安全',
-    ],
-    cons: [
-      '学习曲线较陡',
-      '开发时间较长',
-      '需要更多配置',
-    ],
-    complexity: 'medium',
-    estimatedTime: '2-4 周',
-    techStack: ['Next.js', 'TypeScript', 'PostgreSQL'],
+    id: "flexible",
+    name: "灵活现代方案",
+    description: "使用现代框架，提供更好的架构和扩展性",
+    pros: ["架构清晰", "易于扩展", "开发体验好", "类型安全"],
+    cons: ["学习曲线较陡", "开发时间较长", "需要更多配置"],
+    complexity: "medium",
+    estimatedTime: "2-4 周",
+    techStack: ["Next.js", "TypeScript", "PostgreSQL"],
   });
 
   // Approach C: Enterprise-grade
   approaches.push({
-    id: 'enterprise',
-    name: '企业级方案',
-    description: '完整的架构设计，适合长期维护和团队协作',
-    pros: [
-      '高度可扩展',
-      '完整的测试覆盖',
-      '企业级安全',
-      '团队协作友好',
+    id: "enterprise",
+    name: "企业级方案",
+    description: "完整的架构设计，适合长期维护和团队协作",
+    pros: ["高度可扩展", "完整的测试覆盖", "企业级安全", "团队协作友好"],
+    cons: ["开发周期长", "复杂度高", "过度设计风险"],
+    complexity: "high",
+    estimatedTime: "1-2 月",
+    techStack: [
+      "React",
+      "TypeScript",
+      "Node.js",
+      "PostgreSQL",
+      "Redis",
+      "Docker",
     ],
-    cons: [
-      '开发周期长',
-      '复杂度高',
-      '过度设计风险',
-    ],
-    complexity: 'high',
-    estimatedTime: '1-2 月',
-    techStack: ['React', 'TypeScript', 'Node.js', 'PostgreSQL', 'Redis', 'Docker'],
   });
 
   return approaches;
 }
 
 /** Match idea to a template */
-function matchTemplate(idea: string): { id: string; config: { name: string; description: string; difficulty: string; estimatedTime: string; techStack: string[] } } | null {
+function matchTemplate(idea: string): {
+  id: string;
+  config: {
+    name: string;
+    description: string;
+    difficulty: string;
+    estimatedTime: string;
+    techStack: string[];
+  };
+} | null {
   const lowerIdea = idea.toLowerCase();
-  
+
   // Simple keyword matching
-  if (lowerIdea.includes('todo') || lowerIdea.includes('待办') || lowerIdea.includes('任务')) {
+  if (
+    lowerIdea.includes("todo") ||
+    lowerIdea.includes("待办") ||
+    lowerIdea.includes("任务")
+  ) {
     return {
-      id: 'todo-app',
+      id: "todo-app",
       config: {
-        name: 'TODO Application',
-        description: 'A simple TODO application with React, TypeScript, and localStorage',
-        difficulty: 'beginner',
-        estimatedTime: '2-3 hours',
-        techStack: ['React', 'TypeScript', 'Vite', 'Tailwind CSS'],
+        name: "TODO Application",
+        description:
+          "A simple TODO application with React, TypeScript, and localStorage",
+        difficulty: "beginner",
+        estimatedTime: "2-3 hours",
+        techStack: ["React", "TypeScript", "Vite", "Tailwind CSS"],
       },
     };
   }
-  
-  if (lowerIdea.includes('api') || lowerIdea.includes('服务器') || lowerIdea.includes('后端')) {
+
+  if (
+    lowerIdea.includes("api") ||
+    lowerIdea.includes("服务器") ||
+    lowerIdea.includes("后端")
+  ) {
     return {
-      id: 'api-server',
+      id: "api-server",
       config: {
-        name: 'API Server',
-        description: 'A RESTful API server with Express, TypeScript, and PostgreSQL',
-        difficulty: 'intermediate',
-        estimatedTime: '4-6 hours',
-        techStack: ['Express', 'TypeScript', 'PostgreSQL', 'Prisma'],
+        name: "API Server",
+        description:
+          "A RESTful API server with Express, TypeScript, and PostgreSQL",
+        difficulty: "intermediate",
+        estimatedTime: "4-6 hours",
+        techStack: ["Express", "TypeScript", "PostgreSQL", "Prisma"],
       },
     };
   }
-  
-  if (lowerIdea.includes('cli') || lowerIdea.includes('命令行') || lowerIdea.includes('工具')) {
+
+  if (
+    lowerIdea.includes("cli") ||
+    lowerIdea.includes("命令行") ||
+    lowerIdea.includes("工具")
+  ) {
     return {
-      id: 'cli-tool',
+      id: "cli-tool",
       config: {
-        name: 'CLI Tool',
-        description: 'A command-line tool with Commander.js and TypeScript',
-        difficulty: 'beginner',
-        estimatedTime: '2-3 hours',
-        techStack: ['Node.js', 'TypeScript', 'Commander.js', 'Inquirer.js'],
+        name: "CLI Tool",
+        description: "A command-line tool with Commander.js and TypeScript",
+        difficulty: "beginner",
+        estimatedTime: "2-3 hours",
+        techStack: ["Node.js", "TypeScript", "Commander.js", "Inquirer.js"],
       },
     };
   }
-  
+
   return null;
 }
 
@@ -375,21 +392,24 @@ export function generateDesign(
 ): DesignDocument {
   const sections: DesignSection[] = [
     {
-      id: 'overview',
-      title: '项目概述',
+      id: "overview",
+      title: "项目概述",
       content: `
 ## 项目概述
 
-**项目名称**: ${answers['purpose'] || '我的项目'}
+**项目名称**: ${answers["purpose"] || "我的项目"}
 **项目描述**: ${idea}
-**目标用户**: ${answers['audience'] || '待定'}
-**技术栈**: ${selectedApproach.techStack.join(', ')}
+**目标用户**: ${answers["audience"] || "待定"}
+**技术栈**: ${selectedApproach.techStack.join(", ")}
 **预计时间**: ${selectedApproach.estimatedTime}
+**现有代码文件**: ${context.existingFiles.length}
+**已有测试**: ${context.hasTests ? "是" : "否"}
+**已有 CI**: ${context.hasCi ? "是" : "否"}
       `.trim(),
     },
     {
-      id: 'architecture',
-      title: '架构设计',
+      id: "architecture",
+      title: "架构设计",
       content: `
 ## 架构设计
 
@@ -422,8 +442,8 @@ export function generateDesign(
       `.trim(),
     },
     {
-      id: 'data_model',
-      title: '数据模型',
+      id: "data_model",
+      title: "数据模型",
       content: `
 ## 数据模型
 
@@ -461,8 +481,8 @@ User (1) ──┬── (N) Content
       `.trim(),
     },
     {
-      id: 'api_design',
-      title: 'API 设计',
+      id: "api_design",
+      title: "API 设计",
       content: `
 ## API 设计
 
@@ -491,8 +511,8 @@ Authorization: Bearer <token>
       `.trim(),
     },
     {
-      id: 'ui_design',
-      title: '用户界面',
+      id: "ui_design",
+      title: "用户界面",
       content: `
 ## 用户界面
 
@@ -528,8 +548,8 @@ Authorization: Bearer <token>
       `.trim(),
     },
     {
-      id: 'implementation',
-      title: '实现细节',
+      id: "implementation",
+      title: "实现细节",
       content: `
 ## 实现细节
 
@@ -559,8 +579,8 @@ src/
       `.trim(),
     },
     {
-      id: 'testing',
-      title: '测试策略',
+      id: "testing",
+      title: "测试策略",
       content: `
 ## 测试策略
 
@@ -595,15 +615,15 @@ npm run test:e2e      # 运行 E2E 测试
   ];
 
   return {
-    projectName: answers['purpose'] || '我的项目',
+    projectName: answers["purpose"] || "我的项目",
     idea,
     approaches: [selectedApproach],
     selectedApproach: selectedApproach.id,
     sections,
     metadata: {
       createdAt: new Date().toISOString(),
-      version: '1.0.0',
-      status: 'draft',
+      version: "1.0.0",
+      status: "draft",
     },
   };
 }
@@ -620,13 +640,13 @@ export function selfReviewDesign(design: DesignDocument): {
 
   // Check completeness
   if (design.sections.length < 5) {
-    issues.push('设计文档缺少必要章节');
-    suggestions.push('添加更多设计章节，如架构、数据模型、API 设计等');
+    issues.push("设计文档缺少必要章节");
+    suggestions.push("添加更多设计章节，如架构、数据模型、API 设计等");
   }
 
   // Check consistency
   const sectionIds = design.sections.map((s) => s.id);
-  const requiredSections = ['overview', 'architecture', 'data_model'];
+  const requiredSections = ["overview", "architecture", "data_model"];
   for (const required of requiredSections) {
     if (!sectionIds.includes(required)) {
       issues.push(`缺少必要章节: ${required}`);
@@ -636,8 +656,8 @@ export function selfReviewDesign(design: DesignDocument): {
 
   // Check feasibility
   if (design.approaches.length === 0) {
-    issues.push('没有选择技术方案');
-    suggestions.push('至少提供一个技术方案');
+    issues.push("没有选择技术方案");
+    suggestions.push("至少提供一个技术方案");
   }
 
   // Calculate score
@@ -649,7 +669,7 @@ export function selfReviewDesign(design: DesignDocument): {
     score,
     issues,
     suggestions,
-    recommendation: score >= 7 ? '可以继续实施' : '需要改进后继续',
+    recommendation: score >= 7 ? "可以继续实施" : "需要改进后继续",
   };
 }
 
@@ -660,19 +680,19 @@ export async function processStep(
 ): Promise<MindProcessResult> {
   try {
     switch (session.currentStep) {
-      case 'explore_context': {
+      case "explore_context": {
         const context = await exploreProjectContext(process.cwd());
         return {
           sessionId: session.id,
           success: true,
           step: session.currentStep,
           output: {
-            message: `项目上下文探索完成。检测到技术栈: ${context.techStack.join(', ') || '新项目'}`,
+            message: `项目上下文探索完成。检测到技术栈: ${context.techStack.join(", ") || "新项目"}`,
           },
         };
       }
 
-      case 'ask_questions': {
+      case "ask_questions": {
         if (!input) {
           // Generate questions
           const context = await exploreProjectContext(process.cwd());
@@ -683,7 +703,7 @@ export async function processStep(
             success: true,
             step: session.currentStep,
             output: {
-              message: `我需要了解一些信息来帮助你设计项目。\n\n${questions.map((q, i) => `${i + 1}. ${q.question}`).join('\n')}`,
+              message: `我需要了解一些信息来帮助你设计项目。\n\n${questions.map((q, i) => `${i + 1}. ${q.question}`).join("\n")}`,
             },
           };
         }
@@ -693,50 +713,60 @@ export async function processStep(
           success: true,
           step: session.currentStep,
           output: {
-            message: '好的，我已记录你的回答。请继续回答下一个问题。',
+            message: "好的，我已记录你的回答。请继续回答下一个问题。",
           },
         };
       }
 
-      case 'propose_approaches': {
+      case "propose_approaches": {
         const context = await exploreProjectContext(process.cwd());
-        const approaches = generateApproaches(session.idea, context, session.answers);
+        const approaches = generateApproaches(
+          session.idea,
+          context,
+          session.answers,
+        );
         session.approaches = approaches;
         return {
           sessionId: session.id,
           success: true,
           step: session.currentStep,
           output: {
-            message: `基于你的需求，我提出以下方案：\n\n${approaches.map((a, i) => `${i + 1}. ${a.name}\n   ${a.description}\n   复杂度: ${a.complexity} | 时间: ${a.estimatedTime}`).join('\n\n')}`,
+            message: `基于你的需求，我提出以下方案：\n\n${approaches.map((a, i) => `${i + 1}. ${a.name}\n   ${a.description}\n   复杂度: ${a.complexity} | 时间: ${a.estimatedTime}`).join("\n\n")}`,
           },
         };
       }
 
-      case 'present_design': {
+      case "present_design": {
         const context = await exploreProjectContext(process.cwd());
-        const approaches = session.approaches.length > 0
-          ? session.approaches
-          : generateApproaches(session.idea, context, session.answers);
+        const approaches =
+          session.approaches.length > 0
+            ? session.approaches
+            : generateApproaches(session.idea, context, session.answers);
         const selectedApproach = approaches[0];
-        const design = generateDesign(session.idea, context, session.answers, selectedApproach);
+        const design = generateDesign(
+          session.idea,
+          context,
+          session.answers,
+          selectedApproach,
+        );
         session.design = design;
         return {
           sessionId: session.id,
           success: true,
           step: session.currentStep,
           output: {
-            message: `设计文档已生成：\n\n${design.sections.map((s, i) => `${i + 1}. ${s.title}`).join('\n')}`,
+            message: `设计文档已生成：\n\n${design.sections.map((s, i) => `${i + 1}. ${s.title}`).join("\n")}`,
           },
         };
       }
 
-      case 'self_review': {
+      case "self_review": {
         if (!session.design) {
           return {
             sessionId: session.id,
             success: false,
             step: session.currentStep,
-            error: '设计文档未生成',
+            error: "设计文档未生成",
           };
         }
         const review = selfReviewDesign(session.design);

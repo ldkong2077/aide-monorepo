@@ -47,9 +47,14 @@
  *   returns all implementations even when Drupal core is not indexed.
  */
 
-import { generateNodeId } from '../../extraction/tree-sitter-helpers.js';
-import { type Node } from '../../types.js';
-import { type FrameworkResolver, type ResolutionContext, type ResolvedRef, type UnresolvedRef } from '../types.js';
+import { generateNodeId } from "../../extraction/tree-sitter-helpers.js";
+import { type Node } from "../../types.js";
+import {
+  type FrameworkResolver,
+  type ResolutionContext,
+  type ResolvedRef,
+  type UnresolvedRef,
+} from "../types.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -60,9 +65,9 @@ import { type FrameworkResolver, type ResolutionContext, type ResolvedRef, type 
  * Returns `null` for strings that don't look like a FQCN.
  */
 function lastSegment(fqcn: string): string | null {
-  const clean = fqcn.replace(/^\\+/, '').trim();
-  if (!clean.includes('\\')) return null;
-  const parts = clean.split('\\');
+  const clean = fqcn.replace(/^\\+/, "").trim();
+  if (!clean.includes("\\")) return null;
+  const parts = clean.split("\\");
   return parts[parts.length - 1] ?? null;
 }
 
@@ -102,7 +107,7 @@ function extractDrupalRoutes(
   const references: UnresolvedRef[] = [];
   const now = Date.now();
 
-  const lines = content.split('\n');
+  const lines = content.split("\n");
 
   interface PendingRoute {
     name: string;
@@ -116,10 +121,10 @@ function extractDrupalRoutes(
   const flushRoute = () => {
     if (!pending || !currentPath) return;
 
-    const methodTag = methods.length > 0 ? ` [${methods.join(',')}]` : '';
+    const methodTag = methods.length > 0 ? ` [${methods.join(",")}]` : "";
     const routeNode: Node = {
       id: `route:${filePath}:${pending.lineNum}:${currentPath}`,
-      kind: 'route',
+      kind: "route",
       name: `${currentPath}${methodTag}`,
       qualifiedName: `${filePath}::${pending.name}`,
       filePath,
@@ -127,7 +132,7 @@ function extractDrupalRoutes(
       endLine: pending.lineNum,
       startColumn: 0,
       endColumn: 0,
-      language: 'yaml',
+      language: "yaml",
       updatedAt: now,
     };
     nodes.push(routeNode);
@@ -136,11 +141,11 @@ function extractDrupalRoutes(
       references.push({
         fromNodeId: routeNode.id,
         referenceName: handler,
-        referenceKind: 'references',
+        referenceKind: "references",
         line: pending.lineNum,
         column: 0,
         filePath,
-        language: 'yaml',
+        language: "yaml",
       });
     }
   };
@@ -149,7 +154,7 @@ function extractDrupalRoutes(
     const line = lines[i];
     const trimmed = line.trim();
 
-    if (!trimmed || trimmed.startsWith('#')) continue;
+    if (!trimmed || trimmed.startsWith("#")) continue;
 
     // Top-level route name: no leading whitespace, ends with a colon (no value after)
     if (/^\S.*:\s*$/.test(line) && !/^\s/.test(line)) {
@@ -162,21 +167,26 @@ function extractDrupalRoutes(
     }
 
     // path: '/some/path'
-    const pathMatch = /^path:\s*['"]?([^'"#\n]+?)['"]?\s*(?:#.*)?$/.exec(trimmed);
+    const pathMatch = /^path:\s*['"]?([^'"#\n]+?)['"]?\s*(?:#.*)?$/.exec(
+      trimmed,
+    );
     if (pathMatch) {
       currentPath = pathMatch[1].trim();
       continue;
     }
 
     // _controller: '\Drupal\...\Class::method'
-    const controllerMatch = /^_controller:\s*['"]?([^'"#\n]+?)['"]?\s*(?:#.*)?$/.exec(trimmed);
+    const controllerMatch =
+      /^_controller:\s*['"]?([^'"#\n]+?)['"]?\s*(?:#.*)?$/.exec(trimmed);
     if (controllerMatch) {
       handlerRefs.push(controllerMatch[1].trim());
       continue;
     }
 
     // _form: '\Drupal\...\Form\MyForm'
-    const formMatch = /^_form:\s*['"]?([^'"#\n]+?)['"]?\s*(?:#.*)?$/.exec(trimmed);
+    const formMatch = /^_form:\s*['"]?([^'"#\n]+?)['"]?\s*(?:#.*)?$/.exec(
+      trimmed,
+    );
     if (formMatch) {
       handlerRefs.push(formMatch[1].trim());
       continue;
@@ -184,7 +194,9 @@ function extractDrupalRoutes(
 
     // _entity_form / _entity_list / _entity_view: entity.type
     const entityMatch =
-      /^_(entity_form|entity_list|entity_view):\s*['"]?([^'"#\n]+?)['"]?\s*(?:#.*)?$/.exec(trimmed);
+      /^_(entity_form|entity_list|entity_view):\s*['"]?([^'"#\n]+?)['"]?\s*(?:#.*)?$/.exec(
+        trimmed,
+      );
     if (entityMatch) {
       handlerRefs.push(entityMatch[2].trim());
       continue;
@@ -194,7 +206,7 @@ function extractDrupalRoutes(
     const methodsMatch = /^methods:\s*\[([^\]]+)\]/.exec(trimmed);
     if (methodsMatch) {
       methods = methodsMatch[1]
-        .split(',')
+        .split(",")
         .map((m) => m.trim().toUpperCase())
         .filter(Boolean);
       continue;
@@ -209,7 +221,7 @@ function extractDrupalRoutes(
 // Hook detection helpers
 // ---------------------------------------------------------------------------
 
-const HOOK_FILE_EXTENSIONS = ['.module', '.install', '.theme', '.inc'];
+const HOOK_FILE_EXTENSIONS = [".module", ".install", ".theme", ".inc"];
 
 function isDrupalHookFile(filePath: string): boolean {
   return HOOK_FILE_EXTENSIONS.some((ext) => filePath.endsWith(ext));
@@ -245,22 +257,22 @@ function extractDrupalHooks(
     const name = fm[1];
     if (!funcLineMap.has(name)) {
       // line = number of newlines before match start + 1
-      funcLineMap.set(name, content.slice(0, fm.index).split('\n').length);
+      funcLineMap.set(name, content.slice(0, fm.index).split("\n").length);
     }
   }
 
   const emitHookRef = (hookName: string, funcName: string) => {
     const lineNum = funcLineMap.get(funcName);
     if (lineNum === undefined) return;
-    const nodeId = generateNodeId(filePath, 'function', funcName, lineNum);
+    const nodeId = generateNodeId(filePath, "function", funcName, lineNum);
     references.push({
       fromNodeId: nodeId,
       referenceName: hookName,
-      referenceKind: 'references',
+      referenceKind: "references",
       line: lineNum,
       column: 0,
       filePath,
-      language: 'php',
+      language: "php",
     });
   };
 
@@ -281,7 +293,7 @@ function extractDrupalHooks(
   // not already matched by Strategy A.
   const moduleName = moduleNameFromPath(filePath);
   if (moduleName) {
-    const prefix = moduleName + '_';
+    const prefix = moduleName + "_";
     for (const [funcName] of funcLineMap) {
       if (docblockMatched.has(funcName)) continue;
       if (!funcName.startsWith(prefix)) continue;
@@ -301,19 +313,19 @@ function extractDrupalHooks(
 // ---------------------------------------------------------------------------
 
 export const drupalResolver: FrameworkResolver = {
-  name: 'drupal',
-  languages: ['php', 'yaml'],
+  name: "drupal",
+  languages: ["php", "yaml"],
 
   detect(context: ResolutionContext): boolean {
-    const composer = context.readFile('composer.json');
+    const composer = context.readFile("composer.json");
     if (!composer) return false;
     try {
       const json = JSON.parse(composer) as {
         require?: Record<string, string>;
-        'require-dev'?: Record<string, string>;
+        "require-dev"?: Record<string, string>;
       };
-      const deps = { ...json.require, ...(json['require-dev'] ?? {}) };
-      return Object.keys(deps).some((k) => k.startsWith('drupal/'));
+      const deps = { ...json.require, ...(json["require-dev"] ?? {}) };
+      return Object.keys(deps).some((k) => k.startsWith("drupal/"));
     } catch {
       return false;
     }
@@ -323,50 +335,67 @@ export const drupalResolver: FrameworkResolver = {
     const name = ref.referenceName;
 
     // _controller: '\Drupal\module\...\ClassName::methodName'
-    const controllerMatch = /^\\?(?:Drupal\\[^:]+\\)?([^\\:]+)::(\w+)$/.exec(name);
+    const controllerMatch = /^\\?(?:Drupal\\[^:]+\\)?([^\\:]+)::(\w+)$/.exec(
+      name,
+    );
     if (controllerMatch) {
       const [, className, methodName] = controllerMatch;
       const classNodes = context.getNodesByName(className);
       for (const cls of classNodes) {
-        if (cls.kind !== 'class') continue;
+        if (cls.kind !== "class") continue;
         const fileNodes = context.getNodesInFile(cls.filePath);
-        const method = fileNodes.find((n) => n.kind === 'method' && n.name === methodName);
+        const method = fileNodes.find(
+          (n) => n.kind === "method" && n.name === methodName,
+        );
         if (method) {
           return {
             original: ref,
             targetNodeId: method.id,
             confidence: 0.9,
-            resolvedBy: 'framework',
+            resolvedBy: "framework",
           };
         }
-        return { original: ref, targetNodeId: cls.id, confidence: 0.7, resolvedBy: 'framework' };
+        return {
+          original: ref,
+          targetNodeId: cls.id,
+          confidence: 0.7,
+          resolvedBy: "framework",
+        };
       }
     }
 
     // _form / _entity_form: '\Drupal\module\...\ClassName'  (no ::method)
-    if (name.includes('\\') && !name.includes('::')) {
+    if (name.includes("\\") && !name.includes("::")) {
       const className = lastSegment(name);
       if (className) {
         const classNodes = context.getNodesByName(className);
-        const cls = classNodes.find((n) => n.kind === 'class');
+        const cls = classNodes.find((n) => n.kind === "class");
         if (cls) {
-          return { original: ref, targetNodeId: cls.id, confidence: 0.85, resolvedBy: 'framework' };
+          return {
+            original: ref,
+            targetNodeId: cls.id,
+            confidence: 0.85,
+            resolvedBy: "framework",
+          };
         }
       }
     }
 
     // hook_X — find any function whose name ends in _{hookSuffix} in a hook file
-    if (name.startsWith('hook_')) {
+    if (name.startsWith("hook_")) {
       const hookSuffix = name.slice(5); // strip 'hook_'
       const candidates = context
-        .getNodesByKind('function')
-        .filter((n) => n.name.endsWith(`_${hookSuffix}`) && isDrupalHookFile(n.filePath));
+        .getNodesByKind("function")
+        .filter(
+          (n) =>
+            n.name.endsWith(`_${hookSuffix}`) && isDrupalHookFile(n.filePath),
+        );
       if (candidates.length > 0) {
         return {
           original: ref,
           targetNodeId: candidates[0].id,
           confidence: 0.75,
-          resolvedBy: 'framework',
+          resolvedBy: "framework",
         };
       }
     }
@@ -374,12 +403,15 @@ export const drupalResolver: FrameworkResolver = {
     return null;
   },
 
-  extract(filePath: string, content: string): { nodes: Node[]; references: UnresolvedRef[] } {
-    if (filePath.endsWith('.routing.yml')) {
+  extract(
+    filePath: string,
+    content: string,
+  ): { nodes: Node[]; references: UnresolvedRef[] } {
+    if (filePath.endsWith(".routing.yml")) {
       return extractDrupalRoutes(filePath, content);
     }
 
-    if (isDrupalHookFile(filePath) || filePath.endsWith('.php')) {
+    if (isDrupalHookFile(filePath) || filePath.endsWith(".php")) {
       return extractDrupalHooks(filePath, content);
     }
 

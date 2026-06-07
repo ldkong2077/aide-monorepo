@@ -20,7 +20,7 @@ node --version
 ### 安装 AIDE
 
 ```bash
-npm install -g aide
+npm install -g @aide-dev/cli
 ```
 
 ### 验证安装
@@ -47,6 +47,7 @@ aide init
 ```
 
 **这会做什么**：
+
 1. 自动检测你安装的 AI 工具（Claude Code、Cursor、opencode）
 2. 写入 MCP 配置到各工具
 3. 生成验证规则文件
@@ -94,6 +95,7 @@ aide mind full "我想做一个待办事项应用"
 ```
 
 AIDE 会：
+
 1. 问你问题理解需求
 2. 生成设计文档
 3. 创建实施计划
@@ -127,7 +129,7 @@ npm init -y
 ### Q: 如何卸载？
 
 ```bash
-npm uninstall -g aide
+npm uninstall -g @aide-dev/cli
 ```
 
 ---

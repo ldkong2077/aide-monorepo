@@ -7,24 +7,30 @@
  * explicitly. Centralising it here means new assets only need to be added
  * in one place (the ASSETS list below).
  */
-import { copyFileSync, mkdirSync, readdirSync, statSync, existsSync } from 'node:fs';
-import { dirname, join, relative } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import {
+  copyFileSync,
+  mkdirSync,
+  readdirSync,
+  statSync,
+  existsSync,
+} from "node:fs";
+import { dirname, join, relative } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const PKG_ROOT = join(__dirname, '..');
-const SRC = join(PKG_ROOT, 'src');
-const DIST = join(PKG_ROOT, 'dist');
+const PKG_ROOT = join(__dirname, "..");
+const SRC = join(PKG_ROOT, "src");
+const DIST = join(PKG_ROOT, "dist");
 
 /**
  * Files / directories to copy relative to src/. Glob patterns use simple
  * suffix matching (no minimatch) to keep the postbuild script dependency-free.
  */
 const ASSETS = [
-  'db/schema.sql',
-  'extraction/wasm',
-  'extraction/parse-worker.js',
-  'installer/locales',
+  "db/schema.sql",
+  "extraction/wasm",
+  "extraction/parse-worker.js",
+  "installer/locales",
 ];
 
 function ensureDir(p) {
@@ -41,7 +47,9 @@ function copyRecursive(srcPath, destPath) {
   } else {
     ensureDir(dirname(destPath));
     copyFileSync(srcPath, destPath);
-    console.log(`  copy ${relative(PKG_ROOT, srcPath)} → ${relative(PKG_ROOT, destPath)}`);
+    console.log(
+      `  copy ${relative(PKG_ROOT, srcPath)} → ${relative(PKG_ROOT, destPath)}`,
+    );
   }
 }
 

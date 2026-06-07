@@ -1,5 +1,5 @@
 /**
- * @aide/mcp-server — Zod schemas for MCP tool inputs.
+ * @aide-dev/mcp-server — Zod schemas for MCP tool inputs.
  *
  * Each tool exposed via MCP has its argument shape described in JSON Schema
  * (the `inputSchema` field of the tool descriptor). The Zod schemas here are
@@ -11,7 +11,7 @@
  *  - Type-safe access to parsed fields (no more `(args as any).foo`)
  *  - Runtime error messages with structured codes
  */
-import { z } from 'zod';
+import { z } from "zod";
 
 /**
  * Common schema for an optional project root path. Defaults are applied at
@@ -19,7 +19,7 @@ import { z } from 'zod';
  */
 const projectPathSchema = z
   .string()
-  .min(1, { message: 'Path must be a non-empty string' })
+  .min(1, { message: "Path must be a non-empty string" })
   .optional();
 
 /** codegraph_index — build or refresh the code graph for a project. */
@@ -29,8 +29,11 @@ export const codegraphIndexArgsSchema = z.object({
 
 /** codegraph_query — query the graph for symbols / references / definitions. */
 export const codegraphQueryArgsSchema = z.object({
-  query: z.string().min(1, { message: 'Query must be a non-empty string' }),
-  kind: z.enum(['symbol', 'reference', 'definition']).optional().default('symbol'),
+  query: z.string().min(1, { message: "Query must be a non-empty string" }),
+  kind: z
+    .enum(["symbol", "reference", "definition"])
+    .optional()
+    .default("symbol"),
   path: projectPathSchema,
 });
 
@@ -47,10 +50,13 @@ export const codegraphQueryArgsSchema = z.object({
  */
 export const guardVerifyArgsSchema = z
   .object({
-    file: z.string().min(1, { message: 'File must be a non-empty path' }).optional(),
+    file: z
+      .string()
+      .min(1, { message: "File must be a non-empty path" })
+      .optional(),
     files: z
       .array(z.string().min(1))
-      .min(1, { message: 'Files must be a non-empty array' })
+      .min(1, { message: "Files must be a non-empty array" })
       .optional(),
     noTest: z.boolean().optional().default(false),
   })
@@ -60,8 +66,8 @@ export const guardVerifyArgsSchema = z
     if (hasFile === hasFiles) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: 'Exactly one of `file` or `files` must be provided',
-        path: hasFile ? ['files'] : ['file'],
+        message: "Exactly one of `file` or `files` must be provided",
+        path: hasFile ? ["files"] : ["file"],
       });
     }
   })
@@ -72,24 +78,30 @@ export const guardVerifyArgsSchema = z
 
 /** guard_check — hallucination check on a single file. */
 export const guardCheckArgsSchema = z.object({
-  file: z.string().min(1, { message: 'File must be a non-empty path' }),
+  file: z.string().min(1, { message: "File must be a non-empty path" }),
 });
 
 /** mind_process — project design and planning from ideas. */
 export const mindProcessArgsSchema = z.object({
-  idea: z.string().min(1, { message: 'Idea must be a non-empty string' }),
-  outputDir: z.string().optional().default('docs/aide'),
-  mode: z.enum(['brainstorm', 'plan', 'full']).optional().default('full'),
+  idea: z.string().min(1, { message: "Idea must be a non-empty string" }),
+  outputDir: z.string().optional().default("docs/aide"),
+  mode: z.enum(["brainstorm", "plan", "full"]).optional().default("full"),
   sessionId: z.string().optional(),
 });
 
 /** Discriminated union of all tool argument shapes. */
-export const toolArgsSchema = z.discriminatedUnion('tool', [
-  z.object({ tool: z.literal('codegraph_index'), args: codegraphIndexArgsSchema }),
-  z.object({ tool: z.literal('codegraph_query'), args: codegraphQueryArgsSchema }),
-  z.object({ tool: z.literal('guard_verify'), args: guardVerifyArgsSchema }),
-  z.object({ tool: z.literal('guard_check'), args: guardCheckArgsSchema }),
-  z.object({ tool: z.literal('mind_process'), args: mindProcessArgsSchema }),
+export const toolArgsSchema = z.discriminatedUnion("tool", [
+  z.object({
+    tool: z.literal("codegraph_index"),
+    args: codegraphIndexArgsSchema,
+  }),
+  z.object({
+    tool: z.literal("codegraph_query"),
+    args: codegraphQueryArgsSchema,
+  }),
+  z.object({ tool: z.literal("guard_verify"), args: guardVerifyArgsSchema }),
+  z.object({ tool: z.literal("guard_check"), args: guardCheckArgsSchema }),
+  z.object({ tool: z.literal("mind_process"), args: mindProcessArgsSchema }),
 ]);
 
 /** Inferred TypeScript types. */

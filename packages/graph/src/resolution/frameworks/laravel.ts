@@ -4,44 +4,51 @@
  * Handles Laravel-specific patterns for reference resolution.
  */
 
-import { type Node } from '../../types.js';
-import { type FrameworkResolver, type UnresolvedRef, type ResolvedRef, type ResolutionContext } from '../types.js';
-import { stripCommentsForRegex } from '../strip-comments.js';
+import { type Node } from "../../types.js";
+import {
+  type FrameworkResolver,
+  type UnresolvedRef,
+  type ResolvedRef,
+  type ResolutionContext,
+} from "../types.js";
+import { stripCommentsForRegex } from "../strip-comments.js";
 
 /**
  * Laravel facade mappings to underlying classes
  * Exported for potential use in facade resolution
  */
 export const FACADE_MAPPINGS: Record<string, string> = {
-  Auth: 'Illuminate\\Auth\\AuthManager',
-  Cache: 'Illuminate\\Cache\\CacheManager',
-  Config: 'Illuminate\\Config\\Repository',
-  DB: 'Illuminate\\Database\\DatabaseManager',
-  Event: 'Illuminate\\Events\\Dispatcher',
-  File: 'Illuminate\\Filesystem\\Filesystem',
-  Gate: 'Illuminate\\Auth\\Access\\Gate',
-  Hash: 'Illuminate\\Hashing\\HashManager',
-  Log: 'Illuminate\\Log\\LogManager',
-  Mail: 'Illuminate\\Mail\\Mailer',
-  Queue: 'Illuminate\\Queue\\QueueManager',
-  Redis: 'Illuminate\\Redis\\RedisManager',
-  Request: 'Illuminate\\Http\\Request',
-  Response: 'Illuminate\\Http\\Response',
-  Route: 'Illuminate\\Routing\\Router',
-  Session: 'Illuminate\\Session\\SessionManager',
-  Storage: 'Illuminate\\Filesystem\\FilesystemManager',
-  URL: 'Illuminate\\Routing\\UrlGenerator',
-  Validator: 'Illuminate\\Validation\\Factory',
-  View: 'Illuminate\\View\\Factory',
+  Auth: "Illuminate\\Auth\\AuthManager",
+  Cache: "Illuminate\\Cache\\CacheManager",
+  Config: "Illuminate\\Config\\Repository",
+  DB: "Illuminate\\Database\\DatabaseManager",
+  Event: "Illuminate\\Events\\Dispatcher",
+  File: "Illuminate\\Filesystem\\Filesystem",
+  Gate: "Illuminate\\Auth\\Access\\Gate",
+  Hash: "Illuminate\\Hashing\\HashManager",
+  Log: "Illuminate\\Log\\LogManager",
+  Mail: "Illuminate\\Mail\\Mailer",
+  Queue: "Illuminate\\Queue\\QueueManager",
+  Redis: "Illuminate\\Redis\\RedisManager",
+  Request: "Illuminate\\Http\\Request",
+  Response: "Illuminate\\Http\\Response",
+  Route: "Illuminate\\Routing\\Router",
+  Session: "Illuminate\\Session\\SessionManager",
+  Storage: "Illuminate\\Filesystem\\FilesystemManager",
+  URL: "Illuminate\\Routing\\UrlGenerator",
+  Validator: "Illuminate\\Validation\\Factory",
+  View: "Illuminate\\View\\Factory",
 };
 
 export const laravelResolver: FrameworkResolver = {
-  name: 'laravel',
-  languages: ['php'],
+  name: "laravel",
+  languages: ["php"],
 
   detect(context: ResolutionContext): boolean {
     // Check for artisan file (Laravel signature)
-    return context.fileExists('artisan') || context.fileExists('app/Http/Kernel.php');
+    return (
+      context.fileExists("artisan") || context.fileExists("app/Http/Kernel.php")
+    );
   },
 
   resolve(ref: UnresolvedRef, context: ResolutionContext): ResolvedRef | null {
@@ -55,7 +62,7 @@ export const laravelResolver: FrameworkResolver = {
           original: ref,
           targetNodeId: result,
           confidence: 0.85,
-          resolvedBy: 'framework',
+          resolvedBy: "framework",
         };
       }
     }
@@ -74,19 +81,19 @@ export const laravelResolver: FrameworkResolver = {
     // Pattern 3: Helper function calls - route(), view(), config()
     if (
       [
-        'route',
-        'view',
-        'config',
-        'env',
-        'app',
-        'abort',
-        'redirect',
-        'response',
-        'request',
-        'session',
-        'url',
-        'asset',
-        'mix',
+        "route",
+        "view",
+        "config",
+        "env",
+        "app",
+        "abort",
+        "redirect",
+        "response",
+        "request",
+        "session",
+        "url",
+        "asset",
+        "mix",
       ].includes(ref.referenceName)
     ) {
       // These are Laravel helpers - external
@@ -94,7 +101,9 @@ export const laravelResolver: FrameworkResolver = {
     }
 
     // Pattern 4: Controller method references
-    const controllerMatch = /^([A-Z][a-zA-Z]+Controller)@(\w+)$/.exec(ref.referenceName);
+    const controllerMatch = /^([A-Z][a-zA-Z]+Controller)@(\w+)$/.exec(
+      ref.referenceName,
+    );
     if (controllerMatch) {
       const [, controller, method] = controllerMatch;
       const result = resolveControllerMethod(controller, method, context);
@@ -103,7 +112,7 @@ export const laravelResolver: FrameworkResolver = {
           original: ref,
           targetNodeId: result,
           confidence: 0.9,
-          resolvedBy: 'framework',
+          resolvedBy: "framework",
         };
       }
     }
@@ -112,11 +121,11 @@ export const laravelResolver: FrameworkResolver = {
   },
 
   extract(filePath, content) {
-    if (!filePath.endsWith('.php')) return { nodes: [], references: [] };
+    if (!filePath.endsWith(".php")) return { nodes: [], references: [] };
     const nodes: Node[] = [];
     const references: UnresolvedRef[] = [];
     const now = Date.now();
-    const safe = stripCommentsForRegex(content, 'php');
+    const safe = stripCommentsForRegex(content, "php");
 
     // Route::METHOD('/path', handler-expr)
     // handler-expr can be: [Class::class, 'method'] | 'Controller@method' | Closure | Class::class
@@ -125,11 +134,11 @@ export const laravelResolver: FrameworkResolver = {
     let match: RegExpExecArray | null;
     while ((match = routeRegex.exec(safe)) !== null) {
       const [, method, routePath, handlerExpr] = match;
-      const line = safe.slice(0, match.index).split('\n').length;
+      const line = safe.slice(0, match.index).split("\n").length;
       const upper = method.toUpperCase();
       const routeNode: Node = {
         id: `route:${filePath}:${line}:${upper}:${routePath}`,
-        kind: 'route',
+        kind: "route",
         name: `${upper} ${routePath}`,
         qualifiedName: `${filePath}::route:${routePath}`,
         filePath,
@@ -137,7 +146,7 @@ export const laravelResolver: FrameworkResolver = {
         endLine: line,
         startColumn: 0,
         endColumn: match[0].length,
-        language: 'php',
+        language: "php",
         updatedAt: now,
       };
       nodes.push(routeNode);
@@ -147,11 +156,11 @@ export const laravelResolver: FrameworkResolver = {
         references.push({
           fromNodeId: routeNode.id,
           referenceName: handlerName,
-          referenceKind: 'references',
+          referenceKind: "references",
           line,
           column: 0,
           filePath,
-          language: 'php',
+          language: "php",
         });
       }
     }
@@ -161,10 +170,10 @@ export const laravelResolver: FrameworkResolver = {
       /Route::(resource|apiResource)\s*\(\s*['"]([^'"]+)['"]\s*(?:,\s*([^)]+))?\)/g;
     while ((match = resourceRegex.exec(safe)) !== null) {
       const [, _fn, resourceName, handlerExpr] = match;
-      const line = safe.slice(0, match.index).split('\n').length;
+      const line = safe.slice(0, match.index).split("\n").length;
       const routeNode: Node = {
         id: `route:${filePath}:${line}:RESOURCE:${resourceName}`,
-        kind: 'route',
+        kind: "route",
         name: `resource:${resourceName}`,
         qualifiedName: `${filePath}::route:${resourceName}`,
         filePath,
@@ -172,7 +181,7 @@ export const laravelResolver: FrameworkResolver = {
         endLine: line,
         startColumn: 0,
         endColumn: match[0].length,
-        language: 'php',
+        language: "php",
         updatedAt: now,
       };
       nodes.push(routeNode);
@@ -183,11 +192,11 @@ export const laravelResolver: FrameworkResolver = {
           references.push({
             fromNodeId: routeNode.id,
             referenceName: controllerName,
-            referenceKind: 'imports',
+            referenceKind: "imports",
             line,
             column: 0,
             filePath,
-            language: 'php',
+            language: "php",
           });
         }
       }
@@ -235,12 +244,16 @@ function resolveModelCall(
   if (context.fileExists(modelPath)) {
     const nodes = context.getNodesInFile(modelPath);
     // Look for the method in this class
-    const methodNode = nodes.find((n) => n.kind === 'method' && n.name === methodName);
+    const methodNode = nodes.find(
+      (n) => n.kind === "method" && n.name === methodName,
+    );
     if (methodNode) {
       return methodNode.id;
     }
     // Return the class itself if method not found
-    const classNode = nodes.find((n) => n.kind === 'class' && n.name === className);
+    const classNode = nodes.find(
+      (n) => n.kind === "class" && n.name === className,
+    );
     if (classNode) {
       return classNode.id;
     }
@@ -250,11 +263,15 @@ function resolveModelCall(
   modelPath = `app/${className}.php`;
   if (context.fileExists(modelPath)) {
     const nodes = context.getNodesInFile(modelPath);
-    const methodNode = nodes.find((n) => n.kind === 'method' && n.name === methodName);
+    const methodNode = nodes.find(
+      (n) => n.kind === "method" && n.name === methodName,
+    );
     if (methodNode) {
       return methodNode.id;
     }
-    const classNode = nodes.find((n) => n.kind === 'class' && n.name === className);
+    const classNode = nodes.find(
+      (n) => n.kind === "class" && n.name === className,
+    );
     if (classNode) {
       return classNode.id;
     }
@@ -275,7 +292,9 @@ function resolveControllerMethod(
   const controllerPath = `app/Http/Controllers/${controller}.php`;
   if (context.fileExists(controllerPath)) {
     const nodes = context.getNodesInFile(controllerPath);
-    const methodNode = nodes.find((n) => n.kind === 'method' && n.name === method);
+    const methodNode = nodes.find(
+      (n) => n.kind === "method" && n.name === method,
+    );
     if (methodNode) {
       return methodNode.id;
     }
@@ -284,9 +303,11 @@ function resolveControllerMethod(
   // Try name-based lookup for namespaced controllers
   const controllerCandidates = context.getNodesByName(controller);
   for (const ctrl of controllerCandidates) {
-    if (ctrl.kind === 'class' && ctrl.filePath.includes('Controllers')) {
+    if (ctrl.kind === "class" && ctrl.filePath.includes("Controllers")) {
       const nodesInFile = context.getNodesInFile(ctrl.filePath);
-      const methodNode = nodesInFile.find((n) => n.kind === 'method' && n.name === method);
+      const methodNode = nodesInFile.find(
+        (n) => n.kind === "method" && n.name === method,
+      );
       if (methodNode) {
         return methodNode.id;
       }

@@ -1,5 +1,5 @@
 /**
- * @aide/guard — Proxy readiness flag.
+ * @aide-dev/guard — Proxy readiness flag.
  *
  * Kubernetes and other orchestrators differentiate liveness from readiness:
  *  - Liveness (`/health`): "is the process responding?" — never gate this on

@@ -3,11 +3,11 @@
  * Loads aide.config.yaml with multi-level fallback and environment variable resolution.
  */
 
-import * as fs from 'fs';
-import * as path from 'path';
-import * as os from 'os';
-import { parse as parseYaml } from 'yaml';
-import dotenv from 'dotenv';
+import * as fs from "fs";
+import * as path from "path";
+import * as os from "os";
+import { parse as parseYaml } from "yaml";
+import dotenv from "dotenv";
 import type {
   AppConfig,
   ProviderConfig,
@@ -17,14 +17,14 @@ import type {
   ServerConfig,
   GraphConfig,
   MindConfig,
-} from './types.js';
-import { ConfigError } from './errors.js';
+} from "./types.js";
+import { ConfigError } from "./errors.js";
 
 // Load .env files
 dotenv.config();
 
 /** Default config file name */
-export const CONFIG_FILENAME = 'aide.config.yaml';
+export const CONFIG_FILENAME = "aide.config.yaml";
 
 /** Allowed environment variable patterns (whitelist for security) */
 const ALLOWED_ENV_PATTERNS = [
@@ -54,19 +54,22 @@ function isAllowedEnvVar(varName: string): boolean {
  * Only whitelisted environment variables are resolved for security.
  */
 function resolveEnvVars(obj: unknown): unknown {
-  if (typeof obj === 'string') {
-    return obj.replace(/\$\{(\w+)(?::([^}]*))?\}/g, (_, varName, defaultValue) => {
-      if (!isAllowedEnvVar(varName)) {
-        return `\${${varName}}`;
-      }
-      const envValue = process.env[varName];
-      if (envValue !== undefined) return envValue;
-      if (defaultValue !== undefined) return defaultValue;
-      return '';
-    });
+  if (typeof obj === "string") {
+    return obj.replace(
+      /\$\{(\w+)(?::([^}]*))?\}/g,
+      (_, varName, defaultValue) => {
+        if (!isAllowedEnvVar(varName)) {
+          return `\${${varName}}`;
+        }
+        const envValue = process.env[varName];
+        if (envValue !== undefined) return envValue;
+        if (defaultValue !== undefined) return defaultValue;
+        return "";
+      },
+    );
   }
   if (Array.isArray(obj)) return obj.map(resolveEnvVars);
-  if (obj !== null && typeof obj === 'object') {
+  if (obj !== null && typeof obj === "object") {
     const result: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(obj)) {
       result[key] = resolveEnvVars(value);
@@ -89,13 +92,13 @@ function getDefaultServer(): ServerConfig {
     cors: {
       enabled: true,
       origins: [
-        'http://localhost:9900',
-        'http://127.0.0.1:9900',
-        'http://localhost:9901',
-        'http://127.0.0.1:9901',
+        "http://localhost:9900",
+        "http://127.0.0.1:9900",
+        "http://localhost:9901",
+        "http://127.0.0.1:9901",
       ],
-      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-Id'],
+      methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+      allowedHeaders: ["Content-Type", "Authorization", "X-Request-Id"],
       credentials: false,
     },
   };
@@ -104,27 +107,27 @@ function getDefaultServer(): ServerConfig {
 function getDefaultProviders(): Record<string, ProviderConfig> {
   return {
     deepseek: {
-      apiKey: process.env.DEEPSEEK_API_KEY || '',
-      baseUrl: 'https://api.deepseek.com/v1',
-      models: ['deepseek-v4-pro', 'deepseek-flash'],
+      apiKey: process.env.DEEPSEEK_API_KEY || "",
+      baseUrl: "https://api.deepseek.com/v1",
+      models: ["deepseek-v4-pro", "deepseek-flash"],
       enabled: true,
     },
     openai: {
-      apiKey: process.env.OPENAI_API_KEY || '',
-      baseUrl: 'https://api.openai.com/v1',
-      models: ['gpt-4o', 'gpt-4o-mini'],
+      apiKey: process.env.OPENAI_API_KEY || "",
+      baseUrl: "https://api.openai.com/v1",
+      models: ["gpt-4o", "gpt-4o-mini"],
       enabled: !!process.env.OPENAI_API_KEY,
     },
     anthropic: {
-      apiKey: process.env.ANTHROPIC_API_KEY || '',
-      baseUrl: 'https://api.anthropic.com',
-      models: ['claude-sonnet-4-20250514', 'claude-3-5-haiku-20241022'],
+      apiKey: process.env.ANTHROPIC_API_KEY || "",
+      baseUrl: "https://api.anthropic.com",
+      models: ["claude-sonnet-4-20250514", "claude-3-5-haiku-20241022"],
       enabled: !!process.env.ANTHROPIC_API_KEY,
     },
     ollama: {
-      apiKey: 'ollama',
-      baseUrl: 'http://localhost:11434/v1',
-      models: ['codellama', 'deepseek-coder-v2'],
+      apiKey: "ollama",
+      baseUrl: "http://localhost:11434/v1",
+      models: ["codellama", "deepseek-coder-v2"],
       enabled: false,
     },
   };
@@ -133,37 +136,37 @@ function getDefaultProviders(): Record<string, ProviderConfig> {
 function getDefaultRouting(): Record<string, RoutingEntry[]> {
   return {
     code_completion: [
-      { model: 'deepseek-flash', provider: 'deepseek', priority: 1 },
-      { model: 'gpt-4o-mini', provider: 'openai', priority: 2 },
+      { model: "deepseek-flash", provider: "deepseek", priority: 1 },
+      { model: "gpt-4o-mini", provider: "openai", priority: 2 },
     ],
     code_generation: [
-      { model: 'deepseek-v4-pro', provider: 'deepseek', priority: 1 },
-      { model: 'gpt-4o', provider: 'openai', priority: 2 },
-      { model: 'claude-sonnet-4-20250514', provider: 'anthropic', priority: 3 },
+      { model: "deepseek-v4-pro", provider: "deepseek", priority: 1 },
+      { model: "gpt-4o", provider: "openai", priority: 2 },
+      { model: "claude-sonnet-4-20250514", provider: "anthropic", priority: 3 },
     ],
     debugging: [
-      { model: 'deepseek-v4-pro', provider: 'deepseek', priority: 1 },
-      { model: 'claude-sonnet-4-20250514', provider: 'anthropic', priority: 2 },
+      { model: "deepseek-v4-pro", provider: "deepseek", priority: 1 },
+      { model: "claude-sonnet-4-20250514", provider: "anthropic", priority: 2 },
     ],
     refactoring: [
-      { model: 'deepseek-v4-pro', provider: 'deepseek', priority: 1 },
-      { model: 'gpt-4o', provider: 'openai', priority: 2 },
+      { model: "deepseek-v4-pro", provider: "deepseek", priority: 1 },
+      { model: "gpt-4o", provider: "openai", priority: 2 },
     ],
     code_review: [
-      { model: 'deepseek-v4-pro', provider: 'deepseek', priority: 1 },
-      { model: 'claude-sonnet-4-20250514', provider: 'anthropic', priority: 2 },
+      { model: "deepseek-v4-pro", provider: "deepseek", priority: 1 },
+      { model: "claude-sonnet-4-20250514", provider: "anthropic", priority: 2 },
     ],
     explanation: [
-      { model: 'deepseek-flash', provider: 'deepseek', priority: 1 },
-      { model: 'gpt-4o-mini', provider: 'openai', priority: 2 },
+      { model: "deepseek-flash", provider: "deepseek", priority: 1 },
+      { model: "gpt-4o-mini", provider: "openai", priority: 2 },
     ],
     testing: [
-      { model: 'deepseek-v4-pro', provider: 'deepseek', priority: 1 },
-      { model: 'gpt-4o', provider: 'openai', priority: 2 },
+      { model: "deepseek-v4-pro", provider: "deepseek", priority: 1 },
+      { model: "gpt-4o", provider: "openai", priority: 2 },
     ],
     general: [
-      { model: 'deepseek-flash', provider: 'deepseek', priority: 1 },
-      { model: 'gpt-4o-mini', provider: 'openai', priority: 2 },
+      { model: "deepseek-flash", provider: "deepseek", priority: 1 },
+      { model: "gpt-4o-mini", provider: "openai", priority: 2 },
     ],
   };
 }
@@ -175,16 +178,16 @@ function getDefaultGuard(): GuardConfig {
     diffAnalysis: true,
     autoRejectThreshold: 30,
     trusted_packages: [
-      'react',
-      'vue',
-      'express',
-      'fastify',
-      'lodash',
-      'axios',
-      'numpy',
-      'pandas',
-      'requests',
-      'flask',
+      "react",
+      "vue",
+      "express",
+      "fastify",
+      "lodash",
+      "axios",
+      "numpy",
+      "pandas",
+      "requests",
+      "flask",
     ],
   };
 }
@@ -196,20 +199,20 @@ function getDefaultCost(): CostConfig {
 function getDefaultGraph(): GraphConfig {
   return {
     enabled: true,
-    languages: ['typescript', 'javascript', 'python', 'go'],
+    languages: ["typescript", "javascript", "python", "go"],
     watchMode: false,
   };
 }
 
 function getDefaultMind(): MindConfig {
-  return { enabled: true, defaultModel: 'deepseek' };
+  return { enabled: true, defaultModel: "deepseek" };
 }
 
 /** Get complete default configuration */
 export function getDefaultConfig(): AppConfig {
   return {
     server: getDefaultServer(),
-    strategy: 'balanced',
+    strategy: "balanced",
     providers: getDefaultProviders(),
     routing: getDefaultRouting(),
     cost: getDefaultCost(),
@@ -232,10 +235,10 @@ function deepMerge(
     const targetVal = result[key];
     if (
       sourceVal !== null &&
-      typeof sourceVal === 'object' &&
+      typeof sourceVal === "object" &&
       !Array.isArray(sourceVal) &&
       targetVal !== null &&
-      typeof targetVal === 'object' &&
+      typeof targetVal === "object" &&
       !Array.isArray(targetVal)
     ) {
       result[key] = deepMerge(
@@ -256,21 +259,21 @@ function fillProviderApiKeys(
   for (const [name, config] of Object.entries(providers)) {
     if (!config.apiKey) {
       const envMap: Record<string, string> = {
-        openai: 'OPENAI_API_KEY',
-        anthropic: 'ANTHROPIC_API_KEY',
-        deepseek: 'DEEPSEEK_API_KEY',
-        ollama: '',
-        azure: 'AZURE_OPENAI_API_KEY',
-        glm: 'GLM_API_KEY',
-        minimax: 'MINIMAX_API_KEY',
+        openai: "OPENAI_API_KEY",
+        anthropic: "ANTHROPIC_API_KEY",
+        deepseek: "DEEPSEEK_API_KEY",
+        ollama: "",
+        azure: "AZURE_OPENAI_API_KEY",
+        glm: "GLM_API_KEY",
+        minimax: "MINIMAX_API_KEY",
       };
       const envVar = envMap[name.toLowerCase()];
       config.apiKey = envVar
-        ? process.env[envVar] || ''
-        : process.env[`${name.toUpperCase()}_API_KEY`] || '';
+        ? process.env[envVar] || ""
+        : process.env[`${name.toUpperCase()}_API_KEY`] || "";
     }
-    if (name.toLowerCase() === 'ollama' && !config.apiKey) {
-      config.apiKey = 'ollama';
+    if (name.toLowerCase() === "ollama" && !config.apiKey) {
+      config.apiKey = "ollama";
     }
   }
   return providers;
@@ -294,7 +297,7 @@ export function findConfigPath(explicitPath?: string): string | null {
   if (fs.existsSync(cwdPath)) return cwdPath;
 
   // Check user home directory
-  const homePath = path.join(os.homedir(), '.aide', CONFIG_FILENAME);
+  const homePath = path.join(os.homedir(), ".aide", CONFIG_FILENAME);
   if (fs.existsSync(homePath)) return homePath;
 
   return null;
@@ -310,10 +313,10 @@ export function loadConfig(configPath?: string): AppConfig {
   if (!filePath) return defaults;
 
   try {
-    const fileContent = fs.readFileSync(filePath, 'utf-8');
+    const fileContent = fs.readFileSync(filePath, "utf-8");
     const rawConfig = parseYaml(fileContent);
 
-    if (!rawConfig || typeof rawConfig !== 'object') return defaults;
+    if (!rawConfig || typeof rawConfig !== "object") return defaults;
 
     const resolved = resolveEnvVars(rawConfig) as Record<string, unknown>;
     const merged = deepMerge(
@@ -329,10 +332,13 @@ export function loadConfig(configPath?: string): AppConfig {
   } catch (error) {
     if (error instanceof ConfigError) throw error;
     const message = error instanceof Error ? error.message : String(error);
-    throw new ConfigError(`Failed to load config from ${filePath}: ${message}`, {
-      suggestion: `Check the YAML syntax in ${filePath} or delete it to use defaults.`,
-      cause: error instanceof Error ? error : undefined,
-    });
+    throw new ConfigError(
+      `Failed to load config from ${filePath}: ${message}`,
+      {
+        suggestion: `Check the YAML syntax in ${filePath} or delete it to use defaults.`,
+        cause: error instanceof Error ? error : undefined,
+      },
+    );
   }
 }
 
@@ -462,6 +468,6 @@ cost:
 
   const filePath = path.join(outputDir, CONFIG_FILENAME);
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  fs.writeFileSync(filePath, content, 'utf-8');
+  fs.writeFileSync(filePath, content, "utf-8");
   return filePath;
 }

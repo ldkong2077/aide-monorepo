@@ -1,177 +1,238 @@
-# 贡献指南
+# Contributing to AIDE
 
-感谢你对 AIDE 的关注！我们欢迎各种形式的贡献。
+Thank you for your interest in contributing to AIDE! This document provides guidelines and information for contributors.
 
----
+## Table of Contents
 
-## 如何贡献
+- [Code of Conduct](#code-of-conduct)
+- [Getting Started](#getting-started)
+- [Development Setup](#development-setup)
+- [Project Structure](#project-structure)
+- [Development Workflow](#development-workflow)
+- [Pull Request Process](#pull-request-process)
+- [Coding Standards](#coding-standards)
+- [Testing](#testing)
+- [Documentation](#documentation)
+- [Community](#community)
 
-### 报告问题
+## Code of Conduct
 
-发现 bug？请在 [GitHub Issues](https://github.com/your-username/aide-monorepo/issues) 中报告：
+We are committed to providing a welcoming and inclusive experience for everyone. Please be respectful and constructive in all interactions.
 
-1. 搜索是否已有相同问题
-2. 创建新 Issue，包含：
-   - 问题描述
-   - 复现步骤
-   - 期望行为
-   - 实际行为
-   - 环境信息（Node.js 版本、操作系统等）
+## Getting Started
 
-### 提交功能建议
+1. **Fork the repository** on GitHub
+2. **Clone your fork** locally:
+   ```bash
+   git clone https://github.com/ldkong2077/aide-monorepo.git
+   cd aide-monorepo
+   ```
+3. **Install dependencies**:
+   ```bash
+   npm install
+   ```
+4. **Build the project**:
+   ```bash
+   npm run build
+   ```
 
-有好的想法？在 Issues 中创建功能建议：
+## Development Setup
 
-1. 描述功能用途
-2. 说明解决什么问题
-3. 提供使用场景
+### Prerequisites
 
-### 贡献代码
-
-1. Fork 项目
-2. 创建功能分支：`git checkout -b feature/your-feature`
-3. 提交更改：`git commit -m "feat: add new feature"`
-4. 推送分支：`git push origin feature/your-feature`
-5. 创建 Pull Request
-
----
-
-## 开发环境
-
-### 前置要求
-
-- Node.js 20.0.0+
-- npm 9.0.0+
+- Node.js 20.0.0 or higher
+- npm 9.0.0 or higher
 - Git
 
-### 设置步骤
+### Development Commands
 
 ```bash
-# 1. Fork 并克隆
-git clone https://github.com/ldkong2077/aide-monorepo.git
-cd aide-monorepo
-
-# 2. 安装依赖
+# Install dependencies
 npm install
 
-# 3. 构建项目
+# Build all packages
 npm run build
 
-# 4. 运行测试
+# Run tests
 npm test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Lint the code
+npm run lint
+
+# Fix lint issues
+npm run lint:fix
+
+# Format code
+npm run format
+
+# Check formatting
+npm run format:check
+
+# Type check
+npm run typecheck
+
+# Clean build artifacts
+npm run clean
 ```
 
-### 开发命令
+## Project Structure
 
-```bash
-npm run build          # 构建所有包
-npm test               # 运行测试
-npm run lint           # 检查代码风格
-npm run lint:fix       # 自动修复代码风格
-npm run format         # 格式化代码
-npm run typecheck      # 类型检查
-```
-
----
-
-## 项目结构
+This is a monorepo managed with npm workspaces. Here's the structure:
 
 ```
-aide-monorepo/
+aide/
 ├── packages/
-│   ├── cli/           # CLI 入口
-│   ├── mcp-server/    # MCP 服务器
-│   ├── guard/         # 验证引擎
-│   ├── graph/         # 代码图谱
-│   ├── core/          # 共享类型
-│   ├── mind/          # 项目设计
-│   ├── templates/     # 项目模板
-│   ├── flow/          # 开发流程
-│   └── dashboard/     # 仪表盘
-├── docs/              # 文档
-└── config/            # 配置文件
+│   ├── cli/           # Unified CLI entry point
+│   ├── mcp-server/    # MCP protocol server
+│   ├── guard/         # Verification pipeline
+│   ├── graph/         # AST code knowledge graph
+│   ├── core/          # Shared types and utilities
+│   ├── mind/          # Project design and planning
+│   ├── templates/     # Pre-built project templates
+│   ├── flow/          # Development workflow orchestration
+│   └── dashboard/     # Visual progress tracking
+├── config/            # Configuration files (eslint, prettier, etc.)
+└── package.json       # Root package.json with workspaces
 ```
 
----
+### Package Dependencies
 
-## 提交规范
-
-使用 [Conventional Commits](https://www.conventionalcommits.org/)：
-
-- `feat:` 新功能
-- `fix:` 修复 bug
-- `docs:` 文档更新
-- `style:` 代码格式（不影响功能）
-- `refactor:` 重构
-- `test:` 测试
-- `chore:` 构建/工具更新
-
-**示例**：
-```bash
-git commit -m "feat: 添加 Python 幻觉检测"
-git commit -m "fix: 修复 CLI 参数解析错误"
-git commit -m "docs: 更新快速开始指南"
+```
+@aide-dev/cli → @aide-dev/mcp-server, @aide-dev/guard, @aide-dev/graph, @aide-dev/core
+@aide-dev/mcp-server → @aide-dev/guard, @aide-dev/graph, @aide-dev/core, @aide-dev/mind
+@aide-dev/mind → @aide-dev/core
+@aide-dev/flow → @aide-dev/mind, @aide-dev/guard, @aide-dev/graph, @aide-dev/core
+@aide-dev/dashboard → @aide-dev/flow, @aide-dev/mind, @aide-dev/guard, @aide-dev/core
+@aide-dev/templates → @aide-dev/core
 ```
 
----
+## Development Workflow
 
-## 代码规范
+1. **Create a branch** for your feature or fix:
+
+   ```bash
+   git checkout -b feature/your-feature-name
+   ```
+
+2. **Make your changes** following the coding standards
+
+3. **Write tests** for new functionality
+
+4. **Run the test suite**:
+
+   ```bash
+   npm test
+   ```
+
+5. **Run linter and formatter**:
+
+   ```bash
+   npm run lint:fix
+   npm run format
+   ```
+
+6. **Commit your changes** with a descriptive message:
+
+   ```bash
+   git commit -m "feat: add new feature description"
+   ```
+
+7. **Push to your fork**:
+
+   ```bash
+   git push origin feature/your-feature-name
+   ```
+
+8. **Create a Pull Request** on GitHub
+
+## Pull Request Process
+
+1. **Update documentation** if you're changing APIs or adding features
+2. **Add tests** for new functionality
+3. **Ensure all tests pass** (`npm test`)
+4. **Ensure code is formatted** (`npm run format`)
+5. **Update CHANGELOG.md** with a summary of changes
+6. **Request review** from maintainers
+
+### PR Title Convention
+
+We follow [Conventional Commits](https://www.conventionalcommits.org/):
+
+- `feat:` new feature
+- `fix:` bug fix
+- `docs:` documentation changes
+- `style:` formatting changes
+- `refactor:` code refactoring
+- `test:` adding or updating tests
+- `chore:` maintenance tasks
+
+## Coding Standards
 
 ### TypeScript
 
-- 使用严格模式
-- 避免 `any` 类型
-- 使用接口定义对象结构
-- 导出类型
+- Use TypeScript strict mode
+- Avoid `any` types - use proper type definitions
+- Use interfaces for object shapes
+- Export types explicitly
 
-### 代码风格
+### Code Style
 
-- 使用项目提供的 ESLint 和 Prettier 配置
-- 编写清晰的变量和函数名
-- 复杂逻辑添加注释
+- Follow the existing code style in the project
+- Use ESLint and Prettier configurations provided
+- Write clear, descriptive variable and function names
+- Add comments for complex logic
 
-### 测试
+### Error Handling
 
-- 新功能必须有测试
-- 测试文件放在 `__tests__/` 或使用 `.test.ts` 后缀
-- 使用 Vitest 运行测试
+- Use custom error classes from `@aide-dev/core`
+- Provide meaningful error messages
+- Handle errors gracefully in async functions
 
----
+## Testing
 
-## Pull Request 检查清单
+### Writing Tests
 
-提交 PR 前，请确保：
+- Place tests in `__tests__/` directories or use `.test.ts` suffix
+- Use Vitest for testing
+- Write unit tests for new functions
+- Write integration tests for new features
 
-- [ ] 代码通过所有测试：`npm test`
-- [ ] 代码通过 lint 检查：`npm run lint`
-- [ ] 代码已格式化：`npm run format`
-- [ ] 更新了相关文档
-- [ ] 提交信息符合规范
-- [ ] PR 描述清晰
+### Running Tests
 
----
+```bash
+# Run all tests
+npm test
 
-## 发布流程
+# Run tests for a specific package
+npm test --workspace=@aide-dev/core
 
-1. 更新版本号
-2. 更新 CHANGELOG.md
-3. 创建发布 PR
-4. 合并后自动发布到 npm
+# Run tests in watch mode
+npm run test:watch
 
----
+# Run tests with coverage
+npm run test:coverage
+```
 
-## 获取帮助
+## Documentation
 
-- GitHub Issues: 报告问题
-- GitHub Discussions: 提问讨论
-- Email: info@numboxhub.com
+- Update README.md for user-facing changes
+- Update CONTRIBUTING.md for development process changes
+- Add JSDoc comments for public APIs
+- Include examples in documentation
 
----
+## Community
 
-## 许可证
+- **GitHub Issues**: Report bugs and request features
+- **GitHub Discussions**: Ask questions and share ideas
+- **Pull Requests**: Contribute code improvements
 
-贡献即表示你同意你的代码在 MIT 许可证下发布。
+## License
 
----
+By contributing to AIDE, you agree that your contributions will be licensed under the MIT License.
 
-**感谢你的贡献！**
+## Thank You!
+
+Thank you for contributing to AIDE! Your help is greatly appreciated.

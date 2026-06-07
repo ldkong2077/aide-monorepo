@@ -23,9 +23,9 @@
  * commas, which JSON.parse rejects. We strip those before parsing.
  */
 
-import * as fs from 'fs';
-import * as path from 'path';
-import { logDebug } from '../errors.js';
+import * as fs from "fs";
+import * as path from "path";
+import { logDebug } from "../errors.js";
 
 /** A single alias pattern from `compilerOptions.paths`. */
 export interface AliasPattern {
@@ -63,14 +63,14 @@ export interface AliasMap {
  * truncated).
  */
 function stripJsonc(src: string): string {
-  let out = '';
+  let out = "";
   let i = 0;
   let inString = false;
   while (i < src.length) {
     const ch = src[i];
     if (inString) {
       out += ch;
-      if (ch === '\\' && i + 1 < src.length) {
+      if (ch === "\\" && i + 1 < src.length) {
         out += src[i + 1];
         i += 2;
         continue;
@@ -85,13 +85,13 @@ function stripJsonc(src: string): string {
       i++;
       continue;
     }
-    if (ch === '/' && src[i + 1] === '/') {
-      while (i < src.length && src[i] !== '\n') i++;
+    if (ch === "/" && src[i + 1] === "/") {
+      while (i < src.length && src[i] !== "\n") i++;
       continue;
     }
-    if (ch === '/' && src[i + 1] === '*') {
+    if (ch === "/" && src[i + 1] === "*") {
       i += 2;
-      while (i < src.length && !(src[i] === '*' && src[i + 1] === '/')) i++;
+      while (i < src.length && !(src[i] === "*" && src[i + 1] === "/")) i++;
       i += 2;
       continue;
     }
@@ -100,7 +100,7 @@ function stripJsonc(src: string): string {
   }
   // Trailing commas before } or ] — outside strings, so safe to
   // run on the comment-stripped output.
-  return out.replace(/,(\s*[}\]])/g, '$1');
+  return out.replace(/,(\s*[}\]])/g, "$1");
 }
 
 interface RawTsconfig {
@@ -112,11 +112,11 @@ interface RawTsconfig {
 
 function readTsconfigLike(filePath: string): RawTsconfig | null {
   try {
-    const raw = fs.readFileSync(filePath, 'utf-8');
+    const raw = fs.readFileSync(filePath, "utf-8");
     const parsed = JSON.parse(stripJsonc(raw)) as RawTsconfig;
-    return parsed && typeof parsed === 'object' ? parsed : null;
+    return parsed && typeof parsed === "object" ? parsed : null;
   } catch (err) {
-    logDebug('path-aliases: failed to parse', { filePath, err: String(err) });
+    logDebug("path-aliases: failed to parse", { filePath, err: String(err) });
     return null;
   }
 }
@@ -126,8 +126,8 @@ function splitWildcard(pattern: string): {
   suffix: string;
   hasWildcard: boolean;
 } {
-  const star = pattern.indexOf('*');
-  if (star === -1) return { prefix: pattern, suffix: '', hasWildcard: false };
+  const star = pattern.indexOf("*");
+  if (star === -1) return { prefix: pattern, suffix: "", hasWildcard: false };
   return {
     prefix: pattern.slice(0, star),
     suffix: pattern.slice(star + 1),
@@ -143,7 +143,7 @@ function splitWildcard(pattern: string): {
  * resolver does it via {@link aliasCache}).
  */
 export function loadProjectAliases(projectRoot: string): AliasMap | null {
-  const candidates = ['tsconfig.json', 'jsconfig.json'];
+  const candidates = ["tsconfig.json", "jsconfig.json"];
   let raw: RawTsconfig | null = null;
   let usedFile: string | null = null;
   for (const name of candidates) {
@@ -159,11 +159,11 @@ export function loadProjectAliases(projectRoot: string): AliasMap | null {
   if (!raw) return null;
 
   const co = raw.compilerOptions ?? {};
-  const baseUrlRel = co.baseUrl ?? '.';
+  const baseUrlRel = co.baseUrl ?? ".";
   const baseUrl = path.resolve(projectRoot, baseUrlRel);
 
   const paths = co.paths;
-  if (!paths || typeof paths !== 'object') {
+  if (!paths || typeof paths !== "object") {
     // baseUrl alone isn't an "alias" per se; with no paths we'd just
     // be redirecting the whole tree. Skip — the existing resolver
     // already handles relative imports.
@@ -173,7 +173,7 @@ export function loadProjectAliases(projectRoot: string): AliasMap | null {
   const patterns: AliasPattern[] = [];
   for (const [pattern, targets] of Object.entries(paths)) {
     if (!Array.isArray(targets) || targets.length === 0) continue;
-    const filtered = targets.filter((t): t is string => typeof t === 'string');
+    const filtered = targets.filter((t): t is string => typeof t === "string");
     if (filtered.length === 0) continue;
     const { prefix, suffix, hasWildcard } = splitWildcard(pattern);
     patterns.push({ prefix, suffix, hasWildcard, replacements: filtered });
@@ -185,12 +185,13 @@ export function loadProjectAliases(projectRoot: string): AliasMap | null {
   // wildcard patterns of the same prefix length. TypeScript itself
   // uses a similar "most specific match wins" rule.
   patterns.sort((a, b) => {
-    if (a.prefix.length !== b.prefix.length) return b.prefix.length - a.prefix.length;
+    if (a.prefix.length !== b.prefix.length)
+      return b.prefix.length - a.prefix.length;
     if (a.hasWildcard !== b.hasWildcard) return a.hasWildcard ? 1 : -1;
     return 0;
   });
 
-  logDebug('path-aliases loaded', {
+  logDebug("path-aliases loaded", {
     file: usedFile,
     baseUrl,
     patternCount: patterns.length,
@@ -208,14 +209,21 @@ export function loadProjectAliases(projectRoot: string): AliasMap | null {
  * Callers still need to try each candidate with the language's
  * extension list — this function only does the alias rewrite.
  */
-export function applyAliases(importPath: string, aliases: AliasMap, projectRoot: string): string[] {
+export function applyAliases(
+  importPath: string,
+  aliases: AliasMap,
+  projectRoot: string,
+): string[] {
   for (const pat of aliases.patterns) {
     if (!importPath.startsWith(pat.prefix)) continue;
     if (pat.suffix && !importPath.endsWith(pat.suffix)) continue;
 
-    let captured = '';
+    let captured = "";
     if (pat.hasWildcard) {
-      captured = importPath.slice(pat.prefix.length, importPath.length - pat.suffix.length);
+      captured = importPath.slice(
+        pat.prefix.length,
+        importPath.length - pat.suffix.length,
+      );
     } else if (importPath !== pat.prefix) {
       // Literal pattern must match exactly.
       continue;
@@ -223,14 +231,14 @@ export function applyAliases(importPath: string, aliases: AliasMap, projectRoot:
 
     const out: string[] = [];
     for (const target of pat.replacements) {
-      const filled = pat.hasWildcard ? target.replace('*', captured) : target;
+      const filled = pat.hasWildcard ? target.replace("*", captured) : target;
       // baseUrl is absolute; produce a path relative to projectRoot
       const absolute = path.resolve(aliases.baseUrl, filled);
       const relative = path.relative(projectRoot, absolute);
       // Skip if the rewrite escapes the project root (unsafe + can't
       // be looked up via the file index anyway).
-      if (relative.startsWith('..')) continue;
-      out.push(relative.replace(/\\/g, '/'));
+      if (relative.startsWith("..")) continue;
+      out.push(relative.replace(/\\/g, "/"));
     }
     return out;
   }

@@ -4,45 +4,58 @@
  * Handles Gin, Echo, Fiber, Chi, and standard library patterns.
  */
 
-import { type Node } from '../../types.js';
-import { type FrameworkResolver, type UnresolvedRef, type ResolvedRef, type ResolutionContext } from '../types.js';
-import { stripCommentsForRegex } from '../strip-comments.js';
+import { type Node } from "../../types.js";
+import {
+  type FrameworkResolver,
+  type UnresolvedRef,
+  type ResolvedRef,
+  type ResolutionContext,
+} from "../types.js";
+import { stripCommentsForRegex } from "../strip-comments.js";
 
 export const goResolver: FrameworkResolver = {
-  name: 'go',
-  languages: ['go'],
+  name: "go",
+  languages: ["go"],
 
   detect(context: ResolutionContext): boolean {
     // Check for go.mod file (Go modules)
-    const goMod = context.readFile('go.mod');
+    const goMod = context.readFile("go.mod");
     if (goMod) {
       return true;
     }
 
     // Check for .go files
     const allFiles = context.getAllFiles();
-    return allFiles.some((f) => f.endsWith('.go'));
+    return allFiles.some((f) => f.endsWith(".go"));
   },
 
   resolve(ref: UnresolvedRef, context: ResolutionContext): ResolvedRef | null {
     // Pattern 1: Handler references
-    if (ref.referenceName.endsWith('Handler') || ref.referenceName.startsWith('Handle')) {
-      const result = resolveByNameAndKind(ref.referenceName, 'function', HANDLER_DIRS, context);
+    if (
+      ref.referenceName.endsWith("Handler") ||
+      ref.referenceName.startsWith("Handle")
+    ) {
+      const result = resolveByNameAndKind(
+        ref.referenceName,
+        "function",
+        HANDLER_DIRS,
+        context,
+      );
       if (result) {
         return {
           original: ref,
           targetNodeId: result,
           confidence: 0.8,
-          resolvedBy: 'framework',
+          resolvedBy: "framework",
         };
       }
     }
 
     // Pattern 2: Service/Repository references
     if (
-      ref.referenceName.endsWith('Service') ||
-      ref.referenceName.endsWith('Repository') ||
-      ref.referenceName.endsWith('Store')
+      ref.referenceName.endsWith("Service") ||
+      ref.referenceName.endsWith("Repository") ||
+      ref.referenceName.endsWith("Store")
     ) {
       const result = resolveByNameAndKind(
         ref.referenceName,
@@ -56,37 +69,47 @@ export const goResolver: FrameworkResolver = {
           original: ref,
           targetNodeId: result,
           confidence: 0.8,
-          resolvedBy: 'framework',
+          resolvedBy: "framework",
         };
       }
     }
 
     // Pattern 3: Middleware references
     if (
-      ref.referenceName.endsWith('Middleware') ||
-      ref.referenceName.startsWith('Auth') ||
-      ref.referenceName.startsWith('Log')
+      ref.referenceName.endsWith("Middleware") ||
+      ref.referenceName.startsWith("Auth") ||
+      ref.referenceName.startsWith("Log")
     ) {
-      const result = resolveByNameAndKind(ref.referenceName, 'function', MIDDLEWARE_DIRS, context);
+      const result = resolveByNameAndKind(
+        ref.referenceName,
+        "function",
+        MIDDLEWARE_DIRS,
+        context,
+      );
       if (result) {
         return {
           original: ref,
           targetNodeId: result,
           confidence: 0.75,
-          resolvedBy: 'framework',
+          resolvedBy: "framework",
         };
       }
     }
 
     // Pattern 4: Model/Entity references (typically PascalCase structs)
     if (/^[A-Z][a-zA-Z]+$/.test(ref.referenceName)) {
-      const result = resolveByNameAndKind(ref.referenceName, 'struct', MODEL_DIRS, context);
+      const result = resolveByNameAndKind(
+        ref.referenceName,
+        "struct",
+        MODEL_DIRS,
+        context,
+      );
       if (result) {
         return {
           original: ref,
           targetNodeId: result,
           confidence: 0.7,
-          resolvedBy: 'framework',
+          resolvedBy: "framework",
         };
       }
     }
@@ -95,11 +118,11 @@ export const goResolver: FrameworkResolver = {
   },
 
   extract(filePath, content) {
-    if (!filePath.endsWith('.go')) return { nodes: [], references: [] };
+    if (!filePath.endsWith(".go")) return { nodes: [], references: [] };
     const nodes: Node[] = [];
     const references: UnresolvedRef[] = [];
     const now = Date.now();
-    const safe = stripCommentsForRegex(content, 'go');
+    const safe = stripCommentsForRegex(content, "go");
 
     // (router|r|mux|app).METHOD("/path", handler)
     // Handles Gin (GET/POST/...), Chi (Get/Post/...), net/http (HandleFunc/Handle).
@@ -108,13 +131,15 @@ export const goResolver: FrameworkResolver = {
     let match: RegExpExecArray | null;
     while ((match = routeRegex.exec(safe)) !== null) {
       const [, rawMethod, routePath, handlerExpr] = match;
-      const line = safe.slice(0, match.index).split('\n').length;
+      const line = safe.slice(0, match.index).split("\n").length;
       const method =
-        rawMethod === 'Handle' || rawMethod === 'HandleFunc' ? 'ANY' : rawMethod.toUpperCase();
+        rawMethod === "Handle" || rawMethod === "HandleFunc"
+          ? "ANY"
+          : rawMethod.toUpperCase();
 
       const routeNode: Node = {
         id: `route:${filePath}:${line}:${method}:${routePath}`,
-        kind: 'route',
+        kind: "route",
         name: `${method} ${routePath}`,
         qualifiedName: `${filePath}::route:${routePath}`,
         filePath,
@@ -122,7 +147,7 @@ export const goResolver: FrameworkResolver = {
         endLine: line,
         startColumn: 0,
         endColumn: match[0].length,
-        language: 'go',
+        language: "go",
         updatedAt: now,
       };
       nodes.push(routeNode);
@@ -132,11 +157,11 @@ export const goResolver: FrameworkResolver = {
         references.push({
           fromNodeId: routeNode.id,
           referenceName: handlerName,
-          referenceKind: 'references',
+          referenceKind: "references",
           line,
           column: 0,
           filePath,
-          language: 'go',
+          language: "go",
         });
       }
     }
@@ -147,17 +172,24 @@ export const goResolver: FrameworkResolver = {
 
 /** Extract the last identifier from an expression like `pkg.Sub.handler` or `handler`. */
 function extractGoTailIdent(expr: string): string | null {
-  const cleaned = expr.trim().replace(/\s+/g, '').replace(/\(\)$/, '');
+  const cleaned = expr.trim().replace(/\s+/g, "").replace(/\(\)$/, "");
   const m = /(?:\.|^)([A-Za-z_][A-Za-z0-9_]*)$/.exec(cleaned);
   return m ? m[1] : null;
 }
 
 // Directory patterns for framework resolution
-const HANDLER_DIRS = ['handler', 'handlers', 'api', 'routes', 'controller', 'controllers'];
-const SERVICE_DIRS = ['service', 'services', 'repository', 'store', 'pkg'];
-const MIDDLEWARE_DIRS = ['middleware', 'middlewares'];
-const MODEL_DIRS = ['model', 'models', 'entity', 'entities', 'domain', 'pkg'];
-const SERVICE_KINDS = new Set(['struct', 'interface']);
+const HANDLER_DIRS = [
+  "handler",
+  "handlers",
+  "api",
+  "routes",
+  "controller",
+  "controllers",
+];
+const SERVICE_DIRS = ["service", "services", "repository", "store", "pkg"];
+const MIDDLEWARE_DIRS = ["middleware", "middlewares"];
+const MODEL_DIRS = ["model", "models", "entity", "entities", "domain", "pkg"];
+const SERVICE_KINDS = new Set(["struct", "interface"]);
 
 /**
  * Resolve a symbol by name using indexed queries instead of scanning all files.

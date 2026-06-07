@@ -9,10 +9,13 @@
  * with WAL + FTS5) is always available — there is no native build step and no
  * wasm fallback. When run from source instead, it requires Node >= 22.5.
  */
-import { DatabaseSync } from 'node:sqlite';
+import { DatabaseSync } from "node:sqlite";
 
 export interface SqliteStatement {
-  run(...params: unknown[]): { changes: number; lastInsertRowid: number | bigint };
+  run(...params: unknown[]): {
+    changes: number;
+    lastInsertRowid: number | bigint;
+  };
   get(...params: unknown[]): unknown;
   all(...params: unknown[]): unknown[];
 }
@@ -21,7 +24,9 @@ export interface SqliteDatabase {
   prepare(sql: string): SqliteStatement;
   exec(sql: string): void;
   pragma(str: string, options?: { simple?: boolean }): unknown;
-  transaction<Args extends unknown[], R>(fn: (...args: Args) => R): (...args: Args) => R;
+  transaction<Args extends unknown[], R>(
+    fn: (...args: Args) => R,
+  ): (...args: Args) => R;
   close(): void;
   readonly open: boolean;
 }
@@ -30,7 +35,7 @@ export interface SqliteDatabase {
  * The active SQLite backend. Only one now (`node:sqlite`); kept as a named type
  * so `codegraph status` and the per-instance reporting have a stable shape.
  */
-export type SqliteBackend = 'node-sqlite';
+export type SqliteBackend = "node-sqlite";
 
 /**
  * Wraps Node's built-in `node:sqlite` (`DatabaseSync`) to match the
@@ -48,7 +53,10 @@ export type SqliteBackend = 'node-sqlite';
 interface NodeSqliteDb {
   isOpen: boolean;
   prepare(sql: string): {
-    run(...params: unknown[]): { changes: number | bigint; lastInsertRowid: number | bigint };
+    run(...params: unknown[]): {
+      changes: number | bigint;
+      lastInsertRowid: number | bigint;
+    };
     get(...params: unknown[]): unknown;
     all(...params: unknown[]): unknown[];
   };
@@ -97,7 +105,7 @@ class NodeSqliteAdapter implements SqliteDatabase {
     const trimmed = str.trim();
     // Write pragma ("key = value"): node:sqlite is real SQLite, so every pragma
     // (WAL, mmap, synchronous, …) applies as-is.
-    if (trimmed.includes('=')) {
+    if (trimmed.includes("=")) {
       this._db.exec(`PRAGMA ${trimmed}`);
       return;
     }
@@ -105,20 +113,22 @@ class NodeSqliteAdapter implements SqliteDatabase {
     // `{ simple: true }` returns just the single column value, like better-sqlite3.
     const row = this._db.prepare(`PRAGMA ${trimmed}`).get();
     if (options?.simple) {
-      return row && typeof row === 'object' ? Object.values(row)[0] : row;
+      return row && typeof row === "object" ? Object.values(row)[0] : row;
     }
     return row;
   }
 
-  transaction<Args extends unknown[], R>(fn: (...args: Args) => R): (...args: Args) => R {
+  transaction<Args extends unknown[], R>(
+    fn: (...args: Args) => R,
+  ): (...args: Args) => R {
     return (...args: Args) => {
-      this._db.exec('BEGIN');
+      this._db.exec("BEGIN");
       try {
         const result = fn(...args);
-        this._db.exec('COMMIT');
+        this._db.exec("COMMIT");
         return result;
       } catch (error) {
-        this._db.exec('ROLLBACK');
+        this._db.exec("ROLLBACK");
         throw error;
       }
     };
@@ -138,15 +148,18 @@ class NodeSqliteAdapter implements SqliteDatabase {
  * report it per-instance — MCP can open multiple project DBs in one process, so
  * a process-global would race.
  */
-export function createDatabase(dbPath: string): { db: SqliteDatabase; backend: SqliteBackend } {
+export function createDatabase(dbPath: string): {
+  db: SqliteDatabase;
+  backend: SqliteBackend;
+} {
   try {
-    return { db: new NodeSqliteAdapter(dbPath), backend: 'node-sqlite' };
+    return { db: new NodeSqliteAdapter(dbPath), backend: "node-sqlite" };
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     throw new Error(
-      'Failed to open SQLite via the built-in node:sqlite module.\n' +
-        'CodeGraph requires node:sqlite (Node.js 22.5+). Install the self-contained\n' +
-        'CodeGraph release (it bundles a compatible Node), or run on Node 22.5+.\n' +
+      "Failed to open SQLite via the built-in node:sqlite module.\n" +
+        "CodeGraph requires node:sqlite (Node.js 22.5+). Install the self-contained\n" +
+        "CodeGraph release (it bundles a compatible Node), or run on Node 22.5+.\n" +
         `Underlying error: ${msg}`,
     );
   }

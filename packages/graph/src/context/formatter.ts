@@ -4,7 +4,12 @@
  * Formats TaskContext as markdown or JSON for consumption by Claude.
  */
 
-import { type Node, type Edge, type TaskContext, type Subgraph } from '../types.js';
+import {
+  type Node,
+  type Edge,
+  type TaskContext,
+  type Subgraph,
+} from "../types.js";
 
 /**
  * Format context as markdown
@@ -18,20 +23,22 @@ export function formatContextAsMarkdown(context: TaskContext): string {
   const lines: string[] = [];
 
   // Header with query
-  lines.push('## Code Context\n');
+  lines.push("## Code Context\n");
   lines.push(`**Query:** ${context.query}\n`);
 
   // Entry points - compact format
   if (context.entryPoints.length > 0) {
-    lines.push('### Entry Points\n');
+    lines.push("### Entry Points\n");
     for (const node of context.entryPoints) {
-      const location = node.startLine ? `:${node.startLine}` : '';
-      lines.push(`- **${node.name}** (${node.kind}) - ${node.filePath}${location}`);
+      const location = node.startLine ? `:${node.startLine}` : "";
+      lines.push(
+        `- **${node.name}** (${node.kind}) - ${node.filePath}${location}`,
+      );
       if (node.signature) {
         lines.push(`  \`${node.signature}\``);
       }
     }
-    lines.push('');
+    lines.push("");
   }
 
   // Related symbols - compact list (skip verbose structure tree)
@@ -40,7 +47,7 @@ export function formatContextAsMarkdown(context: TaskContext): string {
     .slice(0, 10); // Limit to 10 related symbols
 
   if (otherSymbols.length > 0) {
-    lines.push('### Related Symbols\n');
+    lines.push("### Related Symbols\n");
     const byFile = new Map<string, Node[]>();
     for (const node of otherSymbols) {
       const existing = byFile.get(node.filePath) || [];
@@ -49,25 +56,25 @@ export function formatContextAsMarkdown(context: TaskContext): string {
     }
 
     for (const [file, nodes] of byFile) {
-      const nodeList = nodes.map((n) => `${n.name}:${n.startLine}`).join(', ');
+      const nodeList = nodes.map((n) => `${n.name}:${n.startLine}`).join(", ");
       lines.push(`- ${file}: ${nodeList}`);
     }
-    lines.push('');
+    lines.push("");
   }
 
   // Code blocks - only for key entry points
   if (context.codeBlocks.length > 0) {
-    lines.push('### Code\n');
+    lines.push("### Code\n");
     for (const block of context.codeBlocks) {
-      const nodeName = block.node?.name ?? 'Unknown';
+      const nodeName = block.node?.name ?? "Unknown";
       lines.push(`#### ${nodeName} (${block.filePath}:${block.startLine})\n`);
-      lines.push('```' + block.language);
+      lines.push("```" + block.language);
       lines.push(block.content);
-      lines.push('```\n');
+      lines.push("```\n");
     }
   }
 
-  return lines.join('\n');
+  return lines.join("\n");
 }
 
 /**
@@ -102,7 +109,10 @@ export function formatContextAsJson(context: TaskContext): string {
 /**
  * Format a subgraph as an ASCII tree structure
  */
-export function formatSubgraphTree(subgraph: Subgraph, entryPoints: Node[]): string {
+export function formatSubgraphTree(
+  subgraph: Subgraph,
+  entryPoints: Node[],
+): string {
   const lines: string[] = [];
   const printed = new Set<string>();
 
@@ -116,8 +126,8 @@ export function formatSubgraphTree(subgraph: Subgraph, entryPoints: Node[]): str
 
   // Print each entry point as a tree root
   for (const entry of entryPoints) {
-    formatNodeTree(entry, subgraph, outgoing, printed, lines, 0, '');
-    lines.push(''); // Blank line between trees
+    formatNodeTree(entry, subgraph, outgoing, printed, lines, 0, "");
+    lines.push(""); // Blank line between trees
   }
 
   // Print any remaining nodes not reached from entry points
@@ -129,16 +139,16 @@ export function formatSubgraphTree(subgraph: Subgraph, entryPoints: Node[]): str
   }
 
   if (remaining.length > 0 && remaining.length <= 10) {
-    lines.push('Other relevant symbols:');
+    lines.push("Other relevant symbols:");
     for (const node of remaining) {
-      const location = node.startLine ? `:${node.startLine}` : '';
+      const location = node.startLine ? `:${node.startLine}` : "";
       lines.push(`  ${node.kind}: ${node.name} (${node.filePath}${location})`);
     }
   } else if (remaining.length > 10) {
     lines.push(`... and ${remaining.length} more related symbols`);
   }
 
-  return lines.join('\n').trim();
+  return lines.join("\n").trim();
 }
 
 /**
@@ -159,14 +169,18 @@ function formatNodeTree(
   printed.add(node.id);
 
   // Node header
-  const location = node.startLine ? `:${node.startLine}` : '';
-  const signature = node.signature ? ` - ${truncate(node.signature, 50)}` : '';
-  lines.push(`${prefix}${node.kind}: ${node.name} (${node.filePath}${location})${signature}`);
+  const location = node.startLine ? `:${node.startLine}` : "";
+  const signature = node.signature ? ` - ${truncate(node.signature, 50)}` : "";
+  lines.push(
+    `${prefix}${node.kind}: ${node.name} (${node.filePath}${location})${signature}`,
+  );
 
   // Outgoing edges
   const edges = outgoing.get(node.id) ?? [];
   const significantEdges = edges.filter((e) =>
-    ['calls', 'extends', 'implements', 'imports', 'references'].includes(e.kind),
+    ["calls", "extends", "implements", "imports", "references"].includes(
+      e.kind,
+    ),
   );
 
   // Group by kind
@@ -178,7 +192,7 @@ function formatNodeTree(
   }
 
   // Print edges grouped by kind
-  const newPrefix = prefix + '  ';
+  const newPrefix = prefix + "  ";
   for (const [kind, kindEdges] of edgesByKind) {
     if (kindEdges.length > 3) {
       // Summarize if too many
@@ -186,16 +200,18 @@ function formatNodeTree(
         .slice(0, 3)
         .map((e) => {
           const target = subgraph.nodes.get(e.target);
-          return target?.name ?? 'unknown';
+          return target?.name ?? "unknown";
         })
-        .join(', ');
-      lines.push(`${newPrefix}├── ${kind}: ${names} and ${kindEdges.length - 3} more`);
+        .join(", ");
+      lines.push(
+        `${newPrefix}├── ${kind}: ${names} and ${kindEdges.length - 3} more`,
+      );
     } else {
       for (let i = 0; i < kindEdges.length; i++) {
         const edge = kindEdges[i];
         const target = subgraph.nodes.get(edge.target);
-        const targetName = target?.name ?? 'unknown';
-        const connector = i === kindEdges.length - 1 ? '└──' : '├──';
+        const targetName = target?.name ?? "unknown";
+        const connector = i === kindEdges.length - 1 ? "└──" : "├──";
         lines.push(`${newPrefix}${connector} ${kind} → ${targetName}`);
       }
     }
@@ -206,7 +222,15 @@ function formatNodeTree(
     for (const edge of significantEdges.slice(0, 3)) {
       const target = subgraph.nodes.get(edge.target);
       if (target && !printed.has(target.id)) {
-        formatNodeTree(target, subgraph, outgoing, printed, lines, depth + 1, newPrefix);
+        formatNodeTree(
+          target,
+          subgraph,
+          outgoing,
+          printed,
+          lines,
+          depth + 1,
+          newPrefix,
+        );
       }
     }
   }
@@ -254,7 +278,7 @@ function truncate(str: string, maxLength: number): string {
   if (str.length <= maxLength) {
     return str;
   }
-  return str.slice(0, maxLength - 3) + '...';
+  return str.slice(0, maxLength - 3) + "...";
 }
 
 /**
